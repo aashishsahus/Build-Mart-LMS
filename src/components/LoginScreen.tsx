@@ -586,29 +586,6 @@ export default function LoginScreen({
 
         </div>
 
-        {/* Sandbox Switch / Toggle */}
-        <div className="flex items-center justify-center gap-2 py-1 select-none animate-fade-in">
-          <label className="inline-flex items-center gap-2 cursor-pointer bg-slate-900/40 hover:bg-slate-900/70 py-1.5 px-3.5 rounded-full border border-slate-800/50 transition duration-150">
-            <input
-              type="checkbox"
-              checked={showSandbox}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setShowSandbox(checked);
-                if (!checked && activeTab === 'quick') {
-                  setActiveTab('credentials');
-                }
-              }}
-              className="sr-only peer"
-              id="sandbox-toggle-cb"
-            />
-            <div className="relative w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hover:text-slate-300 font-semibold transition select-none">
-              {showSandbox ? 'Sandbox Profiles: Enabled' : 'Sandbox Profiles: Disabled'}
-            </span>
-          </label>
-        </div>
-
         {/* Footer branding */}
         <div className="text-center font-mono text-[9px] text-slate-500 uppercase">
           {activeBranding?.companyTagline || 'RATHI BUILDMART PLC GENERAL LEDGER DIVISION'} SECURITY ACT © 2026
