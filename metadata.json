@@ -1,0 +1,6 @@
+{
+  "name": "Build Training Program LMS",
+  "description": "Custom Learning Management System tailored for the Build Training Program Learning Platform with role-based paths, progress tracking, and curriculum builders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

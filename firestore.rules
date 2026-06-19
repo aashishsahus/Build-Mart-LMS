@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default fallback - deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Trainee profile collection rules
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Role checklist structure definition rules
+    match /roles/{roleId} {
+      allow read, write: if true;
+    }
+
+    // Course Chapter rules
+    match /chapters/{chapterId} {
+      allow read, write: if true;
+    }
+
+    // Training checklists/tasks units rules
+    match /units/{unitId} {
+      allow read, write: if true;
+    }
+
+    // User submission check-ins & admin validation rules
+    match /progress/{progressId} {
+      allow read, write: if true;
+    }
+
+    // Assessment quizzes and MCQ questionnaires rules
+    match /questions/{questionId} {
+      allow read, write: if true;
+    }
+
+    // Site theme, departments, and templates configurations
+    match /configs/{configId} {
+      allow read, write: if true;
+    }
+  }
+}

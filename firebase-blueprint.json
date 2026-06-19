@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profiles of trainees and administrators",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "roleId": { "type": "string" },
+        "roleIds": { "type": "array" },
+        "department": { "type": "string" },
+        "focusEntity": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "roleId", "department", "focusEntity"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "Role configurations in the corporate system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "department": { "type": "string" },
+        "description": { "type": "string" },
+        "skillRequirements": { "type": "array" }
+      },
+      "required": ["id", "name", "department", "description"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "Chapter learning modules grouped by role ID",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roleId": { "type": "string" },
+        "name": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "roleId", "name", "order"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "Checklist units or learning tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "code": { "type": "string" },
+        "taskName": { "type": "string" },
+        "frequency": { "type": "string" },
+        "skillRequired": { "type": "string" },
+        "videoTitle": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "chapterId", "code", "taskName", "frequency", "skillRequired", "videoTitle", "description"]
+    },
+    "ProgressLog": {
+      "title": "ProgressLog",
+      "description": "Individual unit completion logs for a tracker",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "unitId": { "type": "string" },
+        "status": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "notes": { "type": "string" },
+        "verifiedBy": { "type": "string" },
+        "verificationDate": { "type": "string" }
+      },
+      "required": ["id", "userId", "unitId", "status", "lastUpdated"]
+    },
+    "ExamQuestion": {
+      "title": "ExamQuestion",
+      "description": "Custom conceptual assessments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "type": { "type": "string" },
+        "topic": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array" },
+        "correctAnswerIndex": { "type": "number" },
+        "correctAnswerText": { "type": "string" },
+        "explanation": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "type", "topic", "question", "explanation", "isActive"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Dynamic configuration elements like branding, departments, certificate templates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "data": { "type": "object" }
+      },
+      "required": ["id", "data"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Collection of system trainee and administrator profiles"
+    },
+    "roles/{roleId}": {
+      "schema": "Role",
+      "description": "Job description and role configuration details"
+    },
+    "chapters/{chapterId}": {
+      "schema": "Chapter",
+      "description": "Active training agenda chapters/modules"
+    },
+    "units/{unitId}": {
+      "schema": "Unit",
+      "description": "Detailed checklist items or learning milestones"
+    },
+    "progress/{progressId}": {
+      "schema": "ProgressLog",
+      "description": "User check-ins, feedback logs, and verification marks"
+    },
+    "questions/{questionId}": {
+      "schema": "ExamQuestion",
+      "description": "Exam questionnaires for dynamic learning verification"
+    },
+    "configs/{configId}": {
+      "schema": "SystemConfig",
+      "description": "System branding, certificates, and departments"
+    }
+  }
+}
