@@ -300,7 +300,25 @@ export function getRoles(): Role[] {
 export function getUsers(): User[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.USERS);
-  return data ? JSON.parse(data) : initialUsers;
+  if (!data) return initialUsers;
+  try {
+    let users = JSON.parse(data) as User[];
+    let changed = false;
+    users = users.map(u => {
+      // If the avatarUrl is a massive base64 string, reset it so that Firestore doesn't fail.
+      if (u.avatarUrl && u.avatarUrl.startsWith('data:image/') && u.avatarUrl.length > 50000) {
+        changed = true;
+        return { ...u, avatarUrl: '' }; // remove the huge avatar
+      }
+      return u;
+    });
+    if (changed) {
+      localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    }
+    return users;
+  } catch (e) {
+    return initialUsers;
+  }
 }
 
 export function getChapters(): Chapter[] {

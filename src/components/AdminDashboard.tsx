@@ -6395,8 +6395,42 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   if (typeof reader.result === 'string') {
-                                    setLogoValue(reader.result);
-                                    showToast("✓ Local logo file loaded inside input state. Click 'Save' to apply changes!", "info");
+                                    // Inline Helper to compress corporate branding logo to small Web-Eye size
+                                    const img = new Image();
+                                    img.onload = () => {
+                                      const canvas = document.createElement('canvas');
+                                      const MAX_W = 150;
+                                      const MAX_H = 150;
+                                      let w = img.width;
+                                      let h = img.height;
+                                      if (w > h) {
+                                        if (w > MAX_W) {
+                                          h *= MAX_W / w;
+                                          w = MAX_W;
+                                        }
+                                      } else {
+                                        if (h > MAX_H) {
+                                          w *= MAX_H / h;
+                                          h = MAX_H;
+                                        }
+                                      }
+                                      canvas.width = w;
+                                      canvas.height = h;
+                                      const ctx = canvas.getContext('2d');
+                                      if (ctx) {
+                                        ctx.drawImage(img, 0, 0, w, h);
+                                        const compressed = canvas.toDataURL('image/jpeg', 0.8);
+                                        setLogoValue(compressed);
+                                        showToast("✓ Local logo file loaded and optimized safely! Click 'Save' to apply changes.", "info");
+                                      } else {
+                                        setLogoValue(reader.result as string);
+                                        showToast("✓ Local logo file loaded inside input state. Click 'Save' to apply changes!", "info");
+                                      }
+                                    };
+                                    img.onerror = () => {
+                                      setLogoValue(reader.result as string);
+                                    };
+                                    img.src = reader.result;
                                   }
                                 };
                                 reader.readAsDataURL(file);

@@ -135,15 +135,54 @@ export default function Header({
     }
   };
 
+  const compressAvatarImage = (base64Str: string, callback: (compressed: string) => void) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 120;
+      const MAX_HEIGHT = 120;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        callback(dataUrl);
+      } else {
+        callback(base64Str);
+      }
+    };
+    img.onerror = () => {
+      callback(base64Str);
+    };
+    img.src = base64Str;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
-          onUpdateUserAvatar?.(realUser.id, reader.result);
-          showHeaderToast("✓ Profile photo updated successfully from local file!", "success");
-          setShowAvatarModal(false);
+          compressAvatarImage(reader.result, (compressed) => {
+            onUpdateUserAvatar?.(realUser.id, compressed);
+            showHeaderToast("✓ Profile photo updated and optimized successfully!", "success");
+            setShowAvatarModal(false);
+          });
         }
       };
       reader.readAsDataURL(file);
@@ -170,9 +209,11 @@ export default function Header({
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
-          onUpdateUserAvatar?.(realUser.id, reader.result);
-          showHeaderToast("✓ Profile photo uploaded successfully!", "success");
-          setShowAvatarModal(false);
+          compressAvatarImage(reader.result, (compressed) => {
+            onUpdateUserAvatar?.(realUser.id, compressed);
+            showHeaderToast("✓ Profile photo uploaded and optimized successfully!", "success");
+            setShowAvatarModal(false);
+          });
         }
       };
       reader.readAsDataURL(file);
