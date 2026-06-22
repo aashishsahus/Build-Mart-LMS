@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { Avatar } from './Avatar';
 import { UserWithRole } from '../data/stateManager';
 import { CompanyBranding } from '../types';
 import { 
@@ -223,40 +224,40 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-slate-950 border-b border-slate-800/80 text-slate-150 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-opacity-95">
+      <header className="bg-white border-b border-slate-200 text-slate-700 sticky top-0 z-50 shadow-xs backdrop-blur-md bg-opacity-95">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 lg:h-16 items-center">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <div className="bg-emerald-600/90 hover:bg-emerald-600 p-2 sm:p-2.5 rounded-xl shadow-lg shadow-emerald-950/20 flex items-center justify-center transition-all duration-200 shrink-0">
+              <div className="bg-emerald-600/90 hover:bg-emerald-600 p-2 sm:p-2.5 rounded-xl shadow-lg shadow-emerald-500/10 flex items-center justify-center transition-all duration-200 shrink-0">
                 {renderLogo()}
               </div>
               <div className="min-w-0">
-                <h1 className="font-display text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
+                <h1 className="font-display text-xs sm:text-base font-extrabold tracking-tight text-slate-900 flex items-center gap-1.5">
                   <span className="truncate">{branding?.companyName || 'Build Mart'}</span>
-                  <span className="text-[9px] bg-emerald-950/80 text-emerald-300 font-mono font-medium px-1.5 py-0.5 rounded border border-emerald-800/55 tracking-widest shrink-0">
+                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-medium px-1.5 py-0.5 rounded border border-emerald-200/60 tracking-widest shrink-0">
                     {branding?.companyAbbreviation || 'LMS'}
                   </span>
                 </h1>
-                <p className="hidden sm:block text-[9px] text-slate-400 font-mono tracking-widest uppercase font-semibold">
+                <p className="hidden sm:block text-[9px] text-slate-500 font-mono tracking-widest uppercase font-semibold">
                   {branding?.companyTagline || 'MEMBER OF RATHI BUILDMART PLC'}
                 </p>
               </div>
             </div>
 
             {/* Navigation/Tabs - Segment Control Design (Hidden on Mobile to avoid horizontal scrollbar) */}
-            <nav className="hidden lg:flex items-center bg-slate-900/90 border border-slate-800/80 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none max-w-[280px] xs:max-w-[340px] sm:max-w-none">
+            <nav className="hidden lg:flex items-center bg-slate-100 border border-slate-200 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none max-w-[280px] xs:max-w-[340px] sm:max-w-none">
               {isAdmin ? (
                 <button
                   onClick={() => onChangeTab('admin-reports')}
                   className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
                     currentTab.startsWith('admin-') || currentTab === 'admin'
-                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/25'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                   id="nav-admin-reports"
                 >
-                  <Building2 className="w-3.5 h-3.5 text-emerald-450" />
+                  <Building2 className="w-3.5 h-3.5" />
                   <span>Workspace Cockpit</span>
                 </button>
               ) : (
@@ -265,8 +266,8 @@ export default function Header({
                     onClick={() => onChangeTab('learning')}
                     className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center shrink-0 ${
                       currentTab === 'learning'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/25'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                     id="nav-learning-path"
                   >
@@ -276,8 +277,8 @@ export default function Header({
                     onClick={() => onChangeTab('exams')}
                     className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-205 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
                       currentTab === 'exams'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/25'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                     id="nav-exam-center"
                   >
@@ -288,24 +289,24 @@ export default function Header({
                     onClick={() => onChangeTab('testing')}
                     className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-205 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
                       currentTab === 'testing'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/25'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                     id="nav-only-testing"
                   >
-                    <Brain className="w-3.5 h-3.5 text-indigo-400" />
+                    <Brain className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Only Testing</span>
                   </button>
                   <button
                     onClick={() => onChangeTab('certificate')}
                     className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
                       currentTab === 'certificate'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/25'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                     id="nav-mastery-certificate"
                   >
-                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <Award className="w-3.5 h-3.5 text-amber-500" />
                     <span>Mastery Certificate</span>
                   </button>
                 </>
@@ -318,11 +319,11 @@ export default function Header({
               {isOriginalAdmin && (
                 <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300 ${
                   isSimulating 
-                    ? 'bg-rose-950/70 border-rose-800/80' 
-                    : 'bg-slate-900/80 border-slate-800/80'
+                    ? 'bg-rose-50 border-rose-200' 
+                    : 'bg-slate-50 border-slate-205 border-slate-200'
                 }`}>
                   <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${
-                    isSimulating ? 'text-rose-400 animate-pulse' : 'text-slate-400'
+                    isSimulating ? 'text-rose-600 animate-pulse' : 'text-slate-500'
                   }`}>
                     {isSimulating ? 'Simulated View:' : 'Simulate:'}
                   </span>
@@ -330,7 +331,7 @@ export default function Header({
                     value={currentUser.id}
                     onChange={(e) => onSwitchUser(e.target.value)}
                     className={`bg-transparent text-xs border-none font-bold focus:ring-0 cursor-pointer pr-6 py-0 font-sans outline-none ${
-                      isSimulating ? 'text-rose-200' : 'text-emerald-400'
+                      isSimulating ? 'text-rose-700' : 'text-emerald-700'
                     }`}
                   >
                     {allUsers.map(u => {
@@ -343,7 +344,7 @@ export default function Header({
                         return 'Finance Trainee';
                       };
                       return (
-                        <option key={u.id} value={u.id} className="text-slate-900 bg-white font-medium">
+                        <option key={u.id} value={u.id} className="text-slate-950 bg-white font-medium flex">
                           {u.name} ({getFriendlyRole(u.roleId)})
                         </option>
                       );
@@ -353,7 +354,7 @@ export default function Header({
                   {isSimulating && (
                     <button
                       onClick={onExitSimulation}
-                      className="ml-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-all duration-150 flex items-center gap-1.5 shrink-0"
+                      className="ml-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-all duration-150 flex items-center gap-1.5 shrink-0 cursor-pointer"
                       title="Return to your authentic Admin/Director profile"
                     >
                       <LogOut className="w-3 h-3" />
@@ -367,17 +368,16 @@ export default function Header({
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2.5 text-left hover:opacity-90 focus:outline-none transition group p-1 rounded-xl hover:bg-slate-900/40"
+                  className="flex items-center gap-2.5 text-left hover:opacity-90 focus:outline-none transition group p-1 rounded-xl hover:bg-slate-105 hover:bg-slate-100"
                 >
-                  <img
-                    src={realUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-                    alt={realUser.name}
-                    className="w-9 h-9 rounded-full object-cover border-2 border-emerald-550/45 group-hover:border-emerald-500 shadow-md transition-colors"
-                    referrerPolicy="no-referrer"
+                  <Avatar
+                    src={realUser.avatarUrl}
+                    name={realUser.name}
+                    className="w-9 h-9 border border-emerald-500/30 group-hover:border-emerald-600 shadow-sm transition"
                   />
                   <div className="hidden md:block">
-                    <p className="text-xs font-semibold text-slate-100 group-hover:text-emerald-400 transition-colors leading-tight">{realUser.name}</p>
-                    <p className="text-[9px] text-emerald-400 font-mono tracking-tight font-semibold uppercase mt-0.5">
+                    <p className="text-xs font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors leading-tight">{realUser.name}</p>
+                    <p className="text-[9px] text-emerald-700 font-mono tracking-tight font-semibold uppercase mt-0.5">
                       {realUser.role?.name || 'No Role'}
                     </p>
                   </div>
@@ -386,12 +386,12 @@ export default function Header({
                 {dropdownOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)}></div>
-                    <div className="absolute right-0 mt-3 w-64 bg-slate-900 rounded-xl shadow-2xl border border-slate-800 p-2 z-20 text-slate-200 text-xs text-left animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="p-3 border-b border-slate-800 font-medium">
-                        <p className="font-bold text-slate-100 text-sm leading-tight">{realUser.name}</p>
-                        <p className="text-slate-400 text-[10px] font-mono mt-0.5">{realUser.email}</p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-2 font-mono bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-20 text-slate-800 text-xs text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="p-3 border-b border-slate-100 font-medium">
+                        <p className="font-bold text-slate-900 text-sm leading-tight">{realUser.name}</p>
+                        <p className="text-slate-500 text-[10px] font-mono mt-0.5">{realUser.email}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mt-2 font-mono bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/80">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                           <span className="truncate">{realUser.focusEntity}</span>
                         </div>
                       </div>
@@ -400,10 +400,10 @@ export default function Header({
                       <div className="py-1">
                         {isOriginalAdmin && (
                           <div className={`lg:hidden p-2.5 rounded-lg m-1 mb-2 border ${
-                            isSimulating ? 'bg-rose-950/40 border-rose-900/60' : 'bg-slate-950 border-slate-800'
+                            isSimulating ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'
                           }`}>
                             <span className={`text-[10px] font-mono uppercase tracking-wider block mb-1.5 font-bold ${
-                              isSimulating ? 'text-rose-400' : 'text-slate-400'
+                              isSimulating ? 'text-rose-700' : 'text-slate-500'
                             }`}>
                               {isSimulating ? 'Simulate active:' : 'Simulate User:'}
                             </span>
@@ -413,7 +413,7 @@ export default function Header({
                                 onSwitchUser(e.target.value);
                                 setDropdownOpen(false);
                               }}
-                              className="w-full bg-slate-900 text-xs text-emerald-400 font-bold border border-slate-800 rounded-lg p-1.5 outline-none mb-2"
+                              className="w-full bg-white text-xs text-emerald-700 font-bold border border-slate-200 rounded-lg p-1.5 outline-none mb-2"
                             >
                               {allUsers.map(u => (
                                 <option key={u.id} value={u.id} className="text-slate-950 bg-white">
@@ -444,9 +444,9 @@ export default function Header({
                             setShowAvatarModal(true);
                             setDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-emerald-300 text-left transition font-semibold"
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded-lg text-slate-700 hover:text-emerald-700 text-left transition font-semibold"
                         >
-                          <Camera className="w-4 h-4 text-emerald-500" />
+                          <Camera className="w-4 h-4 text-emerald-600" />
                           <span>Change Profile Photo 📷</span>
                         </button>
 
@@ -456,9 +456,9 @@ export default function Header({
                               onChangeTab(currentTab === 'learning' ? 'admin' : 'learning');
                               setDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg text-slate-305 text-left transition font-semibold"
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded-lg text-slate-700 text-left transition font-semibold"
                           >
-                            <Shield className="w-4 h-4 text-emerald-450" />
+                            <Shield className="w-4 h-4 text-emerald-600" />
                             <span>Toggle: {currentTab === 'learning' ? 'Admin Portal' : 'My Learning'}</span>
                           </button>
                         )}
@@ -468,20 +468,20 @@ export default function Header({
                             setShowResetConfirmModal(true);
                             setDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-950/20 rounded-lg text-rose-300 text-left transition"
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 rounded-lg text-rose-600 text-left transition"
                         >
-                          <RefreshCw className="w-4 h-4 text-rose-400" />
+                          <RefreshCw className="w-4 h-4 text-rose-500" />
                           <span>Reset Data to Default</span>
                         </button>
 
-                        <div className="border-t border-slate-800 my-1"></div>
+                        <div className="border-t border-slate-100 my-1"></div>
 
                         <button
                           onClick={() => {
                             onLogout();
                             setDropdownOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-950/40 hover:text-white text-slate-400 rounded-lg text-left transition font-semibold"
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-50 hover:text-rose-700 text-slate-500 rounded-lg text-left transition font-semibold"
                         >
                           <LogOut className="w-4 h-4 text-rose-500" />
                           <span>Log Out</span>
@@ -523,11 +523,10 @@ export default function Header({
               
               {/* CURRENT PROFILE PIC PREVIEW */}
               <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <img
-                  src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-                  alt="Current profile preview"
-                  className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-md bg-white select-none"
-                  referrerPolicy="no-referrer"
+                <Avatar
+                  src={currentUser.avatarUrl}
+                  name={currentUser.name}
+                  className="w-16 h-16 border-4 border-white shadow-md bg-white select-none"
                 />
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">Current Live Photo</h4>

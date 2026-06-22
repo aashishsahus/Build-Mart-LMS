@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { User, Role, CompanyBranding } from '../types';
+import { Avatar } from './Avatar';
 import { getCompanyBranding } from '../data/stateManager';
 import { Shield, BookOpen, UserPlus, Building, Briefcase, Mail, Key, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,6 +31,12 @@ export default function LoginScreen({
   // Tabs: 'credentials' (Google & User/PW), 'quick' (Sandbox list), 'register' (New Enrollment)
   const [activeTab, setActiveTab] = useState<'credentials' | 'quick' | 'register'>('credentials');
   const [showSandbox, setShowSandbox] = useState(false);
+  
+  // Forgot Password States
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
+  const [forgotError, setForgotError] = useState('');
   
   // Custom Registration Form States
   const [newUserName, setNewUserName] = useState('');
@@ -168,64 +175,84 @@ export default function LoginScreen({
     setActiveTab('credentials');
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      
-      {/* Decorative ambient gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-950/20 blur-[130px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-slate-900/40 blur-[130px] pointer-events-none"></div>
+  // Forgot Password submission handler
+  const handleForgotPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotMsg('');
 
-      <div className="max-w-md w-full space-y-6 z-10">
+    const formattedQuery = forgotEmail.trim().toLowerCase();
+    if (!formattedQuery) {
+      setForgotError('Please enter your Corporate User ID or Email Address.');
+      return;
+    }
+
+    const matchedUser = users.find(
+      u => u.email.toLowerCase() === formattedQuery || u.id.toLowerCase() === formattedQuery
+    );
+
+    if (matchedUser) {
+      if (matchedUser.status === 'Deactivated' || matchedUser.status === 'Left') {
+        setForgotError(`Access Denied: The account for "${matchedUser.name}" has been disabled or marked inactive. Cannot retrieve credentials.`);
+        return;
+      }
+      const userPass = matchedUser.password || 'rathi123';
+      setForgotMsg(`Access Recovered! The system-registered passkey for "${matchedUser.name}" is: "${userPass}". Please use this to sign in.`);
+      setCredEmail(matchedUser.email);
+    } else {
+      setForgotError('No registered corporate account found matching that email/ID. Please verify or use "New Enrollment" to register.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fafbfc] flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      
+      {/* Premium Stylish Background Grid & Radial Light Accents */}
+      <div className="absolute inset-x-0 top-0 h-[800px] bg-gradient-to-b from-blue-50/30 via-emerald-50/15 to-transparent pointer-events-none z-0" />
+      <div className="absolute top-[10%] left-[-15%] w-[600px] h-[600px] rounded-full bg-blue-300/[0.12] blur-[130px] pointer-events-none z-0" />
+      <div className="absolute bottom-[10%] right-[-15%] w-[600px] h-[600px] rounded-full bg-emerald-300/[0.08] blur-[130px] pointer-events-none z-0" />
+      
+      {/* Modern micro-grid mesh layout pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_20%,#000_75%,transparent_100%)] pointer-events-none opacity-[0.4] z-0" />
+
+      <div className="max-w-md w-full space-y-6 z-10 relative">
         
         {/* Branding header */}
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/15">
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/15">
             <BookOpen className="h-5 w-5 text-white animate-pulse" />
           </div>
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-white font-sans">
+          <h2 className="mt-4 text-2xl font-black tracking-tight text-slate-900 font-display">
             {activeBranding?.companyName || 'Build Mart'}
           </h2>
-          <p className="mt-1.5 text-xs text-slate-400 font-medium">
+          <p className="mt-1.5 text-xs text-slate-550 text-slate-500 font-medium font-sans">
             {activeBranding?.companyTagline || 'Corporate Learning Management System'}
           </p>
-          <div className="mt-3.5 inline-flex items-center gap-1.5 bg-slate-900/70 border border-slate-800/80 rounded-full px-3.5 py-1">
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-[10px] font-mono text-emerald-450 text-emerald-400 font-semibold tracking-wider uppercase">Active Security Matrix</span>
+          <div className="mt-3.5 inline-flex items-center gap-1.5 bg-white border border-slate-200/80 rounded-full px-3.5 py-1 shadow-xs">
+            <Shield className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-[10px] font-mono text-emerald-700 font-bold tracking-wider uppercase">Active Security Matrix</span>
           </div>
         </div>
 
         {/* Tab Selection */}
-        <div className="bg-slate-900/90 p-1 rounded-xl border border-slate-800/80 flex shadow-inner gap-1">
+        <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex shadow-inner gap-1">
           <button
             onClick={() => setActiveTab('credentials')}
             className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
               activeTab === 'credentials'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
             id="tab-credentials"
           >
             Corporate ID
           </button>
-          {showSandbox && (
-            <button
-              onClick={() => setActiveTab('quick')}
-              className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
-                activeTab === 'quick'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              id="tab-quick"
-            >
-              Sandbox Profiles
-            </button>
-          )}
           <button
             onClick={() => setActiveTab('register')}
             className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
               activeTab === 'register'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
             id="tab-register"
           >
@@ -234,17 +261,17 @@ export default function LoginScreen({
         </div>
 
         {/* Card Body */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-xl backdrop-blur-md p-6 sm:p-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8">
           {credError && (
-            <div className="p-3 bg-red-950/55 rounded-xl border border-red-800/50 flex gap-2 text-xs text-red-200 mb-4 animate-in fade-in zoom-in-95">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-red-50 rounded-xl border border-red-200 flex gap-2 text-xs text-red-800 mb-4 animate-in fade-in zoom-in-95">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
               <span>{credError}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 bg-emerald-950/50 rounded-xl border border-emerald-800/40 flex gap-2 text-xs text-emerald-200 mb-4 animate-in fade-in zoom-in-95">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex gap-2 text-xs text-emerald-800 mb-4 animate-in fade-in zoom-in-95">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -253,8 +280,8 @@ export default function LoginScreen({
           {activeTab === 'credentials' && (
             <div className="space-y-5">
               <div className="text-center pb-2">
-                <h3 className="text-sm font-bold text-slate-100">Authenticate Organization Identity</h3>
-                <p className="text-[11px] text-slate-400 mt-1">Please sign in with Google or enter your password credentials</p>
+                <h3 className="text-sm font-bold text-slate-800 font-display">Authenticate Organization Identity</h3>
+                <p className="text-[11px] text-slate-500 mt-1">Please sign in with Google or enter your password credentials</p>
               </div>
 
               {/* GOOGLE SIGN IN BUTTON */}
@@ -268,7 +295,7 @@ export default function LoginScreen({
                     setGoogleTab('choose');
                     setShowGoogleModal(true);
                   }}
-                  className="w-full h-11 bg-white hover:bg-slate-50 text-slate-900 font-bold px-4 rounded-xl shadow-md transition-all duration-150 text-xs flex items-center justify-center border border-slate-200 gap-2.5 active:scale-[0.98] cursor-pointer"
+                  className="w-full h-11 bg-white hover:bg-slate-50 text-slate-800 font-bold px-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-150 text-xs flex items-center justify-center border border-slate-200 gap-2.5 active:scale-[0.98] cursor-pointer"
                   id="btn-google-login"
                 >
                   <svg className="w-4.5 h-4.5 flex-shrink-0" viewBox="0 0 24 24">
@@ -283,17 +310,17 @@ export default function LoginScreen({
 
               {/* Decorative separator */}
               <div className="flex items-center my-4">
-                <div className="flex-1 border-t border-slate-800/60"></div>
-                <span className="px-3 text-[10px] text-slate-500 font-mono tracking-widest uppercase font-medium">Or Corporate Credentials</span>
-                <div className="flex-1 border-t border-slate-800/60"></div>
+                <div className="flex-1 border-t border-slate-200"></div>
+                <span className="px-3 text-[10px] text-slate-400 font-mono tracking-widest uppercase font-medium">Or Corporate Credentials</span>
+                <div className="flex-1 border-t border-slate-200"></div>
               </div>
 
               {/* USER ID / PASSWORD FORM */}
               <form onSubmit={handleCredentialsSubmit} className="space-y-4">
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-emerald-500" />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-emerald-600" />
                     Corporate User ID or Email
                   </label>
                   <input
@@ -303,25 +330,39 @@ export default function LoginScreen({
                     onChange={(e) => { setCredEmail(e.target.value); setCredError(''); }}
                     placeholder="e.g. misrpr@rathibuildmart.com"
                     id="cred-email"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl py-2 px-3 text-xs text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   />
                   <div className="mt-2 flex justify-between items-center text-[10px]">
                     <button
                       type="button"
                       onClick={() => setCredEmail('misrpr@rathibuildmart.com')}
-                      className="text-emerald-400 hover:text-emerald-300 font-mono font-bold cursor-pointer"
+                      className="text-emerald-600 hover:text-emerald-800 font-mono font-bold cursor-pointer"
                     >
                       💡 Use Owner ID
                     </button>
-                    <span className="text-slate-500 font-sans">Password verifies automatically</span>
+                    <span className="text-slate-400 font-sans">Password verifies automatically</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                    Security Passkey
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                      Security Passkey
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(credEmail);
+                        setForgotMsg('');
+                        setForgotError('');
+                        setShowForgotModal(true);
+                      }}
+                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer transition hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -330,12 +371,12 @@ export default function LoginScreen({
                       onChange={(e) => { setCredPassword(e.target.value); setCredError(''); }}
                       placeholder="••••••••"
                       id="cred-password"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl py-2 px-3 pr-10 text-xs text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl py-2 px-3 pr-10 text-xs text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-305 hover:text-slate-300 transition cursor-pointer"
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -359,7 +400,7 @@ export default function LoginScreen({
           {activeTab === 'quick' && (
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-slate-400 mb-3 font-semibold uppercase tracking-wider">
+                <p className="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">
                   Select a pre-seeded account:
                 </p>
                 <div className="space-y-3">
@@ -398,29 +439,28 @@ export default function LoginScreen({
                           }
                           onLogin(u.id);
                         }}
-                        className={`w-full text-left flex items-center justify-between p-3 rounded-xl bg-slate-900/90 border border-slate-800/80 transition-all duration-200 group relative text-xs ${
+                        className={`w-full text-left flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 transition-all duration-205 group relative text-xs ${
                           u.status === 'Deactivated' || u.status === 'Left'
-                            ? 'opacity-60 border-slate-900 hover:border-red-500/20 hover:bg-slate-950/60'
-                            : 'hover:border-emerald-500/50 hover:bg-slate-800/80'
+                            ? 'opacity-60 border-slate-200 bg-slate-100 hover:border-red-500/20'
+                            : 'hover:border-emerald-500/50 hover:bg-emerald-50/50'
                         }`}
                         id={`btn-login-${u.id}`}
                       >
                         <div className="flex items-center gap-3">
-                          <img
-                            src={u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80'}
-                            alt={u.name}
-                            className={`w-9 h-9 rounded-full object-cover border border-slate-700 ${
+                          <Avatar
+                            src={u.avatarUrl}
+                            name={u.name}
+                            className={`w-9 h-9 border border-slate-200 ${
                               u.status === 'Deactivated' || u.status === 'Left' ? 'grayscale' : 'group-hover:border-emerald-500'
                             }`}
-                            referrerPolicy="no-referrer"
                           />
                           <div>
-                            <p className="font-bold text-slate-100 group-hover:text-emerald-300 transition flex items-center gap-1.5">
+                            <p className="font-bold text-slate-800 group-hover:text-emerald-700 transition flex items-center gap-1.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`}></span>
                               {u.name}
-                              <span className="text-[9px] font-medium text-slate-400 font-mono italic">{statusLabel}</span>
+                              <span className="text-[9px] font-medium text-slate-500 font-mono italic">{statusLabel}</span>
                             </p>
-                            <p className="text-[10px] text-slate-400 font-mono">
+                            <p className="text-[10px] text-slate-500 font-mono">
                               {r?.name || 'Unassigned Role'}
                             </p>
                           </div>
@@ -429,10 +469,10 @@ export default function LoginScreen({
                         <div className="text-right">
                           <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] uppercase font-mono tracking-wide ${
                             isDirector 
-                              ? 'bg-amber-950/50 text-amber-300 border border-amber-800/40 font-bold'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-200 font-bold'
                               : isAdmin 
-                                ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' 
-                                : 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-200' 
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           }`}>
                             {isDirector ? 'Director' : isAdmin ? 'Admin' : 'Employee'}
                           </span>
@@ -445,7 +485,7 @@ export default function LoginScreen({
                   })}
                 </div>
               </div>
-              <div className="bg-slate-900 p-3 rounded-lg border border-slate-850 text-slate-400 text-[11px] text-center font-mono">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-150 text-slate-500 text-[11px] text-center font-mono">
                 💡 Sandbox selection bypasses credentials passwords for training managers to audit paths cleanly.
               </div>
             </div>
@@ -455,19 +495,19 @@ export default function LoginScreen({
           {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div className="text-center pb-2">
-                <h3 className="text-sm font-bold text-slate-200">New Employee Enrollment</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Register a custom corporate profile in {activeBranding?.companyName || 'Rathi'} {activeBranding?.companyAbbreviation || 'LMS'}</p>
+                <h3 className="text-sm font-bold text-slate-800 font-display">New Employee Enrollment</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Register a custom corporate profile in {activeBranding?.companyName || 'Rathi'} {activeBranding?.companyAbbreviation || 'LMS'}</p>
               </div>
 
               {regError && (
-                <div id="reg-error-msg" className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-xs font-semibold text-center animate-in fade-in duration-200">
+                <div id="reg-error-msg" className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-850 text-rose-800 text-xs font-semibold text-center animate-in fade-in duration-250">
                   ⚠️ {regError}
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
                   Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -477,13 +517,13 @@ export default function LoginScreen({
                   onChange={(e) => setNewUserName(e.target.value)}
                   placeholder="e.g. Anand Rathi"
                   id="reg-name"
-                  className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                  className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Mail className="w-3.5 h-3.5 text-emerald-400" />
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 text-emerald-600" />
                   Email Address <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -493,21 +533,21 @@ export default function LoginScreen({
                   onChange={(e) => setNewUserEmail(e.target.value)}
                   placeholder="e.g. anand@rathibuildmart.com"
                   id="reg-email"
-                  className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                  className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
                     Job Role
                   </label>
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value)}
                     id="reg-role"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   >
                     {roles.map(r => (
                       <option key={r.id} value={r.id}>{r.name}</option>
@@ -516,8 +556,8 @@ export default function LoginScreen({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Building className="w-3.5 h-3.5 text-emerald-400" />
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Building className="w-3.5 h-3.5 text-emerald-600" />
                     Department
                   </label>
                   {departments && departments.length > 0 ? (
@@ -525,7 +565,7 @@ export default function LoginScreen({
                       value={newUserDept}
                       onChange={(e) => setNewUserDept(e.target.value)}
                       id="reg-dept"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                     >
                       {departments.map(dept => (
                         <option key={dept} value={dept}>{dept}</option>
@@ -538,14 +578,14 @@ export default function LoginScreen({
                       onChange={(e) => setNewUserDept(e.target.value)}
                       placeholder="e.g. Internal Audit"
                       id="reg-dept"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
                   Assigned Entity / Branch
                 </label>
                 <input
@@ -554,13 +594,13 @@ export default function LoginScreen({
                   onChange={(e) => setNewUserFocus(e.target.value)}
                   placeholder="e.g. Mumbai Logistics Matrix"
                   id="reg-focus"
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-emerald-400" />
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-emerald-600" />
                   Security Password / Passkey <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -570,7 +610,7 @@ export default function LoginScreen({
                   onChange={(e) => setNewUserPassword(e.target.value)}
                   placeholder="Default password is rathi123"
                   id="reg-password"
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none transition font-sans"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition font-sans"
                 />
               </div>
 
@@ -587,7 +627,7 @@ export default function LoginScreen({
         </div>
 
         {/* Footer branding */}
-        <div className="text-center font-mono text-[9px] text-slate-500 uppercase">
+        <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider">
           {activeBranding?.companyTagline || 'RATHI BUILDMART PLC GENERAL LEDGER DIVISION'} SECURITY ACT © 2026
         </div>
 
@@ -596,7 +636,7 @@ export default function LoginScreen({
       {/* SECURE HIGH-FIDELITY SIMULATED GOOGLE OAUTH POPUP MODAL */}
       <AnimatePresence>
         {showGoogleModal && (
-          <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -614,7 +654,7 @@ export default function LoginScreen({
                   </svg>
                 </div>
                 <h3 className="text-base font-bold text-slate-900 font-sans">Sign in with Google</h3>
-                <p className="text-xs text-slate-500 mt-1">to continue to <strong className="text-emerald-700">{activeBranding?.companyName || 'Rathi Accounts'} {activeBranding?.companyAbbreviation || 'LMS'}</strong></p>
+                <p className="text-xs text-slate-500 mt-1">to continue to <strong className="text-emerald-750 text-emerald-700">{activeBranding?.companyName || 'Rathi Accounts'} {activeBranding?.companyAbbreviation || 'LMS'}</strong></p>
                 
                 {/* Simulated Google Tab Bar */}
                 <div className="flex mt-4 border-t border-slate-100 pt-3 text-xs gap-4 justify-center">
@@ -648,11 +688,10 @@ export default function LoginScreen({
                         onClick={() => handleGoogleAccountSelect(u)}
                         className="w-full text-left p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all flex items-center gap-3"
                       >
-                        <img
-                          src={u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80'}
-                          alt={u.name}
-                          className="w-8 h-8 rounded-full border border-slate-200 object-cover"
-                          referrerPolicy="no-referrer"
+                        <Avatar
+                          src={u.avatarUrl}
+                          name={u.name}
+                          className="w-8 h-8 border border-slate-200"
                         />
                         <div className="flex-1 truncate">
                           <p className="text-xs font-bold text-slate-900 leading-tight">{u.name}</p>
@@ -746,7 +785,7 @@ export default function LoginScreen({
                         value={googleCustomFocus}
                         onChange={(e) => setGoogleCustomFocus(e.target.value)}
                         placeholder="e.g. Rathi Buildmart HQ"
-                        className="w-full text-xs p-2 border border-slate-300 rounded' focus:border-blue-500 outline-none"
+                        className="w-full text-xs p-2 border border-slate-300 rounded focus:border-blue-500 outline-none"
                       />
                     </div>
 
@@ -769,6 +808,74 @@ export default function LoginScreen({
                   className="text-slate-800 hover:text-black font-semibold font-sans uppercase"
                 >
                   Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showForgotModal && (
+          <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden text-slate-800 border border-slate-200"
+            >
+              <div className="px-6 pt-7 pb-4 text-center border-b border-slate-100">
+                <div className="mx-auto h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+                  <Lock className="h-5 w-5 text-amber-600" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 font-sans">Corporate Passkey Recovery</h3>
+                <p className="text-xs text-slate-500 mt-1">Retrieve your accounting dashboard access password</p>
+              </div>
+
+              <div className="p-6">
+                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                  {forgotError && (
+                    <div className="p-2.5 bg-rose-50 text-rose-700 text-[11px] font-bold rounded-lg border border-rose-100 text-center">
+                      ⚠️ {forgotError}
+                    </div>
+                  )}
+
+                  {forgotMsg && (
+                    <div className="p-3 bg-emerald-50 text-emerald-800 text-[11px] font-medium rounded-lg border border-emerald-100 leading-normal">
+                      ✅ {forgotMsg}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Enter Employee Corporate Email / User ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => {
+                        setForgotEmail(e.target.value);
+                        setForgotError('');
+                        setForgotMsg('');
+                      }}
+                      placeholder="e.g. misrpr@rathibuildmart.com"
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:bg-white outline-none transition"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    Retrieve Security Password
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-slate-50 px-6 py-4 flex items-center justify-end text-[11px] text-slate-500 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className="text-slate-800 hover:text-black font-semibold font-sans uppercase cursor-pointer"
+                >
+                  Close
                 </button>
               </div>
             </motion.div>

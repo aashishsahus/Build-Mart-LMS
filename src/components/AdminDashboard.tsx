@@ -4,7 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
+import { Avatar } from './Avatar';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig } from '../types';
 import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress } from '../data/stateManager';
 import { 
@@ -425,6 +427,8 @@ export default function AdminDashboard({
   const [bulkDelimiterType, setBulkDelimiterType] = useState<'auto' | 'tsv' | 'csv'>('auto');
   const [bulkFileName, setBulkFileName] = useState<string>('');
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
+  const [currSearchQuery, setCurrSearchQuery] = useState('');
+  const [currSortMode, setCurrSortMode] = useState<'standard' | 'code-asc' | 'code-desc' | 'title-asc' | 'level-asc'>('standard');
 
   // Interactive Analytics Reports & Scorecard States
   const [scorecardSearch, setScorecardSearch] = useState('');
@@ -432,6 +436,7 @@ export default function AdminDashboard({
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [scorecardRoleFilter, setScorecardRoleFilter] = useState('all');
   const [inspectedUser, setInspectedUser] = useState<User | null>(null);
+  const [selectedRoleDetailUser, setSelectedRoleDetailUser] = useState<User | null>(null);
   const [showPendingAuditsModal, setShowPendingAuditsModal] = useState(false);
 
   const [rec_filterRole, setRecFilterRole] = useState<string>('all');
@@ -649,6 +654,7 @@ export default function AdminDashboard({
   const [isOpenRoleFilter, setIsOpenRoleFilter] = useState(false);
   const [newChapterName, setNewChapterName] = useState('');
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   
   // Unit Form State
   const [unitChapterId, setUnitChapterId] = useState('');
@@ -1031,6 +1037,8 @@ export default function AdminDashboard({
     setUnitVideoTitle('');
     setUnitVideoUrl('');
     setUnitDesc('');
+    setUnitChapterId('');
+    setIsUnitModalOpen(false);
   };
 
   const startEditUnit = (unit: Unit) => {
@@ -1043,6 +1051,7 @@ export default function AdminDashboard({
     setUnitVideoTitle(unit.videoTitle);
     setUnitVideoUrl(unit.videoUrl);
     setUnitDesc(unit.description);
+    setIsUnitModalOpen(true);
   };
 
   // Delete Unit
@@ -1051,6 +1060,85 @@ export default function AdminDashboard({
     onUpdateProgress(progress.filter(p => p.unitId !== unitId));
     showToast('✓ Checklist learning unit deleted successfully.', 'success');
     setConfirmDeleteUnitId(null);
+  };
+
+  // Reorder Units inside a chapter
+  const handleMoveUnit = (unitId: string, direction: 'up' | 'down') => {
+    const targetUnit = units.find(u => u.id === unitId);
+    if (!targetUnit) return;
+    
+    const chapterId = targetUnit.chapterId;
+    const chapterUnits = units.filter(u => u.chapterId === chapterId);
+    const indexInChapter = chapterUnits.findIndex(u => u.id === unitId);
+    
+    if (direction === 'up' && indexInChapter > 0) {
+      const prevUnit = chapterUnits[indexInChapter - 1];
+      const newUnits = [...units];
+      const idx1 = newUnits.findIndex(u => u.id === unitId);
+      const idx2 = newUnits.findIndex(u => u.id === prevUnit.id);
+      if (idx1 !== -1 && idx2 !== -1) {
+        const temp = newUnits[idx1];
+        newUnits[idx1] = newUnits[idx2];
+        newUnits[idx2] = temp;
+        onUpdateUnits(newUnits);
+        showToast(`✓ Order updated: Moved [${targetUnit.code}] up`, 'success');
+      }
+    } else if (direction === 'down' && indexInChapter < chapterUnits.length - 1) {
+      const nextUnit = chapterUnits[indexInChapter + 1];
+      const newUnits = [...units];
+      const idx1 = newUnits.findIndex(u => u.id === unitId);
+      const idx2 = newUnits.findIndex(u => u.id === nextUnit.id);
+      if (idx1 !== -1 && idx2 !== -1) {
+        const temp = newUnits[idx1];
+        newUnits[idx1] = newUnits[idx2];
+        newUnits[idx2] = temp;
+        onUpdateUnits(newUnits);
+        showToast(`✓ Order updated: Moved [${targetUnit.code}] down`, 'success');
+      }
+    }
+  };
+
+  // Reorder Chapters of a role/profile
+  const handleMoveChapter = (chapterId: string, direction: 'up' | 'down') => {
+    const targetChap = chapters.find(c => c.id === chapterId);
+    if (!targetChap) return;
+    
+    const roleChaps = chapters.filter(c => c.roleId === targetChap.roleId);
+    const indexInRole = roleChaps.findIndex(c => c.id === chapterId);
+    
+    if (direction === 'up' && indexInRole > 0) {
+      const prevChap = roleChaps[indexInRole - 1];
+      const newChapters = [...chapters];
+      const idx1 = newChapters.findIndex(c => c.id === chapterId);
+      const idx2 = newChapters.findIndex(c => c.id === prevChap.id);
+      if (idx1 !== -1 && idx2 !== -1) {
+        const temp = newChapters[idx1];
+        newChapters[idx1] = newChapters[idx2];
+        newChapters[idx2] = temp;
+        
+        newChapters.forEach((c, idx) => {
+          c.order = idx + 1;
+        });
+        onUpdateChapters(newChapters);
+        showToast(`✓ Chapter "${targetChap.name}" moved up!`, 'success');
+      }
+    } else if (direction === 'down' && indexInRole < roleChaps.length - 1) {
+      const nextChap = roleChaps[indexInRole + 1];
+      const newChapters = [...chapters];
+      const idx1 = newChapters.findIndex(c => c.id === chapterId);
+      const idx2 = newChapters.findIndex(c => c.id === nextChap.id);
+      if (idx1 !== -1 && idx2 !== -1) {
+        const temp = newChapters[idx1];
+        newChapters[idx1] = newChapters[idx2];
+        newChapters[idx2] = temp;
+        
+        newChapters.forEach((c, idx) => {
+          c.order = idx + 1;
+        });
+        onUpdateChapters(newChapters);
+        showToast(`✓ Chapter "${targetChap.name}" moved down!`, 'success');
+      }
+    }
   };
 
   // Helper helper to split line supporting quoted fields
@@ -1647,73 +1735,70 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
       
       {/* Redesigned Workspace Cockpit Welcomer */}
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl mb-8 border border-white/[0.08]">
+      <div className="bg-gradient-to-br from-white via-slate-50 to-emerald-50/20 rounded-3xl p-6 sm:p-8 text-slate-900 relative overflow-hidden shadow-xs mb-8 border border-slate-200">
         {/* Animated grid overlay and aesthetic soft lighting */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#ffffff08,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#0f172a04,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
         
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 relative z-10">
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <div className="relative group shrink-0">
-              <div className="absolute -inset-1.5 bg-gradient-to-r from-emerald-500 via-indigo-500 to-teal-500 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-300"></div>
-              <div className="w-20 h-20 rounded-full bg-slate-900 border-2 border-slate-700/50 overflow-hidden relative shadow-xl">
-                <img 
-                  src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120'} 
-                  alt={currentUser.name} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-30 group-hover:opacity-55 transition duration-300"></div>
+              <Avatar
+                src={currentUser.avatarUrl}
+                name={currentUser.name}
+                className="w-20 h-20 border-2 border-emerald-500/30 overflow-hidden relative shadow-sm cursor-pointer hover:scale-105 transition duration-300"
+              />
             </div>
             
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-mono tracking-widest text-[#00f2fe] bg-[#00f2fe]/10 px-3 py-1 rounded-full border border-[#00f2fe]/30 uppercase font-black">
+                <span className="text-[10px] font-mono tracking-widest text-emerald-800 bg-emerald-50/70 px-3 py-1 rounded-full border border-emerald-200/60 uppercase font-black">
                   {isDirectorOrOwner ? 'Executive Dashboard Portal' : 'Enterprise Admin Panel'}
                 </span>
               </div>
               
-              <h2 className="font-display text-2xl sm:text-4xl font-extrabold text-[#ffffff] leading-none tracking-tight">
+              <h2 className="font-display text-2xl sm:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
                 Welcome back, {currentUser.name}
               </h2>
               
-              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs text-slate-400 font-sans">
-                <span className="font-bold text-slate-200">
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs text-slate-500 font-sans">
+                <span className="font-extrabold text-slate-700">
                   {isDirectorOrOwner ? 'Corporate Director / Executive View' : 'Senior Quality Checker & Audit Admin'}
                 </span>
-                <span className="text-slate-700">•</span>
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Building className="w-3.5 h-3.5 text-[#00f2fe]" />
+                <span className="text-slate-300">•</span>
+                <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                  <Building className="w-3.5 h-3.5 text-emerald-600" />
                   {currentUser.department || 'Corporate Compliance'}
                 </span>
-                <span className="text-slate-700">•</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Checked Ledger Scope
+                <span className="text-slate-300">•</span>
+                <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Checked Ledger Scope
                 </span>
               </div>
             </div>
           </div>
-          {/* Quick Stats Panel inside Banner - Cyber Bento Layout */}
-          <div className="bg-slate-950/85 p-4 sm:p-5 rounded-2xl border border-white/[0.08] min-w-[300px] shadow-2xl backdrop-blur-md space-y-3 shrink-0">
-            <div className="flex justify-between items-center text-[10px] font-mono font-black text-slate-400 tracking-wider">
+          {/* Quick Stats Panel inside Banner - Modern Bento Layout */}
+          <div className="bg-white/80 p-4 sm:p-5 rounded-2xl border border-slate-200 min-w-[300px] shadow-xs space-y-3 shrink-0">
+            <div className="flex justify-between items-center text-[10px] font-mono font-black text-slate-500 tracking-wider">
               <span>ADMIN HOME STATUS</span>
-              <span className="bg-[#00f2fe]/10 text-[#00f2fe] border border-[#00f2fe]/20 px-2.5 py-0.5 rounded flex items-center gap-1.5 font-bold uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00f2fe] animate-ping"></span>
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2.5 py-0.5 rounded flex items-center gap-1.5 font-bold uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 LIVE ACTIVE
               </span>
             </div>
-            <div className="border-t border-white/[0.05]"></div>
+            <div className="border-t border-slate-100"></div>
             <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-slate-900/80 p-2.5 rounded-xl border border-white/[0.04]">
-                <span className="text-[9px] text-slate-400 block uppercase font-mono tracking-wider font-bold">Designated Units</span>
-                <span className="text-lg font-black font-mono text-[#00f2fe] mt-0.5 block">
+              <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-100">
+                <span className="text-[9px] text-slate-500 block uppercase font-mono tracking-wider font-bold">Designated Units</span>
+                <span className="text-lg font-black font-mono text-slate-800 mt-0.5 block">
                   {units.length}
                 </span>
               </div>
-              <div className="bg-slate-900/80 p-2.5 rounded-xl border border-white/[0.04]">
-                <span className="text-[9px] text-slate-400 block uppercase font-mono tracking-wider font-bold">Enrolled Trainees</span>
-                <span className="text-lg font-black font-mono text-emerald-400 mt-0.5 block">
+              <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-100">
+                <span className="text-[9px] text-slate-500 block uppercase font-mono tracking-wider font-bold">Enrolled Trainees</span>
+                <span className="text-lg font-black font-mono text-emerald-700 mt-0.5 block">
                   {users.length}
                 </span>
               </div>
@@ -1724,15 +1809,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
       {/* Ribbon Control for Non-Reports View */}
       {adminTab !== 'reports' && (
-        <div className="mb-6 flex justify-between items-center bg-slate-950 border border-slate-800 p-4 rounded-2xl shadow-md animate-in slide-in-from-top-4 duration-200 text-white">
+        <div className="mb-6 flex justify-between items-center bg-emerald-50/65 border border-emerald-200/50 p-4 rounded-2xl shadow-xs animate-in slide-in-from-top-4 duration-200 text-slate-800">
           <div className="flex items-center gap-2">
-            <span className="text-indigo-400">⚡</span>
-            <span className="text-xs font-semibold text-slate-300">Currently administering the <strong className="text-[#00f2fe] capitalize font-extrabold">{adminTab}</strong> subsystem console</span>
+            <span className="text-emerald-600">⚡</span>
+            <span className="text-xs font-semibold text-slate-650">Currently administering the <strong className="text-emerald-800 capitalize font-extrabold">{adminTab}</strong> subsystem console</span>
           </div>
           <button 
             type="button"
             onClick={() => setAdminTab('reports')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             📊 Back to AI Cockpit Home
           </button>
@@ -1740,30 +1825,30 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
 
       {/* COCKPIT SWITCHES: TOP HORIZONTAL MAIN CENTER TAB BAR (Modern Slimmed Card) */}
-      <div className="bg-slate-950/95 border border-white/[0.07] rounded-2xl p-3 shadow-xl relative overflow-hidden text-white mb-6 animate-in fade-in slide-in-from-top-3 duration-300">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#ffffff01,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
+      <div className="bg-white border border-slate-205 border-slate-200 rounded-2xl p-3 shadow-xs relative overflow-hidden text-slate-900 mb-6 animate-in fade-in slide-in-from-top-3 duration-300">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/[0.01] rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-emerald-500/[0.01] rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#0f172a04,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-450 bg-emerald-400 animate-pulse shrink-0"></span>
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
             <div>
-              <h4 className="font-display text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-2">
+              <h4 className="font-display text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
                 Control Hub Cockpit
               </h4>
-              <p className="text-[10px] text-slate-400 font-medium font-sans mt-0.5">
+              <p className="text-[10px] text-slate-500 font-medium font-sans mt-0.5">
                 Central command console to manage directories, curriculum files, and credential ledgers.
               </p>
             </div>
           </div>
           
-          <span className="self-start md:self-center text-[8px] font-mono font-black uppercase text-[#00f2fe] bg-[#00f2fe]/8 border border-[#00f2fe]/25 px-2 py-0.5 rounded tracking-wider">
+          <span className="self-start md:self-center text-[8px] font-mono font-black uppercase text-emerald-800 bg-emerald-50 border border-emerald-250/50 border-emerald-200 px-2 py-0.5 rounded tracking-wider">
             COCKPIT SWITCHES
           </span>
         </div>
 
-        <div className="border-t border-white/[0.04] my-2.5"></div>
+        <div className="border-t border-slate-100 my-2.5"></div>
 
         {/* Row Flex Container with wrapping to prevent hidden overflow (Slim Design) */}
         <div className="relative z-10 flex flex-wrap items-center gap-1.5 pb-0.5 select-none px-1">
@@ -1787,8 +1872,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 onClick={() => setAdminTab(b.id as any)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all duration-200 border whitespace-nowrap group cursor-pointer text-[10px] font-bold font-sans tracking-wide ${
                   isActive 
-                    ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-350 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.1)] scale-[1.01]' 
-                    : 'bg-slate-900/40 hover:bg-slate-900 text-slate-400 border-white/[0.03] hover:border-white/[0.08] hover:text-slate-200'
+                    ? 'bg-gradient-to-r from-emerald-50 to-teal-50/40 text-emerald-800 border-emerald-500/30 shadow-xs scale-[1.01]' 
+                    : 'bg-slate-50/53 bg-slate-50/50 hover:bg-slate-50 text-slate-500 border-slate-200/60 hover:border-slate-300 hover:text-slate-850 hover:text-slate-800'
                 }`}
               >
                 <span className="text-[11px] group-hover:scale-110 transition duration-150 select-none">{b.emoji}</span>
@@ -1796,16 +1881,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 {b.countLabel ? (
                   <span className={`text-[7.5px] uppercase font-mono px-1 py-0.2 rounded font-black tracking-wide border ${
                     isActive
-                      ? 'bg-emerald-500/20 text-emerald-305 text-emerald-300 border-emerald-400/30'
-                      : 'bg-slate-800 text-slate-500 border-slate-700/30'
+                      ? 'bg-emerald-100/80 text-emerald-800 border-emerald-250/30'
+                      : 'bg-white text-slate-400 border-slate-200'
                   }`}>
                     {b.countLabel}
                   </span>
                 ) : b.count !== undefined ? (
-                  <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded-full border ${
+                  <span className={`text-[8px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
                     isActive 
-                      ? 'bg-emerald-500/20 text-emerald-305 text-emerald-300 border-emerald-400/30' 
-                      : 'bg-slate-800 text-slate-500 border-slate-700/30'
+                      ? 'bg-emerald-100/85 text-emerald-800 border-emerald-250/30' 
+                      : 'bg-white text-slate-400 border-slate-200'
                   }`}>
                     {b.count}
                   </span>
@@ -1986,6 +2071,27 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 <div className="h-1 bg-slate-150 bg-slate-100 rounded-full overflow-hidden">
                                   <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgMastery}%` }}></div>
                                 </div>
+                              </div>
+                            </div>
+
+                            {/* Department Roles List */}
+                            <div className="mt-2.5 pt-2 border-t border-slate-100/80 flex flex-col gap-1">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">
+                                Included Mapped Designations ({deptRep.rolesCount})
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {roles.filter(r => r.department === deptRep.name).map(r => (
+                                  <span 
+                                    key={r.id} 
+                                    className="bg-slate-50 text-slate-600 border border-slate-200/50 rounded px-1.5 py-0.5 text-[8.5px] font-sans font-semibold tracking-tight truncate max-w-full"
+                                    title={r.name}
+                                  >
+                                    {r.name}
+                                  </span>
+                                ))}
+                                {roles.filter(r => r.department === deptRep.name).length === 0 && (
+                                  <span className="text-[8.5px] text-slate-400 italic">No roles defined</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2202,11 +2308,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           <tr key={user.id} className="hover:bg-slate-50/50 transition">
                             <td className="p-3.5 pl-5">
                               <div className="flex items-center gap-2.5">
-                                <img
-                                  src={user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80'}
-                                  alt=""
-                                  referrerPolicy="no-referrer"
-                                  className="w-9 h-9 rounded-full border border-slate-200 shadow-3xs object-cover"
+                                <Avatar
+                                  src={user.avatarUrl}
+                                  name={user.name}
+                                  className="w-9 h-9 border border-slate-200 shadow-3xs"
                                 />
                                 <div>
                                   <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
@@ -2215,7 +2320,17 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                       <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] px-1.5 py-0.2 rounded font-mono uppercase font-extrabold tracking-wide">Admin</span>
                                     )}
                                   </div>
-                                  <div className="text-[10px] text-slate-400 font-mono tracking-tight">{user.focusEntity || 'Accounts' } • {roleObj?.name || 'Trainee'}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono tracking-tight flex items-center flex-wrap gap-1.5 mt-0.5">
+                                    <span>{user.focusEntity || 'Accounts' } • {roleObj?.name || 'Trainee'}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedRoleDetailUser(user)}
+                                      className="inline-flex items-center gap-1 text-[9px] text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/50 rounded-md px-1.5 py-0.5 font-sans font-extrabold tracking-normal transition cursor-pointer"
+                                      title="Click to view designations mapped and role specifications"
+                                    >
+                                      View Mapped Roles
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -3065,10 +3180,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         <div className="flex items-center gap-3">
                           <div className="relative group shrink-0">
                             <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-10 group-hover:opacity-35 transition"></div>
-                            <img 
-                              src={item.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80'} 
-                              alt="" 
-                              className="w-10 h-10 rounded-full border border-slate-200/80 object-cover relative shadow-sm" 
+                            <Avatar 
+                              src={item.avatarUrl}
+                              name={item.name}
+                              className="w-10 h-10 border border-slate-200/80 relative shadow-sm" 
                             />
                           </div>
                           <div>
@@ -3987,23 +4102,52 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   
                   {/* Chapters list under current role */}
                   <div className="space-y-2 mb-4">
-                    {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).map((chap, idx) => {
-                      const roleName = roles.find(r => r.id === chap.roleId)?.name || 'Unknown Profile';
-                      return (
-                        <div key={chap.id} className="flex items-center justify-between p-2.5 rounded bg-slate-50 border border-slate-150 text-xs text-slate-755 font-medium text-left">
-                          <div className="truncate pr-2">
-                            <span className="text-[9px] font-bold text-indigo-700 uppercase font-mono block mb-0.5">{roleName}</span>
-                            <span className="font-bold text-slate-800">{chap.name}</span>
+                    {chapters
+                      .filter(c => selectedCurriculumRoleIds.includes(c.roleId))
+                      .sort((a, b) => (a.order || 0) - (b.order || 0))
+                      .map((chap, idx, arr) => {
+                        const roleName = roles.find(r => r.id === chap.roleId)?.name || 'Unknown Profile';
+                        return (
+                          <div key={chap.id} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-150 text-xs text-slate-755 font-medium text-left">
+                            <div className="truncate pr-2 max-w-[130px] sm:max-w-[160px]">
+                              <span className="text-[8.5px] font-bold text-indigo-700 uppercase font-mono block mb-0.5">{roleName}</span>
+                              <span className="font-extrabold text-slate-800 tracking-tight">{chap.name}</span>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveChapter(chap.id, 'up')}
+                                disabled={idx === 0}
+                                className={`w-6 h-6 flex items-center justify-center rounded text-[10px] transition cursor-pointer font-bold ${
+                                  idx === 0 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
+                                }`}
+                                title="Move Chapter Up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveChapter(chap.id, 'down')}
+                                disabled={idx === arr.length - 1}
+                                className={`w-6 h-6 flex items-center justify-center rounded text-[10px] transition cursor-pointer font-bold ${
+                                  idx === arr.length - 1 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
+                                }`}
+                                title="Move Chapter Down"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteChapter(chap.id)}
+                                className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition cursor-pointer"
+                                title="Delete Chapter"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteChapter(chap.id)}
-                            className="text-slate-400 hover:text-rose-600 transition cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                     {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).length === 0 && (
                       <p className="p-3 bg-slate-50 text-xs italic text-center text-slate-400 rounded">No chapters matching selected profiles.</p>
                     )}
@@ -4051,188 +4195,446 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 {/* Right Column: Units Creation Matrix */}
                 <div className="lg:col-span-2 space-y-6">
                   
-                  {/* Save Unit Block */}
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                    <h4 className="text-xs font-bold uppercase text-slate-800 tracking-wider mb-4 flex items-center justify-between">
-                      <span>{editingUnitId ? '📝 Edit Unit Data' : '⚡ Add Lesson Unit SKU'}</span>
-                      {editingUnitId && (
-                        <button onClick={() => setEditingUnitId(null)} className="text-[10px] text-rose-500 font-mono hover:underline">
-                          Cancel Edit
-                        </button>
-                      )}
-                    </h4>
-
-                    <form onSubmit={handleSaveUnit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans text-slate-705">
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Under Chapter</label>
-                        <select
-                          required
-                          value={unitChapterId}
-                          onChange={(e) => setUnitChapterId(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-indigo-500 outline-none font-medium"
-                        >
-                          <option value="">Select Chapter...</option>
-                          {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).map(chap => {
-                            const chapRole = roles.find(r => r.id === chap.roleId);
-                            return (
-                              <option key={chap.id} value={chap.id}>
-                                {chap.name} {chapRole ? `(${chapRole.name})` : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Unit Code SKU</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. TAX-009"
-                          value={unitCode}
-                          onChange={(e) => setUnitCode(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Work task & Title name</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Direct GST e-cash ledger payments checking"
-                          value={unitTaskName}
-                          onChange={(e) => setUnitTaskName(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Execution frequency</label>
-                        <select
-                          value={unitFreq}
-                          onChange={(e) => setUnitFreq(e.target.value as UnitFrequency)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        >
-                          <option value="Daily">Daily</option>
-                          <option value="Weekly">Weekly</option>
-                          <option value="Monthly">Monthly</option>
-                          <option value="Quarterly">Quarterly</option>
-                          <option value="Ad-hoc">Ad-hoc</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Skill Complexity Required</label>
-                        <select
-                          value={unitSkill}
-                          onChange={(e) => setUnitSkill(e.target.value as UnitSkillLevel)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        >
-                          <option value="Beginner">Beginner</option>
-                          <option value="Intermediate">Intermediate</option>
-                          <option value="Advanced">Advanced</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Stream Video title</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. GST Filing Tutorial Guidance"
-                          value={unitVideoTitle}
-                          onChange={(e) => setUnitVideoTitle(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Video link (YouTube embeds)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. https://www.youtube.com/embed/S7U_F7F9-kM"
-                          value={unitVideoUrl}
-                          onChange={(e) => setUnitVideoUrl(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] uppercase font-mono font-bold text-slate-400 mb-1">Suggested Guidance Tutorial Description</label>
-                        <textarea
-                          placeholder="Give instructional guides or details of this operational checklist..."
-                          value={unitDesc}
-                          onChange={(e) => setUnitDesc(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 min-h-[60px]"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <button
-                          type="submit"
-                          className="w-full bg-emerald-600 text-white font-bold py-2 px-4 rounded hover:bg-emerald-500 transition"
-                        >
-                          {editingUnitId ? 'Update Unit Entry' : '+ Deploy Unit to active matrices'}
-                        </button>
-                      </div>
-                    </form>
+                  {/* Action box to create new unit */}
+                  <div className="bg-linear-to-r from-indigo-50/50 via-teal-50/30 to-indigo-50/50 rounded-2xl border border-indigo-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-3xs">
+                    <div>
+                      <h5 className="text-xs font-extrabold uppercase text-indigo-900 font-mono tracking-wider">⚡ Mapped Operational Lessons</h5>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Need to deploy procedural learning walkthrough checklists to chapters?</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingUnitId(null);
+                        setUnitCode('');
+                        setUnitTaskName('');
+                        setUnitVideoTitle('');
+                        setUnitVideoUrl('');
+                        setUnitDesc('');
+                        setUnitChapterId('');
+                        setIsUnitModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs hover:shadow-sm active:scale-98 transition duration-150 cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Lesson Unit SKU</span>
+                    </button>
                   </div>
+
+                  {/* Lessons Modal Dialog */}
+                  <AnimatePresence>
+                    {isUnitModalOpen && (
+                      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => {
+                            setIsUnitModalOpen(false);
+                            setEditingUnitId(null);
+                          }}
+                          className="fixed inset-0"
+                        />
+
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                          transition={{ type: 'spring', duration: 0.3 }}
+                          className="relative bg-white text-slate-800 rounded-3xl border border-slate-205 border-slate-200 shadow-2xl p-6 md:p-8 w-full max-w-2xl z-10 my-8 max-h-[90vh] overflow-y-auto"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUnitModalOpen(false);
+                              setEditingUnitId(null);
+                            }}
+                            className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition cursor-pointer"
+                            title="Close Modal"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+
+                          <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1">
+                            <span>{editingUnitId ? '📝 Edit Lesson Unit SKU' : '⚡ Add Lesson Unit SKU'}</span>
+                          </h3>
+                          <p className="text-[11px] text-slate-500 mb-6">
+                            {editingUnitId
+                              ? 'Modify tactical operational verification codes and multimedia tutorials mapped to enterprise departments.'
+                              : 'Register a new procedural walkthrough mapping to chapters and job roles.'}
+                          </p>
+
+                          <form onSubmit={handleSaveUnit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans text-slate-705">
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Under Chapter <span className="text-rose-500 font-bold">*</span></label>
+                              <select
+                                required
+                                value={unitChapterId}
+                                onChange={(e) => setUnitChapterId(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              >
+                                <option value="">Select Chapter...</option>
+                                {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).map(chap => {
+                                  const chapRole = roles.find(r => r.id === chap.roleId);
+                                  return (
+                                    <option key={chap.id} value={chap.id}>
+                                      {chap.name} {chapRole ? `(${chapRole.name})` : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Unit Code SKU <span className="text-rose-500 font-bold">*</span></label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. TAX-009"
+                                value={unitCode}
+                                onChange={(e) => setUnitCode(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-semibold"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Work task & Title name <span className="text-rose-500 font-bold">*</span></label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Direct GST e-cash ledger payments checking"
+                                value={unitTaskName}
+                                onChange={(e) => setUnitTaskName(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-semibold"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Execution frequency</label>
+                              <select
+                                value={unitFreq}
+                                onChange={(e) => setUnitFreq(e.target.value as UnitFrequency)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              >
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="Ad-hoc">Ad-hoc</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Skill Complexity Required</label>
+                              <select
+                                value={unitSkill}
+                                onChange={(e) => setUnitSkill(e.target.value as UnitSkillLevel)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              >
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Stream Video title</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. GST Filing Tutorial Guidance"
+                                value={unitVideoTitle}
+                                onChange={(e) => setUnitVideoTitle(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Video link (YouTube embeds)</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. https://www.youtube.com/embed/S7U_F7F9-kM"
+                                value={unitVideoUrl}
+                                onChange={(e) => setUnitVideoUrl(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Suggested Guidance Tutorial Description</label>
+                              <textarea
+                                placeholder="Give instructional guides or details of this operational checklist..."
+                                value={unitDesc}
+                                onChange={(e) => setUnitDesc(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[90px] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsUnitModalOpen(false);
+                                  setEditingUnitId(null);
+                                }}
+                                className="px-4.5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-500 text-xs font-bold rounded-xl transition cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                              >
+                                {editingUnitId ? 'Update Unit Entry' : '+ Deploy Unit to active matrices'}
+                              </button>
+                            </div>
+                          </form>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Display Lists of existing units inside curriculum */}
                   <div>
-                    <h4 className="text-xs font-bold uppercase text-slate-400 font-mono tracking-wider mb-3">
-                      II. Active Chapter Units
-                    </h4>
+                    <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-slate-800 font-mono tracking-wider">
+                          II. Active Chapter Units ({units.filter(u => selectedCurriculumRoleIds.includes((chapters.find(c => c.id === u.chapterId))?.roleId || '')).length} total)
+                        </h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Use arrow buttons to adjust sequence order (Up / Down).</p>
+                      </div>
+
+                      {/* Sort + Search options with dynamic filters */}
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {/* SORT SELECT DROPDOWN */}
+                        <div className="relative flex-shrink-0">
+                          <select
+                            value={currSortMode}
+                            onChange={(e) => setCurrSortMode(e.target.value as any)}
+                            className="bg-white hover:bg-slate-50 transition border border-slate-300 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs outline-none font-bold text-slate-700 cursor-pointer"
+                          >
+                            <option value="standard">⚙️ Sequence (Default)</option>
+                            <option value="code-asc">🔤 Code SKU (A-Z)</option>
+                            <option value="code-desc">🔤 Code SKU (Z-A)</option>
+                            <option value="title-asc">📖 Title (A-Z)</option>
+                            <option value="level-asc">📈 Complexity Level</option>
+                          </select>
+                        </div>
+
+                        <div className="relative flex-1 sm:w-64">
+                          <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 text-xs">
+                            🔍
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="Search chapters or units (code, name)..."
+                            value={currSearchQuery}
+                            onChange={(e) => setCurrSearchQuery(e.target.value)}
+                            className="w-full bg-slate-50 hover:bg-slate-100/60 transition border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg pl-8 pr-2.5 py-1.5 text-xs outline-none font-medium text-slate-800"
+                          />
+                        </div>
+                        {currSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setCurrSearchQuery('')}
+                            className="text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1.5 rounded-lg transition"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {(currSearchQuery || currSortMode !== 'standard') && (
+                      <div className="mb-3.5 bg-indigo-50/40 border border-indigo-100 rounded-xl px-4 py-2 text-[10.5px] text-indigo-800 flex items-center justify-between flex-wrap gap-2">
+                        <span className="font-medium">
+                          Active Filter: {currSearchQuery ? `Searching for "${currSearchQuery}"` : ''} 
+                          {currSearchQuery && currSortMode !== 'standard' ? ' & ' : ''}
+                          {currSortMode !== 'standard' ? `Sorted by ${
+                            currSortMode === 'code-asc' ? 'Code SKU (A-Z)' : 
+                            currSortMode === 'code-desc' ? 'Code SKU (Z-A)' : 
+                            currSortMode === 'title-asc' ? 'Title (A-Z)' : 'Complexity Level'
+                          }` : ''}
+                        </span>
+                        <span className="text-[9.5px] font-mono bg-indigo-150 bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
+                          Reordering Sequence Disabled
+                        </span>
+                      </div>
+                    )}
                     
                     <div className="space-y-4 text-left">
-                      {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).map(chap => {
-                        const chapUnits = units.filter(u => u.chapterId === chap.id);
-                        const chapRole = roles.find(r => r.id === chap.roleId);
+                      {(() => {
+                        const lowercaseQuery = currSearchQuery.toLowerCase().trim();
+                        const displayedChapters = chapters
+                          .filter(c => selectedCurriculumRoleIds.includes(c.roleId))
+                          .sort((a, b) => (a.order || 0) - (b.order || 0))
+                          .filter(chap => {
+                            if (!lowercaseQuery) return true;
+                            const matchesChapName = chap.name.toLowerCase().includes(lowercaseQuery);
+                            if (matchesChapName) return true;
+                            
+                            const chapUnits = units.filter(u => u.chapterId === chap.id);
+                            return chapUnits.some(u => 
+                              u.code.toLowerCase().includes(lowercaseQuery) ||
+                              u.taskName.toLowerCase().includes(lowercaseQuery) ||
+                              u.description.toLowerCase().includes(lowercaseQuery) ||
+                              (u.videoTitle && u.videoTitle.toLowerCase().includes(lowercaseQuery))
+                            );
+                          });
 
-                        return (
-                          <div key={chap.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-3xs hover:shadow-2xs transition">
-                            <h5 className="font-bold text-xs text-slate-800 mb-2 border-b pb-1.5 flex justify-between items-center flex-wrap gap-1.5">
-                              <span className="font-extrabold text-slate-900">Chapter: {chap.name}</span>
-                              {chapRole && (
-                                <span className="text-[9px] bg-indigo-50 border border-indigo-100 font-mono text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">
-                                  {chapRole.name}
-                                </span>
-                              )}
-                            </h5>
-
-                            <div className="divide-y divide-slate-100">
-                              {chapUnits.map(unit => (
-                                <div key={unit.id} className="py-2.5 flex items-center justify-between gap-4 text-xs font-sans text-slate-705">
-                                  <div className="text-left">
-                                    <span className="font-mono text-emerald-600 font-bold block">[{unit.code}] {unit.frequency}</span>
-                                    <span className="font-semibold text-slate-800">{unit.taskName}</span>
-                                    <p className="text-[10px] text-slate-400 truncate max-w-[300px] mt-0.5">{unit.videoTitle}</p>
-                                  </div>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => startEditUnit(unit)}
-                                      className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
-                                      title="Edit Unit"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteUnit(unit.id)}
-                                      className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
-                                      title="Delete Unit"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                              {chapUnits.length === 0 && (
-                                <p className="text-[11px] text-slate-400 italic py-2 text-center">No units deployed inside this chapter.</p>
-                              )}
+                        if (displayedChapters.length === 0) {
+                          return (
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-slate-400 italic text-xs">
+                              No chapters or guidelines matched your filter/search criteria.
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        }
+
+                        return displayedChapters.map((chap, chapIdx, chapArr) => {
+                          const rawUnits = units.filter(u => u.chapterId === chap.id);
+                          const chapUnits = rawUnits.filter(u => {
+                            if (!lowercaseQuery) return true;
+                            if (chap.name.toLowerCase().includes(lowercaseQuery)) return true;
+                            return (
+                              u.code.toLowerCase().includes(lowercaseQuery) ||
+                              u.taskName.toLowerCase().includes(lowercaseQuery) ||
+                              u.description.toLowerCase().includes(lowercaseQuery) ||
+                              (u.videoTitle && u.videoTitle.toLowerCase().includes(lowercaseQuery))
+                            );
+                          });
+                          const chapRole = roles.find(r => r.id === chap.roleId);
+
+                          // Sort chapUnits based on selected sorting mode
+                          let sortedChapUnits = [...chapUnits];
+                          if (currSortMode === 'code-asc') {
+                            sortedChapUnits.sort((a, b) => a.code.localeCompare(b.code));
+                          } else if (currSortMode === 'code-desc') {
+                            sortedChapUnits.sort((a, b) => b.code.localeCompare(a.code));
+                          } else if (currSortMode === 'title-asc') {
+                            sortedChapUnits.sort((a, b) => a.taskName.localeCompare(b.taskName));
+                          } else if (currSortMode === 'level-asc') {
+                            const levelMap = { 'Beginner': 0, 'Intermediate': 1, 'Advanced': 2 };
+                            sortedChapUnits.sort((a, b) => (levelMap[a.skillRequired] ?? 0) - (levelMap[b.skillRequired] ?? 0));
+                          }
+
+                          return (
+                            <div key={chap.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-3xs hover:shadow-2xs transition">
+                              <h5 className="font-bold text-xs text-slate-800 mb-2 border-b pb-1.5 flex justify-between items-center flex-wrap gap-1.5">
+                                <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                                  {/* Chapter Reorder Buttons inside Chapter cards */}
+                                  <span className="inline-flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveChapter(chap.id, 'up')}
+                                      disabled={chapIdx === 0 || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                      className={`w-5 h-5 flex items-center justify-center text-[8px] rounded transition ${
+                                        chapIdx === 0 || currSearchQuery !== '' || currSortMode !== 'standard'
+                                          ? 'text-slate-300 pointer-events-none'
+                                          : 'text-slate-600 hover:text-indigo-700 hover:bg-white'
+                                      }`}
+                                      title={currSearchQuery ? 'Clear search to reorder chapters' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder chapters' : 'Move Chapter Up'}
+                                    >
+                                      ▲
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveChapter(chap.id, 'down')}
+                                      disabled={chapIdx === chapArr.length - 1 || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                      className={`w-5 h-5 flex items-center justify-center text-[8px] rounded transition ${
+                                        chapIdx === chapArr.length - 1 || currSearchQuery !== '' || currSortMode !== 'standard'
+                                          ? 'text-slate-300 pointer-events-none'
+                                          : 'text-slate-600 hover:text-indigo-700 hover:bg-white'
+                                      }`}
+                                      title={currSearchQuery ? 'Clear search to reorder chapters' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder chapters' : 'Move Chapter Down'}
+                                    >
+                                      ▼
+                                    </button>
+                                  </span>
+                                  <span>Chapter: {chap.name}</span>
+                                </span>
+                                {chapRole && (
+                                  <span className="text-[9px] bg-indigo-50 border border-indigo-100 font-mono text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">
+                                    {chapRole.name}
+                                  </span>
+                                )}
+                              </h5>
+
+                              <div className="divide-y divide-slate-100">
+                                {sortedChapUnits.map(unit => {
+                                  const rawIdx = rawUnits.findIndex(u => u.id === unit.id);
+                                  const isFirstUnit = rawIdx === 0;
+                                  const isLastUnit = rawIdx === rawUnits.length - 1;
+
+                                  return (
+                                    <div key={unit.id} className="py-2.5 flex items-center justify-between gap-4 text-xs font-sans text-slate-705">
+                                      <div className="text-left">
+                                        <span className="font-mono text-emerald-600 block text-[10px] font-bold">[{unit.code}] {unit.frequency} • <span className="text-slate-500 font-sans font-medium">{unit.skillRequired}</span></span>
+                                        <span className="font-semibold text-slate-800 text-[11px]">{unit.taskName}</span>
+                                        {unit.description && (
+                                          <p className="text-[10px] text-slate-405 text-slate-500 mt-0.5 line-clamp-2 max-w-lg">{unit.description}</p>
+                                        )}
+                                        {unit.videoTitle && (
+                                          <p className="text-[9.5px] text-indigo-600 font-mono mt-0.5">📺 {unit.videoTitle}</p>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-1.5 items-center shrink-0">
+                                        {/* Unit Reordering Controllers */}
+                                        <div className="flex items-center border border-slate-200 bg-slate-50 rounded-lg p-0.5 shadow-2xs">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMoveUnit(unit.id, 'up')}
+                                            disabled={isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                            className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold cursor-pointer transition ${
+                                              isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'
+                                                ? 'text-slate-300 pointer-events-none'
+                                                : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
+                                            }`}
+                                            title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Up'}
+                                          >
+                                            ▲
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMoveUnit(unit.id, 'down')}
+                                            disabled={isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                            className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold cursor-pointer transition ${
+                                              isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'
+                                                ? 'text-slate-300 pointer-events-none'
+                                                : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
+                                            }`}
+                                            title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Down'}
+                                          >
+                                            ▼
+                                          </button>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => startEditUnit(unit)}
+                                          className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
+                                          title="Edit Unit"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteUnit(unit.id)}
+                                          className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
+                                          title="Delete Unit"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {chapUnits.length === 0 && (
+                                  <p className="text-[11px] text-slate-400 italic py-2 text-center">
+                                    {rawUnits.length > 0 ? 'No matching units for active search query.' : 'No units deployed inside this chapter.'}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
 
@@ -6327,6 +6729,157 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       </div> {/* END OF WRAPPER */}
 
 
+      {/* Designation & Mapped Roles details modal overlay */}
+      {selectedRoleDetailUser && (() => {
+        const user = selectedRoleDetailUser;
+        const currentRole = roles.find(r => r.id === user.roleId);
+        // Find other roles belonging to this user's department
+        const departmentRoles = roles.filter(r => r.department === user.department);
+        
+        return (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-150 flex items-start justify-between bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    src={user.avatarUrl}
+                    name={user.name}
+                    className="w-11 h-11 border border-slate-200"
+                  />
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">{user.name} - Designation Specs</h3>
+                    <p className="text-[11px] text-slate-500 font-mono">
+                      BU: <strong className="text-slate-750 uppercase">{user.department}</strong> • Current Active Role: <strong className="text-indigo-600">{currentRole?.name || 'Trainee'}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedRoleDetailUser(null)}
+                  className="rounded-lg p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="p-6 overflow-y-auto space-y-6">
+                
+                {/* Section 1: Active Role specifications */}
+                <div className="bg-gradient-to-r from-indigo-50/50 to-purple-50/30 rounded-xl p-4.5 border border-indigo-100/70 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-indigo-700 font-mono flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    Primary Designation: {currentRole?.name || 'Unassigned / Trainee'}
+                  </h4>
+                  {currentRole ? (
+                    <div className="space-y-3 text-xs text-slate-650">
+                      <p className="italic text-slate-500 leading-relaxed font-sans">{currentRole.description}</p>
+                      <div className="space-y-1.5">
+                        <span className="font-bold font-mono text-[10px] uppercase text-slate-400 tracking-wider">Required Skill Curriculum Units:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {currentRole.skillRequirements?.map((skill, idx) => (
+                            <span key={idx} className="bg-white text-slate-700 border border-indigo-100 rounded-md px-2 py-0.5 text-[10px] font-medium shadow-3xs">
+                              {skill}
+                            </span>
+                          )) || <span className="text-slate-450 italic">No curriculum requirements loaded.</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-450 italic">This user is not mapped to any specific designation yet.</p>
+                  )}
+                </div>
+
+                {/* Section 2: Overall department designations directory list */}
+                <div className="space-y-4">
+                  <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 font-mono">
+                      Department Registry: {user.department} ({departmentRoles.length} Roles)
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-mono">Structure and mapping overview</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-sans">
+                    Here is the complete roster of official corporate roles configured within the <strong className="text-slate-700 uppercase">{user.department}</strong> business unit. You can view each designation's syllabus modules and operational scope:
+                  </p>
+
+                  <div className="space-y-3">
+                    {departmentRoles.map((role) => {
+                      const isUserRole = role.id === user.roleId;
+                      return (
+                        <div 
+                          key={role.id} 
+                          className={`rounded-xl p-4 border transition-all ${
+                            isUserRole 
+                              ? 'bg-emerald-55/20 border-emerald-200/80 shadow-sm' 
+                              : 'bg-white border-slate-200 hover:border-slate-305'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5 mb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${isUserRole ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                              <h5 className="font-extrabold text-xs text-slate-800">{role.name}</h5>
+                            </div>
+                            {isUserRole ? (
+                              <span className="bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded text-[8.5px] font-mono font-black uppercase tracking-wider">
+                                Active MAPPED
+                              </span>
+                            ) : (
+                              <span className="bg-slate-55 border text-slate-400 px-2 py-0.5 rounded text-[8.5px] font-mono font-bold uppercase tracking-wider">
+                                BU Role
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11.5px] text-slate-500 leading-normal italic mb-3 font-sans">
+                            {role.description}
+                          </p>
+
+                          <div className="space-y-1.5">
+                            <div className="font-extrabold font-mono text-[9px] uppercase tracking-wider text-slate-400">
+                              Core Competencies / Syllabus Syllabus Modules:
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {role.skillRequirements?.map((skill, idx) => (
+                                <span key={idx} className="bg-slate-100/70 border border-slate-200/50 text-slate-600 rounded px-1.5 py-0.5 text-[9px] font-medium leading-none">
+                                  {skill}
+                                </span>
+                              )) || <span className="text-[9px] text-slate-400 italic">No criteria specified</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {departmentRoles.length === 0 && (
+                      <div className="text-center py-6 border border-dashed rounded-xl text-slate-400 italic text-xs">
+                        No official designations configured for the {user.department} Department.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-150 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 font-mono">Department Audit Ledger • 2026</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRoleDetailUser(null)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2 px-4 rounded-xl transition shadow-sm cursor-pointer"
+                >
+                  Close Specification
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+
       {/* Trainee detailed scorecard modal overlay */}
       {inspectedUser && (() => {
         const stats = calculateUserProgress(inspectedUser.id, inspectedUser.roleId);
@@ -6343,11 +6896,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               {/* Header */}
               <div className="p-5 border-b border-slate-150 flex items-start justify-between bg-slate-50">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={inspectedUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80'}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    className="w-11 h-11 rounded-full border border-slate-200 object-cover"
+                  <Avatar
+                    src={inspectedUser.avatarUrl}
+                    name={inspectedUser.name}
+                    className="w-11 h-11 border border-slate-200"
                   />
                   <div>
                     <h3 className="text-sm font-black text-slate-900">{inspectedUser.name} Scoreboard</h3>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Avatar } from './Avatar';
 import { UserWithRole } from '../data/stateManager';
 import { 
   Brain, 
@@ -1038,11 +1039,10 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
               </h4>
               
               <div className="flex items-center gap-3 bg-slate-50/70 rounded-xl p-3 border">
-                <img 
-                  src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-                  alt={currentUser.name} 
-                  className="w-11 h-11 rounded-full object-cover border"
-                  referrerPolicy="no-referrer"
+                <Avatar 
+                  src={currentUser.avatarUrl}
+                  name={currentUser.name}
+                  className="w-11 h-11 border"
                 />
                 <div className="overflow-hidden">
                   <h5 className="font-extrabold text-xs text-slate-900 truncate">{currentUser.name}</h5>

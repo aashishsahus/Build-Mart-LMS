@@ -62,7 +62,7 @@ export default function UserDashboard({
   const currentRoleIds = activeRoleView === 'all' ? assignedRoleIds : [activeRoleView];
 
   const userRole = roles.find(r => r.id === (activeRoleView === 'all' ? currentUser.roleId : activeRoleView)) || currentUser.role || roles[0];
-  const userChapters = chapters.filter(c => currentRoleIds.includes(c.roleId));
+  const userChapters = chapters.filter(c => currentRoleIds.includes(c.roleId)).sort((a, b) => (a.order || 0) - (b.order || 0));
   const userChapterIds = userChapters.map(c => c.id);
   const userUnits = units.filter(u => userChapterIds.includes(u.chapterId));
 
@@ -740,47 +740,46 @@ export default function UserDashboard({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Stunning Dark Curriculum Sidebar (styled exactly like the screenshot) */}
-        <div className={`lg:col-span-5 space-y-6 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
-          
-          <div className="bg-[#111827] text-slate-100 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden select-none">
+          {/* Left Column: Premium Soft Light Curriculum Sidebar */}
+          <div className={`lg:col-span-5 space-y-6 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white text-slate-800 rounded-3xl border-2 border-slate-200/90 shadow-sm overflow-hidden select-none">
             {/* Sidebar Brand Header */}
-            <div className="p-5 border-b border-slate-800 bg-[#0c101b]/60 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-205 border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-display text-base font-black text-white shadow-lg shadow-blue-500/25 border border-blue-400/20">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center font-display text-base font-black text-white shadow-sm border border-emerald-400/20">
                   {branding?.companyName ? branding.companyName.charAt(0).toUpperCase() : 'B'}
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-black text-slate-100 tracking-tight">
+                  <h3 className="font-display text-sm font-black text-slate-900 tracking-tight">
                     {currentUser.focusEntity || branding?.companyName || "Rathi's Build Mart"}
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-mono font-semibold tracking-wider uppercase">
+                  <p className="text-[10px] text-slate-500 font-mono font-semibold tracking-wider uppercase">
                     Learning Path Workspace
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/55 px-2.5 py-1 rounded-full">
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></span>
-                <span className="text-[9px] font-mono font-bold text-slate-300">{userChapters.length} Ch</span>
+                <span className="text-[9px] font-mono font-bold text-slate-650 text-slate-600">{userChapters.length} Ch</span>
               </div>
             </div>
 
             {/* Sidebar Search & Schedule Filters */}
-            <div className="p-5 border-b border-slate-900 bg-[#0c101b]/20 space-y-4">
+            <div className="p-5 border-b border-slate-200 bg-slate-50/20 space-y-4">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search syllabus tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 text-xs text-white bg-[#0a0e1a]/80 border border-slate-800/80 rounded-xl focus:bg-[#0a0e1a] focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-500"
+                  className="w-full pl-9 pr-8 py-2.5 text-xs text-slate-850 text-slate-800 bg-white border border-slate-250 border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 outline-none transition-all placeholder:text-slate-400"
                 />
-                <span className="absolute left-3 top-3 text-xs text-slate-500">🔍</span>
+                <span className="absolute left-3 top-3.5 text-xs text-slate-400">🔍</span>
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-2.5 text-slate-450 hover:text-white text-lg font-bold transition-colors"
+                    className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-lg font-bold transition-colors"
                   >
                     ×
                   </button>
@@ -794,10 +793,10 @@ export default function UserDashboard({
                     key={freq}
                     type="button"
                     onClick={() => setSelectedFreqFilter(freq as any)}
-                    className={`px-3 py-1.5 text-[9px] uppercase tracking-wider font-extrabold rounded-lg border transition-all duration-150 shrink-0 ${
+                    className={`px-3 py-1.5 text-[9px] uppercase tracking-wider font-extrabold rounded-lg border transition-all duration-150 shrink-0 cursor-pointer ${
                       selectedFreqFilter === freq
-                        ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-600/15'
-                        : 'bg-[#18223f]/40 hover:bg-[#18223f]/80 text-slate-400 border-slate-800 hover:border-slate-700'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-705 border-slate-200/90'
                     }`}
                   >
                     {freq}
@@ -807,9 +806,9 @@ export default function UserDashboard({
             </div>
 
             {/* Chapters and Stepper Timelines - Styled Sidebar List */}
-            <div className="divide-y divide-slate-800/60 max-h-[600px] overflow-y-auto scrollbar-thin">
+            <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto scrollbar-thin">
               {userChapters.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs italic p-6 font-mono">
+                <div className="text-center py-12 text-slate-405 text-slate-400 text-xs italic p-6 font-mono">
                   No chapters added for this training track yet.
                 </div>
               ) : (
@@ -844,10 +843,10 @@ export default function UserDashboard({
                   const getChapterIcon = () => {
                     if (!isUnlocked) return <Lock className="w-4 h-4" />;
                     switch (chapIdx % 4) {
-                      case 0: return <BookOpen className="w-4 h-4 text-blue-400" />;
-                      case 1: return <FileText className="w-4 h-4 text-purple-400" />;
-                      case 2: return <Award className="w-4 h-4 text-amber-400" />;
-                      default: return <CheckSquare className="w-4 h-4 text-emerald-400" />;
+                      case 0: return <BookOpen className="w-4 h-4 text-emerald-650 text-emerald-600" />;
+                      case 1: return <FileText className="w-4 h-4 text-purple-650 text-purple-500" />;
+                      case 2: return <Award className="w-4 h-4 text-amber-655 text-amber-500" />;
+                      default: return <CheckSquare className="w-4 h-4 text-emerald-655 text-emerald-600" />;
                     }
                   };
 
@@ -859,41 +858,41 @@ export default function UserDashboard({
                         type="button"
                         className={`w-full text-left px-5 py-4 flex items-center justify-between transition-colors ${
                           isUnlocked 
-                            ? 'hover:bg-[#18233f]/40 cursor-pointer bg-transparent text-slate-200' 
-                            : 'cursor-not-allowed bg-slate-900/10 text-slate-500'
+                            ? 'hover:bg-slate-50 cursor-pointer bg-transparent text-slate-700' 
+                            : 'cursor-not-allowed bg-slate-50/50 text-slate-400'
                         }`}
                         id={`chapter-header-${chap.id}`}
                       >
                         <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
-                          <div className={`mt-0.5 shrink-0 ${isUnlocked ? 'text-blue-450' : 'text-slate-600'}`}>
+                          <div className={`mt-0.5 shrink-0 ${isUnlocked ? 'text-emerald-600' : 'text-slate-350'}`}>
                             {getChapterIcon()}
                           </div>
                           <div className="min-w-0">
                             <span className={`text-[8px] font-mono font-bold tracking-wider uppercase block ${
-                              isUnlocked ? 'text-blue-400' : 'text-slate-550'
+                              isUnlocked ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
                               CHAPTER {chapIdx + 1}
                               {!isUnlocked && " (LOCKED)"}
                             </span>
-                            <h4 className="font-sans text-[12px] font-extrabold tracking-tight truncate">
+                            <h4 className="font-sans text-[12px] font-extrabold text-slate-800 tracking-tight truncate">
                               {chap.name}
                             </h4>
                             {isUnlocked && (
-                              <span className="text-[10px] font-mono text-emerald-400/90 font-bold block mt-0.5">
+                              <span className="text-[10px] font-mono text-emerald-700 font-bold block mt-0.5">
                                 {chapPercent}% Core Mastery · {chapUnits.length} tasks
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="text-slate-500 hover:text-slate-300 transition-colors shrink-0">
+                        <div className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
                           {isUnlocked ? (
                             isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                              <ChevronDown className="w-4 h-4 text-slate-500" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-slate-500" />
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
                             )
                           ) : (
-                            <Lock className="w-3.5 h-3.5 text-slate-650" />
+                            <Lock className="w-3.5 h-3.5 text-slate-300" />
                           )}
                         </div>
                       </button>
@@ -905,7 +904,7 @@ export default function UserDashboard({
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="bg-[#0f1526]/40 border-t border-slate-900 overflow-hidden"
+                            className="bg-slate-50/30 border-t border-slate-100 overflow-hidden"
                           >
                             <div className="py-2.5 space-y-1">
                               {chapUnits.map((unit) => {
@@ -918,8 +917,8 @@ export default function UserDashboard({
                                     id={`unit-item-${unit.id}`}
                                     className={`w-full flex items-center justify-between px-5 py-2.5 transition-all duration-200 border-l-4 outline-none select-none relative group ${
                                       isSelected
-                                        ? 'bg-blue-600 text-white font-semibold border-l-blue-400'
-                                        : 'hover:bg-[#1f2a48]/35 text-slate-400 hover:text-slate-100 border-l-transparent'
+                                        ? 'bg-emerald-50/90 text-emerald-950 font-extrabold border-l-emerald-600'
+                                        : 'hover:bg-slate-100/70 text-slate-600 hover:text-slate-800 border-l-transparent'
                                     }`}
                                   >
                                     {/* Main info area (clicking selects unit) */}
@@ -932,15 +931,15 @@ export default function UserDashboard({
                                     >
                                       {/* Beautiful Screenshot-Style Ring Bullet Indicators */}
                                       {isSelected ? (
-                                        <div className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center mr-2.5 shrink-0 bg-transparent">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                                        <div className="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center mr-2.5 shrink-0 bg-transparent">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></div>
                                         </div>
                                       ) : prog?.status === 'Verified & Mastered' ? (
-                                        <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-sm">
+                                        <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-2xs">
                                           ✓
                                         </div>
                                       ) : prog?.status === 'Completed (Pending Review)' ? (
-                                        <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-sm">
+                                        <div className="w-4 h-4 rounded-full bg-amber-550 bg-amber-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-2xs">
                                           ⏳
                                         </div>
                                       ) : prog?.status === 'In Progress' ? (
@@ -948,12 +947,12 @@ export default function UserDashboard({
                                           •
                                         </div>
                                       ) : (
-                                        <div className="w-4 h-4 rounded-full border border-slate-600 group-hover:border-slate-450 mr-2.5 shrink-0 transition-colors flex items-center justify-center" />
+                                        <div className="w-4 h-4 rounded-full border border-slate-300 group-hover:border-slate-400 mr-2.5 shrink-0 transition-colors flex items-center justify-center" />
                                       )}
 
                                       <div className="min-w-0">
                                         <span className={`text-[8px] font-mono tracking-wider block ${
-                                          isSelected ? 'text-blue-200 font-black' : 'text-slate-500'
+                                          isSelected ? 'text-emerald-700 font-extrabold' : 'text-slate-400'
                                         }`}>
                                           {unit.code} · {unit.frequency}
                                         </span>
@@ -962,7 +961,7 @@ export default function UserDashboard({
                                         </h5>
                                         {prog?.watchPercent && prog.watchPercent > 0 ? (
                                           <span className={`text-[9px] font-mono font-bold block mt-0.5 ${
-                                            isSelected ? 'text-sky-200' : 'text-emerald-500'
+                                            isSelected ? 'text-emerald-800' : 'text-emerald-600'
                                           }`}>
                                             🎥 Watched {prog.watchPercent}%
                                           </span>
@@ -977,21 +976,13 @@ export default function UserDashboard({
                                         <div className="shrink-0 flex items-center gap-1.5 z-10">
                                           <span
                                             className={`text-[9.5px] font-mono font-bold rounded-lg px-2.5 py-1 border transition-all uppercase ${
-                                              isSelected
-                                                ? statusVal === 'Verified & Mastered'
-                                                  ? 'bg-emerald-800/60 border-emerald-400/40 text-white'
-                                                  : statusVal === 'Completed (Pending Review)'
-                                                  ? 'bg-amber-700/60 border-amber-400/40 text-white'
-                                                  : statusVal === 'In Progress'
-                                                  ? 'bg-blue-800/60 border-blue-400/40 text-white'
-                                                  : 'bg-slate-800/80 border-slate-650/40 text-slate-200'
-                                                : statusVal === 'Verified & Mastered'
-                                                ? 'bg-emerald-950/80 border-emerald-900/60 text-emerald-400'
+                                              statusVal === 'Verified & Mastered'
+                                                ? 'bg-emerald-100 border-emerald-200 text-emerald-850 text-emerald-850 text-emerald-800'
                                                 : statusVal === 'Completed (Pending Review)'
-                                                ? 'bg-amber-950/80 border-amber-900/60 text-amber-400'
+                                                ? 'bg-amber-100 border-amber-200 text-amber-850 text-amber-800'
                                                 : statusVal === 'In Progress'
-                                                ? 'bg-blue-950/80 border-blue-900/60 text-blue-400'
-                                                : 'bg-[#131a2e] border-slate-800 text-slate-500'
+                                                ? 'bg-blue-105 bg-blue-100 border-blue-200 text-blue-800'
+                                                : 'bg-slate-100 border-slate-200 text-slate-500'
                                             }`}
                                           >
                                             {statusVal === 'Verified & Mastered' 
@@ -1010,7 +1001,7 @@ export default function UserDashboard({
                               })}
                               
                               {chapUnits.length === 0 && (
-                                <p className="px-5 py-3 text-[11px] text-slate-500 italic text-center font-mono">
+                                <p className="px-5 py-3 text-[11px] text-slate-405 text-slate-400 italic text-center font-mono">
                                   No tasks match schedule filters.
                                 </p>
                               )}
@@ -1028,25 +1019,25 @@ export default function UserDashboard({
           </div>
 
           {/* Sidebar Navigation Footer Helper block (matching bottom panel) */}
-          <div className="bg-[#111827] text-slate-300 rounded-3xl border border-slate-800 p-5 shadow-xs space-y-3">
-            <div className="flex items-center gap-2 text-slate-200">
-              <CheckSquare className="w-4 h-4 text-blue-400" />
+          <div className="bg-white text-slate-655 text-slate-600 rounded-3xl border-2 border-slate-205 border-slate-205 border-slate-200 shadow-sm p-5 space-y-3">
+            <div className="flex items-center gap-2 text-slate-805 text-slate-800">
+              <CheckSquare className="w-4 h-4 text-emerald-600" />
               <h3 className="font-display text-xs font-extrabold uppercase tracking-tight">
                 Execution Standings
               </h3>
             </div>
-            <p className="text-[11px] text-slate-400 leading-normal font-sans">
+            <p className="text-[11px] text-slate-505 text-slate-500 leading-normal font-sans">
               Complete each nested lesson sequentially to unlock subsequent workspace chapters. Keep track of your verification statuses.
             </p>
 
              <div className="grid grid-cols-2 gap-3 pt-1">
-               <div className="bg-[#17223b]/55 p-2.5 rounded-xl border border-slate-800/80 text-center">
-                 <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-wider">Mastered</span>
-                 <span className="text-sm font-mono font-bold text-emerald-400">{stats.verifiedCount} / {stats.totalUnits}</span>
+               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
+                 <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-wider">Mastered</span>
+                 <span className="text-sm font-mono font-bold text-emerald-700">{stats.verifiedCount} / {stats.totalUnits}</span>
                </div>
-               <div className="bg-[#17223b]/55 p-2.5 rounded-xl border border-slate-800/80 text-center">
-                 <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-wider">Stream Watched</span>
-                 <span className="text-sm font-mono font-bold text-blue-400">
+               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
+                 <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-wider">Stream Watched</span>
+                 <span className="text-sm font-mono font-bold text-blue-600">
                    {userUnits.length ? Math.round(userUnits.reduce((sum, u) => {
                      const p = getUnitProgress(u.id);
                      return sum + ((p && p.status === 'Verified & Mastered') ? 100 : (p?.watchPercent || 0));

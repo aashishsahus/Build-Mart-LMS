@@ -131,21 +131,21 @@ export default function CertificateGenerator({
     <div className="w-full">
       {/* Dashboard Promotion Panel */}
       {isEligible ? (
-        <div className="relative bg-gradient-to-r from-slate-900 via-[#1e293b] to-slate-900 rounded-3xl border border-slate-800 p-6 sm:p-8 overflow-hidden shadow-xl mb-12">
+        <div className="relative bg-gradient-to-r from-emerald-50/60 via-teal-50/40 to-emerald-50/60 rounded-3xl border-2 border-emerald-100 p-6 sm:p-8 overflow-hidden shadow-sm mb-12">
           {/* Decorative Sparkles & Rings */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/[0.06] rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-blue-500/[0.04] rounded-full blur-3xl pointer-events-none" />
           
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-3 max-w-xl">
-              <span className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase">
                 🏆 Program Milestone Achieved
               </span>
-              <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
                 Claim Your Certificate of Mastery!
               </h2>
-              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-sans">
-                Outstanding work! You have successfully completed and passed the rigorous verification check for all required <span className="text-emerald-400 font-bold">{stats.totalUnits} syllabus units</span> configured for a <span className="text-blue-400 font-bold">{userRole?.name}</span>.
+              <p className="text-slate-700 text-xs sm:text-sm leading-relaxed font-sans">
+                Outstanding work! You have successfully completed and passed the rigorous verification check for all required <span className="text-emerald-700 font-bold">{stats.totalUnits} syllabus units</span> configured for a <span className="text-emerald-700 font-bold">{userRole?.name}</span>.
               </p>
             </div>
             
@@ -154,7 +154,7 @@ export default function CertificateGenerator({
                 <button
                   type="button"
                   onClick={() => setIsOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black tracking-wider uppercase shadow-lg shadow-emerald-950/30 active:scale-98 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-black tracking-wider uppercase shadow-xs active:scale-98 transition-all cursor-pointer"
                 >
                   <Eye className="w-4 h-4" />
                   Preview Certificate
@@ -164,12 +164,12 @@ export default function CertificateGenerator({
                   type="button"
                   onClick={handleDownloadPDF}
                   disabled={isGenerating}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-755 hover:bg-slate-700 text-slate-100 text-xs font-black tracking-wider uppercase border border-slate-700/80 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-xs font-black tracking-wider uppercase border border-slate-200 shadow-sm active:scale-98 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isGenerating ? (
                     <span className="animate-spin text-sm">⌛</span>
                   ) : (
-                    <Download className="w-4 h-4 text-emerald-400" />
+                    <Download className="w-4 h-4 text-emerald-600" />
                   )}
                   Download High-Res PDF
                 </button>
@@ -184,22 +184,22 @@ export default function CertificateGenerator({
         </div>
       ) : hasCompletedLessons ? (
         /* Progress completed but exam is failed or not taken yet */
-        <div className="bg-[#111827] text-slate-300 rounded-3xl border border-slate-800 p-6 sm:p-8 overflow-hidden shadow-xl mb-12 relative">
+        <div className="bg-white text-slate-800 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 overflow-hidden shadow-sm mb-12 relative animate-in fade-in duration-200">
           <div className="absolute top-1/2 -right-4 w-48 h-48 bg-amber-500/[0.04] rounded-full blur-3xl pointer-events-none transform -translate-y-1/2" />
           
           {!hasAttemptedFinalExam ? (
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
               <div className="space-y-4 max-w-xl">
-                <span className="inline-flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase">
+                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase animate-pulse">
                   ⚡ Final Gating Step Required
                 </span>
-                <h4 className="font-display text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                <h4 className="font-display text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                   Pass the Final Mastery Exam to Unlock Certificate
                 </h4>
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-sans">
-                  You have successfully completed and mastered all <span className="text-emerald-400 font-bold">{stats.totalUnits} checklist chapters</span> configured for your role! To claim your Certificate of Mastery, you must pass the single overall competence exam with a minimum score of <span className="text-amber-400 font-bold">60%</span>.
+                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed font-sans">
+                  You have successfully completed and mastered all <span className="text-emerald-700 font-bold">{stats.totalUnits} checklist chapters</span> configured for your role! To claim your Certificate of Mastery, you must pass the single overall competence exam with a minimum score of <span className="text-amber-700 font-bold">60%</span>.
                 </p>
-                <p className="text-slate-400 text-[10.5px] italic leading-relaxed">
+                <p className="text-slate-500 text-[10.5px] italic leading-relaxed">
                   ⚠️ Only ONE attempt is permitted for this exam. If failed, it can only be reset by your system administrator.
                 </p>
               </div>
@@ -208,7 +208,7 @@ export default function CertificateGenerator({
                 <button
                   type="button"
                   onClick={onStartFinalExam}
-                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black tracking-wider uppercase shadow-lg shadow-emerald-950/30 active:scale-98 transition-all cursor-pointer"
+                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-black tracking-wider uppercase shadow-md active:scale-98 transition-all cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-white shrink-0" />
                   <span>Start Final Competency Exam</span>
@@ -218,16 +218,16 @@ export default function CertificateGenerator({
           ) : (
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
               <div className="space-y-4 max-w-xl">
-                <span className="inline-flex items-center gap-1.5 bg-rose-500/15 border border-rose-500/30 text-rose-400 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase">
+                <span className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-250 text-rose-600 px-3 py-1 rounded-full text-[10px] font-mono font-semibold tracking-wider uppercase">
                   🔒 Attempt Limit Reached
                 </span>
-                <h4 className="font-display text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                <h4 className="font-display text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                   Final Exam Failed ({finalExamAttempt.score}% Score)
                 </h4>
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-sans">
-                  Your score of <strong className="text-rose-400 font-mono">{finalExamAttempt.score}%</strong> has been locked in the training server database. In accordance with corporate standards, you have used your single permitted attempt.
+                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed font-sans">
+                  Your score of <strong className="text-rose-600 font-mono">{finalExamAttempt.score}%</strong> has been locked in the training server database. In accordance with corporate standards, you have used your single permitted attempt.
                 </p>
-                <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-[11px] text-slate-450 text-slate-400 font-mono leading-relaxed">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 font-mono leading-relaxed">
                   💡 <strong>Supervisor Recommendation:</strong> Please contact your learning administrator or senior supervisor to reset your progress and permit a new testing session inside the enterprise dashboard.
                 </div>
               </div>
@@ -236,39 +236,39 @@ export default function CertificateGenerator({
         </div>
       ) : (
         /* Progress Indicator banner shown if incomplete */
-        <div className="bg-[#111827] text-slate-300 rounded-2xl border border-slate-850 p-4 sm:p-6 mb-6 lg:mb-12 shadow-md relative overflow-hidden">
-          <div className="absolute top-1/2 -right-4 w-32 h-32 bg-slate-800/[0.2] rounded-full blur-2xl pointer-events-none transform -translate-y-1/2" />
+        <div className="bg-white text-slate-700 rounded-2xl border-2 border-slate-200/95 p-4 sm:p-6 mb-6 lg:mb-12 shadow-xs relative overflow-hidden animate-in fade-in duration-200">
+          <div className="absolute top-1/2 -right-4 w-32 h-32 bg-slate-50 rounded-full blur-2xl pointer-events-none transform -translate-y-1/2" />
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
             <div className="flex items-start gap-3 sm:gap-4 min-w-0 w-full md:w-auto">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-slate-400 shrink-0 shadow-inner">
-                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500/80 animate-pulse" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-500 shrink-0 shadow-inner">
+                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 animate-pulse" />
               </div>
               <div className="min-w-0">
-                <h4 className="font-display text-xs sm:text-sm font-extrabold text-white uppercase tracking-tight">
+                <h4 className="font-display text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-tight">
                   Certificate of Mastery
                 </h4>
-                <p className="text-[11px] sm:text-xs text-slate-400 leading-normal max-w-xl font-sans mt-0.5">
-                  Master all configured required lessons (<span className="text-emerald-400 font-extrabold">{stats.verifiedCount}</span> of <span className="text-slate-200 font-bold">{stats.totalUnits}</span> completed) to unlock your verified credentials.
+                <p className="text-[11px] sm:text-xs text-slate-505 text-slate-500 leading-normal max-w-xl font-sans mt-0.5">
+                  Master all configured required lessons (<span className="text-emerald-700 font-extrabold">{stats.verifiedCount}</span> of <span className="text-slate-700 font-bold">{stats.totalUnits}</span> completed) to unlock your verified credentials.
                 </p>
               </div>
             </div>
             
             <div className="w-full md:w-auto overflow-hidden shrink-0 mt-2 md:mt-0">
-              <div className="bg-[#0b101d] rounded-xl border border-slate-800/80 px-3.5 py-2.5 text-center min-w-[140px] sm:min-w-[160px]">
-                <span className="block text-[8px] font-mono text-slate-500 uppercase font-black tracking-widest">
+              <div className="bg-slate-50 rounded-xl border border-slate-200 px-3.5 py-2.5 text-center min-w-[140px] sm:min-w-[160px]">
+                <span className="block text-[8px] font-mono text-slate-400 uppercase font-black tracking-widest">
                   Unlock Progress
                 </span>
                 <div className="flex items-center justify-center gap-1.5 mt-1 font-mono text-sm">
-                  <span className="text-amber-400 font-black">
+                  <span className="text-emerald-700 font-black">
                     {stats.verifiedCount}
                   </span>
-                  <span className="text-slate-600">/</span>
-                  <span className="text-slate-400">
+                  <span className="text-slate-400">/</span>
+                  <span className="text-slate-500 font-bold">
                     {stats.totalUnits}
                   </span>
                 </div>
                 {/* Horizontal Progress bar inside badge */}
-                <div className="w-16 mx-auto h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                <div className="w-16 mx-auto h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all duration-300" 
                     style={{ width: `${stats.masteryPercent}%` }}
