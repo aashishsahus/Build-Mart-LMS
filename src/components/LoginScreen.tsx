@@ -80,14 +80,15 @@ export default function LoginScreen({
       department: newUserDept,
       focusEntity: newUserFocus,
       password: newUserPassword || 'rathi123',
-      avatarUrl: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?w=120&auto=format&fit=crop&q=80`
+      avatarUrl: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?w=120&auto=format&fit=crop&q=80`,
+      status: 'Pending Approval'
     });
 
     // Provide user feedback and redirect to credentials tab without auto-logging in
     setCredEmail(newUserEmail);
     setCredPassword(newUserPassword);
     setCredError('');
-    setSuccessMsg(`Registration successful for ${newUserName}! Please use your credentials or corporate password to sign in below.`);
+    setSuccessMsg(`✓ Registration Submitted Successfully for ${newUserName}! Your enrollment is now awaiting job role verification and approval by HR or Admin. You will be able to log in once they authorize your account.`);
     setActiveTab('credentials');
 
     // Clear registration fields
@@ -118,8 +119,12 @@ export default function LoginScreen({
     );
 
     if (matchedUser) {
+      if (matchedUser.status === 'Pending Approval') {
+        setCredError(`Access Denied: Your enrollment is currently pending approval. Admin or HR must verify and approve your main job role before you can start working.`);
+        return;
+      }
       if (matchedUser.status === 'Deactivated') {
-        setCredError(`Access Denied: The account for "${matchedUser.name}" has been suspended/deactivated. Please contact Suresh Rathi (Director/CFO) or the Learning Admin.`);
+        setCredError(`Access Denied: The account for "${matchedUser.name}" has been suspended/deactivated. Please contact Aashish Sahu (Director/CFO) or the Learning Admin.`);
         return;
       }
       if (matchedUser.status === 'Left') {
@@ -129,7 +134,7 @@ export default function LoginScreen({
 
       const userPass = matchedUser.password || 'rathi123';
       if (credPassword !== userPass) {
-        setCredError('Incorrect credentials or corporate password. Please try again or contact Suresh Rathi (Director/CFO) to reset.');
+        setCredError('Incorrect credentials or corporate password. Please try again or contact Aashish Sahu (Director/CFO) to reset.');
         return;
       }
       setSuccessMsg('Authentication secret matches. Authorizing session...');
@@ -144,6 +149,11 @@ export default function LoginScreen({
 
   // Google OAuth account selection handler
   const handleGoogleAccountSelect = (user: User) => {
+    setGoogleError('');
+    if (user.status === 'Pending Approval') {
+      setGoogleError(`Access Denied: The Google Account for "${user.name}" is pending approval from Admin or HR.`);
+      return;
+    }
     setShowGoogleModal(false);
     onLogin(user.id);
   };
@@ -164,14 +174,15 @@ export default function LoginScreen({
       roleId: googleCustomRole,
       department: googleCustomDept,
       focusEntity: googleCustomFocus,
-      avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80` // Google default elegant avatar
+      avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`, // Google default elegant avatar
+      status: 'Pending Approval'
     });
 
     // Bring them back to credentials sign-in screen
     setCredEmail(googleCustomEmail);
     setCredPassword('');
     setCredError('');
-    setSuccessMsg(`Google Account for ${googleCustomName} integrated successfully! Click the "Sign in with Google" button below or use your Email / Password.`);
+    setSuccessMsg(`✓ Google Sign-Up submitted cleanly for ${googleCustomName}! Your enrollment is now pending HR / Admin approval before accessing corporate modules.`);
     setActiveTab('credentials');
   };
 
@@ -291,7 +302,7 @@ export default function LoginScreen({
                   onClick={() => {
                     // Populate email and name with current active user state if available to be polite
                     setGoogleCustomEmail('misrpr@rathibuildmart.com');
-                    setGoogleCustomName('Suresh Rathi');
+                    setGoogleCustomName('Aashish Sahu');
                     setGoogleTab('choose');
                     setShowGoogleModal(true);
                   }}
@@ -426,7 +437,7 @@ export default function LoginScreen({
                         type="button"
                         onClick={() => {
                           if (u.status === 'Deactivated') {
-                            setCredError(`Access Denied: The account for "${u.name}" has been suspended/deactivated. Please contact Suresh Rathi (Director/CFO).`);
+                            setCredError(`Access Denied: The account for "${u.name}" has been suspended/deactivated. Please contact Aashish Sahu (Director/CFO).`);
                             setSuccessMsg('');
                             setActiveTab('credentials');
                             return;
@@ -668,7 +679,7 @@ export default function LoginScreen({
                     onClick={() => {
                       setGoogleTab('signup');
                       setGoogleCustomEmail('misrpr@rathibuildmart.com');
-                      setGoogleCustomName('Suresh Rathi');
+                      setGoogleCustomName('Aashish Sahu');
                     }}
                     className={`pb-1 font-semibold ${googleTab === 'signup' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400'}`}
                   >
@@ -679,6 +690,12 @@ export default function LoginScreen({
 
               {/* Simulated Google Tab Content */}
               <div className="p-5 max-h-[340px] overflow-y-auto">
+                {googleError && (
+                  <div className="mb-3.5 p-2.5 bg-rose-50 text-rose-700 text-[11px] font-bold rounded-lg border border-rose-200 animate-in fade-in flex gap-2">
+                    <span>⚠️</span>
+                    <span>{googleError}</span>
+                  </div>
+                )}
                 {googleTab === 'choose' ? (
                   <div className="space-y-2">
                     <p className="text-[11px] text-slate-400 uppercase font-mono tracking-wider font-semibold mb-2">Google Accounts on this Device</p>
@@ -725,7 +742,7 @@ export default function LoginScreen({
                         required
                         value={googleCustomName}
                         onChange={(e) => setGoogleCustomName(e.target.value)}
-                        placeholder="e.g. Suresh Rathi"
+                        placeholder="e.g. Aashish Sahu"
                         className="w-full text-xs p-2 border border-slate-300 rounded focus:border-blue-500 outline-none"
                       />
                     </div>

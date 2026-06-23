@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, CompanyBranding } from './types';
+import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, CompanyBranding, GlobalNotification } from './types';
 import { 
   getUsers, 
   getRoles, 
@@ -27,7 +27,10 @@ import {
   getCompanyBranding,
   saveCompanyBranding,
   syncAllWithCloud,
-  calculateUserProgress
+  calculateUserProgress,
+  getGlobalNotifications,
+  saveGlobalNotifications,
+  addGlobalNotification
 } from './data/stateManager';
 import Header from './components/Header';
 import LoginScreen from './components/LoginScreen';
@@ -50,6 +53,7 @@ export default function App() {
   const [simulatedUserId, setSimulatedUserId] = useState<string | null>(null);
   const [branding, setBranding] = useState<CompanyBranding>(() => getCompanyBranding());
   const [selectedExamChapterId, setSelectedExamChapterId] = useState<string | null>(null);
+  const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
 
   // Active Routing/Tab
   const [activeTab, setActiveTab] = useState<string>('learning'); // ('learning' | 'admin')
@@ -75,6 +79,7 @@ export default function App() {
     setProgress(getProgress());
     setDepartments(getDepartments());
     setBranding(getCompanyBranding());
+    setGlobalNotifications(getGlobalNotifications());
     
     // Auto-login on mount/refresh is not required; keep it clean and let users sign in manually.
     setUserId(null);
@@ -83,6 +88,13 @@ export default function App() {
 
   // Switch/Simulate users
   const handleSwitchUser = (userId: string) => {
+    const isHRRole = (role?: string, dept?: string) => {
+      if (!role) return false;
+      const r = role.toLowerCase();
+      const d = (dept || '').toLowerCase();
+      return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
+    };
+
     // If not logged in originally, this handles the main login
     if (!currentUserId) {
       setUserId(userId);
@@ -90,17 +102,18 @@ export default function App() {
       const user = getUsers().find(u => u.id === userId);
       const userRole = user?.roleId;
       const isDirectorOrOwner = userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director';
-      if (userRole === 'role_sr_acc' || isDirectorOrOwner) {
+      const isAuthorizedAdmin = userRole === 'role_sr_acc' || isDirectorOrOwner || isHRRole(userRole, user?.department);
+      if (isAuthorizedAdmin) {
         setActiveTab('admin-reports');
       } else {
         setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
       }
     } else {
       // Already logged in!
-      // Check if original logged-in user is privileged (Sr Accountant or Director/CEO/COO/MD)
+      // Check if original logged-in user is privileged (Sr Accountant or Director/CEO/COO/MD or HR)
       const principalUser = getUsers().find(u => u.id === currentUserId);
       const principalRole = principalUser?.roleId;
-      const isPrincipalAdmin = principalRole === 'role_sr_acc' || principalRole === 'role_md' || principalRole === 'role_ceo' || principalRole === 'role_coo' || principalUser?.department === 'Director';
+      const isPrincipalAdmin = principalRole === 'role_sr_acc' || principalRole === 'role_md' || principalRole === 'role_ceo' || principalRole === 'role_coo' || principalUser?.department === 'Director' || isHRRole(principalRole, principalUser?.department);
       
       if (isPrincipalAdmin) {
         // Simulating the user!
@@ -108,8 +121,9 @@ export default function App() {
         const targetUser = getUsers().find(u => u.id === userId);
         const targetRole = targetUser?.roleId;
         const isTargetDirectorOrOwner = targetRole === 'role_md' || targetRole === 'role_ceo' || targetRole === 'role_coo' || targetUser?.department === 'Director';
+        const isTargetAdmin = targetRole === 'role_sr_acc' || isTargetDirectorOrOwner || isHRRole(targetRole, targetUser?.department);
         
-        if (targetRole === 'role_sr_acc' || isTargetDirectorOrOwner) {
+        if (isTargetAdmin) {
           setActiveTab('admin-reports');
         } else {
           setActiveTab(targetRole === 'role_candidate' ? 'testing' : 'learning');
@@ -120,7 +134,8 @@ export default function App() {
         setSimulatedUserId(null);
         const user = getUsers().find(u => u.id === userId);
         const userRole = user?.roleId;
-        if (userRole === 'role_sr_acc' || userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director') {
+        const isUserAdmin = userRole === 'role_sr_acc' || userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director' || isHRRole(userRole, user?.department);
+        if (isUserAdmin) {
           setActiveTab('admin-reports');
         } else {
           setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
@@ -134,7 +149,14 @@ export default function App() {
     const user = getUsers().find(u => u.id === currentUserId);
     const userRole = user?.roleId;
     const isDirectorOrOwner = userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director';
-    if (userRole === 'role_sr_acc' || isDirectorOrOwner) {
+    const isHRRole = (role?: string, dept?: string) => {
+      if (!role) return false;
+      const r = role.toLowerCase();
+      const d = (dept || '').toLowerCase();
+      return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
+    };
+    const isUserAdmin = userRole === 'role_sr_acc' || isDirectorOrOwner || isHRRole(userRole, user?.department);
+    if (isUserAdmin) {
       setActiveTab('admin-reports');
     } else {
       setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
@@ -149,12 +171,130 @@ export default function App() {
     setProgress([...updatedLogs]);
   };
 
+  // System Notification dispatch helper
+  const sendNotification = (notification: Omit<GlobalNotification, 'id' | 'timestamp' | 'isReadBy'>) => {
+    addGlobalNotification(notification);
+    setGlobalNotifications(getGlobalNotifications());
+  };
+
   // Administrator verification of submitted learning units
   const handleSettleVerification = (empId: string, unitId: string, action: 'verify' | 'reject') => {
     if (!currentUserId) return;
     const status: ProgressStatus = action === 'verify' ? 'Verified & Mastered' : 'In Progress';
     const updated = updateUnitProgress(empId, unitId, status, undefined, currentUserId);
     setProgress([...updated]);
+
+    // Send targeted notification to the student/trainee
+    const trainee = users.find(u => u.id === empId);
+    const targetUnit = units.find(un => un.id === unitId);
+    if (trainee && targetUnit) {
+      sendNotification({
+        title: action === 'verify' ? 'Work Walkthrough Approved! ✅' : 'walkthrough Revision Required ✍️',
+        message: action === 'verify'
+          ? `Your submission for task "${targetUnit.taskName}" (under chapter "${chapters.find(c => c.id === targetUnit.chapterId)?.name || 'General'}") has been approved & verified as mastered by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`
+          : `Admin ${originalUserDetail?.name || 'Aashish Sahu'} requested revision of "${targetUnit.taskName}". Let's take another look.`,
+        type: 'approval',
+        targetUserId: empId,
+        creatorId: originalUserDetail?.id || currentUserId || undefined,
+        creatorName: originalUserDetail?.name || 'Aashish Sahu'
+      });
+    }
+  };
+
+  const handleUpdateUsers = (updatedUsers: User[]) => {
+    const curUsers = getUsers();
+    if (updatedUsers.length > curUsers.length) {
+      // User added
+      const added = updatedUsers.find(nu => !curUsers.some(ou => ou.id === nu.id));
+      if (added) {
+        const roleName = roles.find(r => r.id === added.roleId)?.name || 'Trainee';
+        sendNotification({
+          title: 'New Member Registered 🤝',
+          message: `${added.name} joined the "${added.department}" department as a ${roleName}. Added by Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'user_add',
+          targetDept: added.department,
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    } else if (updatedUsers.length < curUsers.length) {
+      // User removed
+      const removed = curUsers.find(ou => !updatedUsers.some(nu => nu.id === ou.id));
+      if (removed) {
+        sendNotification({
+          title: 'User Profile Removed 🔐',
+          message: `The user account for "${removed.name}" (${removed.department}) has been removed/revoked from the LMS workspace by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'user_remove',
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    }
+    saveUsers(updatedUsers);
+    setUsers(updatedUsers);
+  };
+
+  const handleUpdateChapters = (updatedChapters: Chapter[]) => {
+    const curChapters = getChapters();
+    if (updatedChapters.length > curChapters.length) {
+      const added = updatedChapters.find(nc => !curChapters.some(oc => oc.id === nc.id));
+      if (added) {
+        const roleName = roles.find(r => r.id === added.roleId)?.name || 'Mapped Trainee Profile';
+        sendNotification({
+          title: 'New Lesson Chapter Added 📚',
+          message: `A new standard work process chapter "${added.name}" has been mapped to role: "${roleName}" by Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'chapter_add',
+          targetRoleId: added.roleId,
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    } else if (updatedChapters.length < curChapters.length) {
+      const removed = curChapters.find(oc => !updatedChapters.some(nc => nc.id === oc.id));
+      if (removed) {
+        sendNotification({
+          title: 'SOP Chapter Retired 📁',
+          message: `The workflow SOP chapter "${removed.name}" was retired from the active curriculum by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'chapter_remove',
+          targetRoleId: removed.roleId,
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    }
+    saveChapters(updatedChapters);
+    setChapters(updatedChapters);
+  };
+
+  const handleUpdateUnits = (updatedUnits: Unit[]) => {
+    const curUnits = getUnits();
+    if (updatedUnits.length > curUnits.length) {
+      const added = updatedUnits.find(nu => !curUnits.some(ou => ou.id === nu.id));
+      if (added) {
+        const chap = chapters.find(c => c.id === added.chapterId);
+        sendNotification({
+          title: 'New Walkthrough Lesson 🎥',
+          message: `Standard walkthrough "${added.videoTitle}" of task "${added.taskName}" was added under chapter "${chap?.name || 'General'}" by Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'unit_add',
+          targetRoleId: chap?.roleId,
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    } else if (updatedUnits.length < curUnits.length) {
+      const removed = curUnits.find(ou => !updatedUnits.some(nu => nu.id === ou.id));
+      if (removed) {
+        sendNotification({
+          title: 'Task Lesson Retired 🎬',
+          message: `SOP walkthrough "${removed.videoTitle}" of task "${removed.taskName}" has been removed from modules by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          type: 'unit_remove',
+          creatorId: originalUserDetail?.id || currentUserId || undefined,
+          creatorName: originalUserDetail?.name || 'Aashish Sahu'
+        });
+      }
+    }
+    saveUnits(updatedUnits);
+    setUnits(updatedUnits);
   };
 
   // Registration callback
@@ -165,8 +305,16 @@ export default function App() {
     const updatedUsers = [...users, created];
     saveUsers(updatedUsers);
     setUsers(updatedUsers);
-    
-    // Auto login is not required. The LoginScreen handles user feedback and switching tabs cleanly.
+
+    // Send a system registration notification
+    const roleName = roles.find(r => r.id === created.roleId)?.name || 'Trainee';
+    sendNotification({
+      title: 'New Member Self-Registered 🚀',
+      message: `${created.name} signed up in "${created.department}" as a ${roleName}. Pending verification validation.`,
+      type: 'user_add',
+      targetDept: created.department,
+      creatorName: created.name
+    });
   };
  
   const handleLogout = () => {
@@ -246,6 +394,11 @@ export default function App() {
             }}
             branding={branding}
             onUpdateUserAvatar={handleUpdateUserAvatar}
+            globalNotifications={globalNotifications}
+            onUpdateNotifications={(updated) => {
+              saveGlobalNotifications(updated);
+              setGlobalNotifications(updated);
+            }}
           />
 
           {/* Core Content Area */}
@@ -263,6 +416,11 @@ export default function App() {
                   setActiveTab('exams');
                 }}
                 branding={branding}
+                globalNotifications={globalNotifications}
+                onUpdateNotifications={(updated) => {
+                  saveGlobalNotifications(updated);
+                  setGlobalNotifications(updated);
+                }}
               />
             ) : activeTab === 'exams' ? (
               <AssessmentCenter
@@ -318,10 +476,10 @@ export default function App() {
                 units={units}
                 progress={progress}
                 departments={departments}
-                onUpdateUsers={(updated) => { saveUsers(updated); setUsers(updated); }}
+                onUpdateUsers={handleUpdateUsers}
                 onUpdateRoles={(updated) => { saveRoles(updated); setRoles(updated); }}
-                onUpdateChapters={(updated) => { saveChapters(updated); setChapters(updated); }}
-                onUpdateUnits={(updated) => { saveUnits(updated); setUnits(updated); }}
+                onUpdateChapters={handleUpdateChapters}
+                onUpdateUnits={handleUpdateUnits}
                 onUpdateProgress={(updated) => { saveProgress(updated); setProgress(updated); }}
                 onUpdateDepartments={(updated) => { saveDepartments(updated); setDepartments(updated); }}
                 onSettleVerification={handleSettleVerification}

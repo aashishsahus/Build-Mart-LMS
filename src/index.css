@@ -1,35 +1,56 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;605;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Outfit", system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Outfit", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-600: #16a34a;
-  --color-primary-700: #15803d;
+  /* Modern High-Contrast Primary & Emerald Redefinition */
+  --color-primary-50: #f8fafc;
+  --color-primary-100: #f1f5f9;
+  --color-primary-600: #0f172a;
+  --color-primary-700: #020617;
   
-  --color-navy-50: #f8fafc;
-  --color-navy-100: #f1f5f9;
-  --color-navy-200: #e2e8f0;
-  --color-navy-300: #cbd5e1;
-  --color-navy-400: #94a3b8;
-  --color-navy-500: #64748b;
-  --color-navy-600: #475569;
-  --color-navy-700: #334155;
-  --color-navy-800: #1e293b;
-  --color-navy-900: #0f172a;
-  --color-navy-950: #020617;
+  --color-emerald-50: #f8fafc;
+  --color-emerald-100: #f1f5f9;
+  --color-emerald-200: #e2e8f0;
+  --color-emerald-300: #cbd5e1;
+  --color-emerald-400: #94a3b8;
+  --color-emerald-500: #1e293b;
+  --color-emerald-600: #0f172a;
+  --color-emerald-700: #020617;
+  --color-emerald-800: #000000;
+  
+  --color-indigo-50: #f8fafc;
+  --color-indigo-100: #f1f5f9;
+  --color-indigo-200: #e2e8f0;
+  --color-indigo-300: #cbd5e1;
+  --color-indigo-400: #94a3b8;
+  --color-indigo-500: #1e293b;
+  --color-indigo-600: #0f172a;
+  --color-indigo-700: #020617;
+  --color-indigo-800: #000050;
+
+  --color-navy-50: #fafafa;
+  --color-navy-100: #f4f4f5;
+  --color-navy-200: #e4e4e7;
+  --color-navy-300: #d4d4d8;
+  --color-navy-400: #a1a1aa;
+  --color-navy-500: #71717a;
+  --color-navy-600: #52525b;
+  --color-navy-700: #3f3f46;
+  --color-navy-800: #27272a;
+  --color-navy-950: #09090b;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-navy-50);
-  color: var(--color-navy-900);
+  background-color: #fafafa;
+  color: #0f172a;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Custom Scrollbar */

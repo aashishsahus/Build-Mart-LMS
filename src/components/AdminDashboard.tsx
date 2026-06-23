@@ -322,7 +322,8 @@ export default function AdminDashboard({
   // Checking admin and group directorship/ownership authorization
   const isAdmin = currentUser.roleId === 'role_sr_acc';
   const isDirectorOrOwner = currentUser.roleId === 'role_md' || currentUser.roleId === 'role_ceo' || currentUser.roleId === 'role_coo' || currentUser.department === 'Director' || currentUser.role?.name?.toLowerCase().includes('director') || currentUser.role?.name?.toLowerCase().includes('owner');
-  const hasAccess = isAdmin || isDirectorOrOwner;
+  const isHR = currentUser.roleId === 'role_hr_mgr' || currentUser.roleId === 'role_ta_exec' || currentUser.roleId === 'role_training_mgr' || currentUser.department?.toLowerCase().includes('hr') || currentUser.department?.toLowerCase().includes('talent') || currentUser.role?.name?.toLowerCase().includes('hr');
+  const hasAccess = isAdmin || isDirectorOrOwner || isHR;
   const [bypassAuth, setBypassAuth] = useState(false);
 
   // Custom non-blocking Toast System
@@ -502,6 +503,17 @@ export default function AdminDashboard({
   const [qFormError, setQFormError] = useState<string>('');
   const [gatingSuccess, setGatingSuccess] = useState<string>('');
 
+  // Search & Filter states for multiple cockpit panels (Departments, Approvals, Roles, Question Bank, Attempt Logs)
+  const [deptSearchQuery, setDeptSearchQuery] = useState('');
+  const [deptFilterType, setDeptFilterType] = useState<string>('all');
+  const [approvalSearchQuery, setApprovalSearchQuery] = useState('');
+  const [approvalDeptFilter, setApprovalDeptFilter] = useState('all');
+  const [roleSearchQuery, setRoleSearchQuery] = useState('');
+  const [roleDeptFilter, setRoleDeptFilter] = useState('all');
+  const [recTakerSearchQuery, setRecTakerSearchQuery] = useState('');
+  const [questionSearchQuery, setQuestionSearchQuery] = useState('');
+  const [questionChapterFilter, setQuestionChapterFilter] = useState('all');
+
   React.useEffect(() => {
     try {
       const stored = localStorage.getItem('lms_exam_attempts_v1');
@@ -527,6 +539,12 @@ export default function AdminDashboard({
     if (rec_filterRole === 'employees' && att.userRoleId === 'role_candidate') return false;
     if (rec_filterResult === 'passed' && !att.passed) return false;
     if (rec_filterResult === 'failed' && att.passed) return false;
+    if (recTakerSearchQuery) {
+      const q = recTakerSearchQuery.toLowerCase().trim();
+      const userName = (att.userName || '').toLowerCase();
+      const userEmail = (att.userEmail || '').toLowerCase();
+      if (!userName.includes(q) && !userEmail.includes(q)) return false;
+    }
     return true;
   }).reverse();
 
@@ -1854,6 +1872,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         <div className="relative z-10 flex flex-wrap items-center gap-1.5 pb-0.5 select-none px-1">
           {[
             { id: 'reports', emoji: '📊', label: isDirectorOrOwner ? 'Executive Dashboard' : 'Dynamic Workspace', countLabel: 'Live' },
+            { id: 'approvals', emoji: '⏳', label: 'Enrollment Approvals', count: users.filter(u => u.status === 'Pending Approval').length, countLabel: users.filter(u => u.status === 'Pending Approval').length > 0 ? `${users.filter(u => u.status === 'Pending Approval').length} Pending` : undefined },
             ...(isDirectorOrOwner ? [] : [
               { id: 'users', emoji: '👥', label: 'User Database', count: users.length },
               { id: 'roles', emoji: '🗂️', label: 'Job Roles Matrix', count: roles.length },
@@ -2075,15 +2094,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             </div>
 
                             {/* Department Roles List */}
-                            <div className="mt-2.5 pt-2 border-t border-slate-100/80 flex flex-col gap-1">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">
+                            <div className="mt-2.5 pt-2 border-t border-slate-205 border-slate-200 flex flex-col gap-1.5">
+                              <span className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider font-display">
                                 Included Mapped Designations ({deptRep.rolesCount})
                               </span>
                               <div className="flex flex-wrap gap-1">
                                 {roles.filter(r => r.department === deptRep.name).map(r => (
                                   <span 
                                     key={r.id} 
-                                    className="bg-slate-50 text-slate-600 border border-slate-200/50 rounded px-1.5 py-0.5 text-[8.5px] font-sans font-semibold tracking-tight truncate max-w-full"
+                                    className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[9px] font-sans font-extrabold tracking-tight truncate max-w-full"
                                     title={r.name}
                                   >
                                     {r.name}
@@ -2284,7 +2303,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-3xs text-[11px] max-w-full">
                   <table className="w-full text-left text-xs text-slate-655 border-collapse min-w-[750px]">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-400 border-b border-slate-150 text-[10px] tracking-wider uppercase font-mono font-bold">
+                      <tr className="bg-slate-50 text-slate-800 border-b border-slate-250 text-[10px] tracking-wider uppercase font-display font-extrabold">
                         <th className="p-3.5 pl-5">Staff Member</th>
                         <th className="p-3.5 text-center">Business Unit</th>
                         <th className="p-3.5">Curriculum Progress</th>
@@ -2320,12 +2339,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                       <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] px-1.5 py-0.2 rounded font-mono uppercase font-extrabold tracking-wide">Admin</span>
                                     )}
                                   </div>
-                                  <div className="text-[10px] text-slate-400 font-mono tracking-tight flex items-center flex-wrap gap-1.5 mt-0.5">
-                                    <span>{user.focusEntity || 'Accounts' } • {roleObj?.name || 'Trainee'}</span>
+                                  <div className="text-[10px] text-slate-700 font-sans font-bold tracking-tight flex items-center flex-wrap gap-1.5 mt-1">
+                                    <span className="text-slate-800 font-extrabold">{user.focusEntity || 'Accounts' }</span>
+                                    <span className="text-slate-350 select-none font-extrabold">•</span>
+                                    <span className="bg-zinc-100 text-zinc-800 font-mono font-bold text-[9px] uppercase tracking-wide px-1.5 py-0.2 rounded border border-zinc-200">{roleObj?.name || 'Trainee'}</span>
                                     <button
                                       type="button"
                                       onClick={() => setSelectedRoleDetailUser(user)}
-                                      className="inline-flex items-center gap-1 text-[9px] text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/50 rounded-md px-1.5 py-0.5 font-sans font-extrabold tracking-normal transition cursor-pointer"
+                                      className="inline-flex items-center gap-1 text-[9.5px] text-indigo-700 hover:text-indigo-900 bg-indigo-50/90 hover:bg-slate-100 border border-indigo-200 rounded-md px-2 py-0.5 font-sans font-extrabold tracking-normal transition cursor-pointer"
                                       title="Click to view designations mapped and role specifications"
                                     >
                                       View Mapped Roles
@@ -2336,18 +2357,18 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             </td>
 
                             <td className="p-3.5 text-center">
-                              <span className="inline-block bg-slate-50 text-slate-700 border border-slate-200/80 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[140px] text-center leading-tight">
+                              <span className="inline-block bg-zinc-100 text-zinc-900 border border-zinc-300 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[140px] text-center leading-tight">
                                 {user.department}
                               </span>
                             </td>
 
                             <td className="p-3.5">
                               <div className="space-y-1 max-w-[150px]">
-                                <div className="flex justify-between items-center text-[10px] text-slate-450 font-mono">
+                                <div className="flex justify-between items-center text-[10.5px] text-slate-700 font-mono font-extrabold">
                                   <span>{stats.completedCount}/{stats.totalUnits} Units</span>
-                                  <span className="font-bold text-indigo-600">{stats.overallPercent}%</span>
+                                  <span className="font-extrabold text-indigo-700">{stats.overallPercent}%</span>
                                 </div>
-                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                                <div className="h-2 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex shadow-inner">
                                   <div className="bg-indigo-600 h-2" style={{ width: `${stats.overallPercent}%` }}></div>
                                 </div>
                               </div>
@@ -2355,12 +2376,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                             <td className="p-3.5 text-center">
                               <div className="inline-block text-center pr-2">
-                                <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-black ${
+                                <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-black border ${
                                   stats.masteryPercent >= 80 
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    ? 'bg-emerald-100 text-emerald-950 border-emerald-300' 
                                     : stats.masteryPercent >= 40 
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                                      : 'bg-slate-50 text-slate-400'
+                                      ? 'bg-blue-100 text-blue-950 border-blue-300' 
+                                      : 'bg-zinc-100 text-zinc-900 border-zinc-350'
                                 }`}>
                                   {stats.masteryPercent}%
                                 </span>
@@ -2370,19 +2391,19 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             <td className="p-3.5 text-center">
                               {highestAttempt ? (
                                 <div className="inline-flex flex-col items-center">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border ${
                                     highestAttempt.passed 
-                                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                                      : 'bg-rose-50 border-rose-200 text-rose-700'
+                                      ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold' 
+                                      : 'bg-rose-100 border-rose-300 text-rose-950 font-extrabold'
                                   }`}>
                                     {highestAttempt.score}% {highestAttempt.passed ? 'PASSED' : 'FAILED'}
                                   </span>
-                                  <span className="text-[8px] text-slate-400 font-mono mt-0.5">
+                                  <span className="text-[9px] text-slate-500 font-mono font-bold mt-0.5">
                                     {new Date(highestAttempt.date || highestAttempt.timestamp).toLocaleDateString()}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-slate-400 font-sans italic">No Exams</span>
+                                <span className="text-[10px] text-slate-500 font-sans font-extrabold italic">No Exams</span>
                               )}
                             </td>
 
@@ -2465,6 +2486,249 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           </div>
         </div>
       </div>
+      )}
+
+
+
+      {/* ----------------------------------------------------
+          TAB 1.5: ENROLLMENT APPROVALS
+          ---------------------------------------------------- */}
+      {adminTab === 'approvals' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-5 border-b border-indigo-50 pb-4">
+            <div>
+              <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                New Enrollments Pending Approval
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">Review self-registered team members, verify their mapped primary job roles, and authorize their training accounts before they can log in.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200/60 font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+                Only Admin / HR Authorized
+              </span>
+            </div>
+          </div>
+
+          {users.filter(u => u.status === 'Pending Approval').length === 0 ? (
+            <div className="py-12 text-center max-w-md mx-auto">
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                🎉
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">All caught up!</h4>
+              <p className="text-xs text-slate-500 mt-2 font-sans leading-relaxed">
+                There are absolutely no new enrollment requests currently pending in your approval queue. Any new employee who registers on the Sign-Up page or via Google Sign-Up will automatically appear here for verification.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* SEARCH & FILTER CONTROLS FOR ENROLLMENTS */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  {/* Text Search */}
+                  <div className="relative w-full sm:w-64">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Trainees</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={approvalSearchQuery}
+                        onChange={(e) => setApprovalSearchQuery(e.target.value)}
+                        placeholder="Search name or email..."
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-indigo-500 outline-none text-xs w-full text-slate-800 font-sans font-medium text-slate-900"
+                      />
+                      <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
+                      {approvalSearchQuery && (
+                        <button
+                          onClick={() => setApprovalSearchQuery('')}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Department Selector */}
+                  <div className="w-full sm:w-auto">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Department</label>
+                    <select
+                      value={approvalDeptFilter}
+                      onChange={(e) => setApprovalDeptFilter(e.target.value)}
+                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full text-slate-800"
+                    >
+                      <option value="all">📁 All Departments</option>
+                      {departments.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Clear Filters indicator */}
+                {(approvalSearchQuery || approvalDeptFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovalSearchQuery('');
+                      setApprovalDeptFilter('all');
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
+                  >
+                    Clear filters [✕]
+                  </button>
+                )}
+              </div>
+
+              {(() => {
+                const pendingFiltered = users
+                  .filter(u => u.status === 'Pending Approval')
+                  .filter(u => {
+                    if (approvalSearchQuery) {
+                      const query = approvalSearchQuery.toLowerCase().trim();
+                      const nameMatch = (u.name || '').toLowerCase().includes(query);
+                      const emailMatch = (u.email || '').toLowerCase().includes(query);
+                      if (!nameMatch && !emailMatch) return false;
+                    }
+                    if (approvalDeptFilter !== 'all') {
+                      if (u.department !== approvalDeptFilter) return false;
+                    }
+                    return true;
+                  });
+
+                if (pendingFiltered.length === 0) {
+                  return (
+                    <div className="py-12 text-center bg-slate-50 border border-dashed rounded-xl">
+                      <p className="text-xs font-bold text-slate-700">No matching search query found</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Try relaxing your keywords or choosing "All Departments" to see all registered staff requests.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-250 font-display text-[10px] uppercase font-extrabold tracking-wider text-slate-800">
+                          <th className="py-4 px-4 font-extrabold">Trainee Profile</th>
+                          <th className="py-4 px-4 font-extrabold">Focus Entity & BU</th>
+                          <th className="py-4 px-4 font-extrabold">Requested Primary Job Role</th>
+                          <th className="py-4 px-4 text-center font-extrabold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
+                        {pendingFiltered.map((u) => {
+                          const mappedRole = roles.find(r => r.id === u.roleId);
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50/40 transition">
+                        {/* Trainee Profile */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              src={u.avatarUrl}
+                              name={u.name}
+                              className="w-10 h-10 border border-slate-205 shrink-0"
+                            />
+                            <div>
+                              <p className="font-bold text-slate-900">{u.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono select-all leading-tight">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Focus Entity & BU */}
+                        <td className="py-4 px-4 font-sans">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="font-semibold text-slate-800">{u.focusEntity || 'Rathi Buildmart'}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              Dept: {u.department || 'Account'}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Requested Job Role Selection */}
+                        <td className="py-4 px-4">
+                          <div className="space-y-1.5 max-w-[240px]">
+                            <select
+                              value={u.roleId}
+                              onChange={(e) => {
+                                const roleId = e.target.value;
+                                const r = roles.find(rl => rl.id === roleId);
+                                const updatedUsers = users.map(user => 
+                                  user.id === u.id 
+                                    ? { 
+                                        ...user, 
+                                        roleId,
+                                        roleIds: Array.from(new Set([roleId, ...(user.roleIds || [])]))
+                                      } 
+                                    : user
+                                );
+                                onUpdateUsers(updatedUsers);
+                                showToast(`✓ Changed requested role of "${u.name}" to "${r?.name || roleId}" successfully.`, 'info');
+                              }}
+                              className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-500 outline-none font-bold text-slate-800 transition"
+                            >
+                              {roles.map(r => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            {mappedRole && (
+                              <div className="text-[10px] text-slate-400 font-sans italic truncate">
+                                Required: {mappedRole.skillRequirements.slice(0, 2).join(', ')}...
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Interactive Approvals Actions */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = users.map(user => 
+                                  user.id === u.id ? { ...user, status: 'Active' as const } : user
+                                );
+                                onUpdateUsers(updated);
+                                showToast(`✓ Enrollment approved! "${u.name}" can now sign in and start working on their mapped chapters.`, 'success');
+                              }}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-505 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-95 shrink-0 shadow-sm"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to reject the enrollment request from "${u.name}"? This request will be purged.`)) {
+                                  const updated = users.filter(user => user.id !== u.id);
+                                  onUpdateUsers(updated);
+                                  showToast(`✓ Removed registration request for "${u.name}" from the system queue.`, 'error');
+                                }
+                              }}
+                              className="px-3 py-1.5 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-605 text-slate-400 hover:text-rose-600 font-bold rounded-lg transition text-[10px] uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Decline
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       )}
 
 
@@ -3012,7 +3276,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           <div className="overflow-x-auto select-none mt-2">
             <table className="w-full text-left font-sans text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-400 font-mono text-[10px] uppercase tracking-widest border-b border-slate-100">
+                <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b border-slate-200 font-extrabold">
                   <th className="p-3.5 pl-4">Employee Information</th>
                   <th className="p-3.5">Assigned Department</th>
                   <th className="p-3.5">Location/Entity</th>
@@ -3534,7 +3798,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <div className="overflow-x-auto w-full custom-scrollbar max-w-full">
                 <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
                   <thead>
-                    <tr className="bg-slate-100 divide-x divide-slate-200 border-b border-slate-200 text-[10px] font-mono font-black uppercase text-slate-600 tracking-wider">
+                    <tr className="bg-slate-100 divide-x divide-slate-200 border-b border-slate-250 text-[10px] font-display font-extrabold uppercase text-slate-900 tracking-wider">
                       <th className="px-5 py-3 sticky left-0 bg-slate-100 z-10 font-bold min-w-[320px] text-left">
                         PERMISSION
                       </th>
@@ -3679,9 +3943,90 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {roles.map((r) => {
-                  const associatedUsers = users.filter(u => u.roleId === r.id);
+              {/* SEARCH & FILTER CONTROLS FOR JOB ROLES */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left mb-5 w-full">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  {/* Text Search */}
+                  <div className="relative w-full sm:w-64">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Designations</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={roleSearchQuery}
+                        onChange={(e) => setRoleSearchQuery(e.target.value)}
+                        placeholder="Search designation or skills..."
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-indigo-500 outline-none text-xs w-full text-slate-905 font-sans font-medium text-slate-900"
+                      />
+                      <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
+                      {roleSearchQuery && (
+                        <button
+                          onClick={() => setRoleSearchQuery('')}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Department Filter */}
+                  <div className="w-full sm:w-auto">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Department</label>
+                    <select
+                      value={roleDeptFilter}
+                      onChange={(e) => setRoleDeptFilter(e.target.value)}
+                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full text-indigo-900 text-slate-800"
+                    >
+                      <option value="all">📁 All Departments</option>
+                      {departments.map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Clear Button */}
+                {(roleSearchQuery || roleDeptFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoleSearchQuery('');
+                      setRoleDeptFilter('all');
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
+                  >
+                    Clear filters [✕]
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                {(() => {
+                  const rolesFiltered = roles.filter((r) => {
+                    if (roleSearchQuery) {
+                      const query = roleSearchQuery.toLowerCase().trim();
+                      const nameMatches = r.name.toLowerCase().includes(query);
+                      const descriptionMatches = (r.description || '').toLowerCase().includes(query);
+                      const skillsMatches = r.skillRequirements.some(s => s.toLowerCase().includes(query));
+                      if (!nameMatches && !descriptionMatches && !skillsMatches) return false;
+                    }
+                    if (roleDeptFilter !== 'all') {
+                      if (r.department !== roleDeptFilter) return false;
+                    }
+                    return true;
+                  });
+
+                  if (rolesFiltered.length === 0) {
+                    return (
+                      <div className="col-span-1 md:col-span-2 py-12 text-center bg-slate-50 border border-dashed rounded-xl w-full">
+                        <p className="text-xs font-bold text-slate-705">No matching designations found</p>
+                        <p className="text-[11px] text-slate-400 mt-1 font-sans">Try modifying your search keywords or choosing "All Departments".</p>
+                      </div>
+                    );
+                  }
+
+                  return rolesFiltered.map((r) => {
+                    const associatedUsers = users.filter(u => u.roleId === r.id);
                   
                   if (editingRoleId === r.id) {
                     return (
@@ -3856,7 +4201,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       </div>
                     </div>
                   );
-                })}
+                })})()}
               </div>
             </div>
           )}
@@ -4918,7 +5263,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <div className="overflow-x-auto max-h-72 border border-slate-150 rounded-lg">
                       <table className="min-w-full text-left border-collapse text-xs">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase font-mono font-black text-slate-400">
+                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-display font-extrabold text-slate-800">
                             <th className="p-2.5">Index</th>
                             <th className="p-2.5">Status / Errors</th>
                             <th className="p-2.5">Job Designation</th>
@@ -5163,11 +5508,31 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <span className="text-xs font-extrabold text-[#111827]">Filter Screening & Chapter Exams:</span>
-                <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex flex-wrap gap-2 text-xs items-center">
+                  {/* Text Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={recTakerSearchQuery}
+                      onChange={(e) => setRecTakerSearchQuery(e.target.value)}
+                      placeholder="Search taker name/email..."
+                      className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 pl-8 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 w-52 text-slate-900"
+                    />
+                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    {recTakerSearchQuery && (
+                      <button
+                        onClick={() => setRecTakerSearchQuery('')}
+                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
                   <select
                     value={rec_filterRole}
                     onChange={(e) => setRecFilterRole(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-lg py-2 px-3 font-semibold text-slate-700 outline-none cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
+                    className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 font-semibold text-slate-700 outline-none cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
                   >
                     <option value="all">All Taker Roles</option>
                     <option value="candidates">Candidates Only</option>
@@ -5177,7 +5542,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <select
                     value={rec_filterResult}
                     onChange={(e) => setRecFilterResult(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-lg py-2 px-3 font-semibold text-slate-700 outline-none cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
+                    className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 font-semibold text-slate-705 cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
                   >
                     <option value="all">All Results</option>
                     <option value="passed">Passed (&gt;= 60%)</option>
@@ -5227,7 +5592,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-400 font-mono text-[10px] uppercase border-b border-slate-200">
+                  <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider">
                     <th className="py-4 px-4 font-bold">Candidate / Staff</th>
                     <th className="py-4 px-4 font-bold">Applied / Current Role</th>
                     <th className="py-4 px-4 font-bold">Date of Attempt</th>
@@ -5409,7 +5774,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <div className="overflow-x-auto rounded-xl border border-slate-150">
                 <table className="w-full text-left border-collapse text-xs bg-white">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-450 font-mono text-[9px] uppercase border-b border-slate-200">
+                    <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider">
                       <th className="py-3 px-4 font-bold">Candidate</th>
                       <th className="py-3 px-4 font-bold">Applied Designation</th>
                       <th className="py-3 px-4 font-bold">Completed On</th>
@@ -5790,21 +6155,76 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             {/* Question list (Right 7 Columns) */}
             <div className="lg:col-span-12 xl:col-span-7 space-y-4 text-left">
-              <div className="bg-slate-50 border p-4 rounded-xl flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-705">Database Repository Questions Desk:</span>
-                <span className="font-mono text-xs text-slate-505 text-slate-500 font-bold">({questionsBank.length} items configured)</span>
+              <div className="bg-slate-50 border p-4 rounded-xl space-y-3.5 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-205 pb-2 text-xs">
+                  <span className="font-extrabold text-slate-705">Database Repository Questions Desk:</span>
+                  <span className="font-mono text-xs text-slate-505 text-slate-500 font-bold">({questionsBank.length} items configured)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={questionSearchQuery}
+                      onChange={(e) => setQuestionSearchQuery(e.target.value)}
+                      placeholder="Search question prompt or topic..."
+                      className="bg-white border border-slate-300 rounded-lg py-1.5 px-3 pl-8 text-xs text-slate-805 outline-none w-full font-medium text-slate-900"
+                    />
+                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    {questionSearchQuery && (
+                      <button
+                        onClick={() => setQuestionSearchQuery('')}
+                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Chapter Filter */}
+                  <div>
+                    <select
+                      value={questionChapterFilter}
+                      onChange={(e) => setQuestionChapterFilter(e.target.value)}
+                      className="bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs text-slate-800 outline-none w-full font-semibold cursor-pointer"
+                    >
+                      <option value="all">📁 All Mapped Chapters</option>
+                      {chapters.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-4 max-h-[720px] overflow-y-auto pr-1">
-                {questionsBank.length === 0 ? (
-                  <div className="text-center py-16 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 font-sans">
-                    <p className="text-xs font-bold text-slate-700 text-center">Empty Question Matrix</p>
-                    <p className="text-[11px] mt-1 max-w-sm mx-auto leading-normal text-slate-400 text-center">
-                      No manual questions added for trainee learning tests yet. Assign questions to chapters using the builder menu on the left.
-                    </p>
-                  </div>
-                ) : (
-                  questionsBank.map((q, qIdx) => {
+                {(() => {
+                  const filteredQuestions = questionsBank.filter(q => {
+                    if (questionSearchQuery) {
+                      const query = questionSearchQuery.toLowerCase().trim();
+                      const matchesQuestion = (q.question || '').toLowerCase().includes(query);
+                      const matchesTopic = (q.topic || '').toLowerCase().includes(query);
+                      if (!matchesQuestion && !matchesTopic) return false;
+                    }
+                    if (questionChapterFilter !== 'all') {
+                      if (q.chapterId !== questionChapterFilter) return false;
+                    }
+                    return true;
+                  });
+
+                  if (filteredQuestions.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 font-sans">
+                        <p className="text-xs font-bold text-slate-700 text-center">No matching questions found</p>
+                        <p className="text-[11px] mt-1 max-w-sm mx-auto leading-normal text-slate-400 text-center font-sans">
+                          Try relaxing your search keywords or choosing "All Mapped Chapters" to see full question lists.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return filteredQuestions.map((q, qIdx) => {
                     const associatedChap = chapters.find(c => c.id === q.chapterId);
 
                     return (
@@ -5934,8 +6354,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                       </div>
                     );
-                  })
-                )}
+                  })})()}
               </div>
             </div>
 
@@ -6068,11 +6487,71 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </form>
 
+          {/* SEARCH & INTERACTIVE FILTER BOX */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-64">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Departments</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={deptSearchQuery}
+                    onChange={(e) => setDeptSearchQuery(e.target.value)}
+                    placeholder="Search department name..."
+                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-emerald-500 outline-none text-xs w-full text-slate-850 font-sans font-medium text-slate-900"
+                  />
+                  <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
+                  {deptSearchQuery && (
+                    <button
+                      onClick={() => setDeptSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Advanced Filter Selector */}
+              <div className="w-full sm:w-auto">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Association</label>
+                <select
+                  value={deptFilterType}
+                  onChange={(e) => setDeptFilterType(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer w-full text-slate-800"
+                >
+                  <option value="all">📁 All Departments ({departments.length})</option>
+                  <option value="has-staff">👥 Has Staff Members</option>
+                  <option value="has-roles">💼 Has Job Roles</option>
+                  <option value="no-staff">⚠️ No Staff Members</option>
+                  <option value="empty">🚫 Entirely Empty (No Staff & No Roles)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Quick Summary Badge info */}
+            <div className="text-[11px] font-sans font-semibold text-slate-550 flex items-center gap-2">
+              {(deptSearchQuery || deptFilterType !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeptSearchQuery('');
+                    setDeptFilterType('all');
+                  }}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
+                >
+                  Clear filters [✕]
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Departments Directory List Table */}
           <div className="overflow-x-auto border border-slate-250/60 rounded-xl bg-white shadow-xs max-w-full">
             <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[650px]">
               <thead>
-                <tr className="bg-slate-50 text-slate-400 border-b border-slate-200 text-[10px] tracking-wider uppercase font-mono font-bold">
+                <tr className="bg-slate-50 text-slate-800 border-b border-slate-200 text-[10px] tracking-wider uppercase font-display font-extrabold">
                   <th className="p-3.5 pl-5">S.No.</th>
                   <th className="p-3.5">Department Name</th>
                   <th className="p-3.5 text-center">Associated Users</th>
@@ -6081,111 +6560,134 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-705">
-                {departments.map((dept, idx) => {
-                  const associatedUsers = users.filter(u => u.department === dept);
-                  const associatedRoles = roles.filter(r => r.department === dept);
-                  const isEditing = editingDeptIndex === idx;
+                {departments
+                  .map((dept, idx) => ({ dept, originalIdx: idx }))
+                  .filter(({ dept }) => {
+                    const associatedUsers = users.filter(u => u.department === dept);
+                    const associatedRoles = roles.filter(r => r.department === dept);
 
-                  return (
-                    <tr key={dept} className="hover:bg-slate-50/50 transition duration-150">
-                      <td className="p-3.5 pl-5 font-mono text-[10px] text-slate-400">{(idx + 1).toString().padStart(2, '0')}</td>
-                      
-                      <td className="p-3.5 text-slate-900 font-bold">
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 max-w-xs">
-                            <input
-                              type="text"
-                              value={editingDeptValue}
-                              onChange={(e) => setEditingDeptValue(e.target.value)}
-                              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-bold text-slate-900"
-                              autoFocus
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEditedDepartment(idx)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-1 rounded transition flex items-center justify-center h-7 w-7"
-                              title="Save Changes"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingDeptIndex(null)}
-                              className="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold p-1 rounded transition flex items-center justify-center h-7 w-7"
-                              title="Cancel"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block bg-slate-50 text-slate-700 border border-slate-200/80 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[150px] text-center leading-tight">
-                              {dept}
-                            </span>
-                          </div>
-                        )}
-                      </td>
+                    if (deptSearchQuery) {
+                      const query = deptSearchQuery.toLowerCase().trim();
+                      if (!dept.toLowerCase().includes(query)) return false;
+                    }
 
-                      <td className="p-3.5 text-center">
-                        <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedUsers.length > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}>
-                          {associatedUsers.length} staff
-                        </span>
-                      </td>
+                    if (deptFilterType === 'has-staff') {
+                      if (associatedUsers.length === 0) return false;
+                    } else if (deptFilterType === 'has-roles') {
+                      if (associatedRoles.length === 0) return false;
+                    } else if (deptFilterType === 'no-staff') {
+                      if (associatedUsers.length > 0) return false;
+                    } else if (deptFilterType === 'empty') {
+                      if (associatedUsers.length > 0 || associatedRoles.length > 0) return false;
+                    }
 
-                      <td className="p-3.5 text-center">
-                        <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedRoles.length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-400'}`}>
-                          {associatedRoles.length} roles
-                        </span>
-                      </td>
+                    return true;
+                  })
+                  .map(({ dept, originalIdx }, filteredIdx) => {
+                    const associatedUsers = users.filter(u => u.department === dept);
+                    const associatedRoles = roles.filter(r => r.department === dept);
+                    const isEditing = editingDeptIndex === originalIdx;
 
-                      <td className="p-3.5 pr-5 text-right">
-                        <div className="flex items-center justify-end gap-1.5 font-sans">
-                          {!isEditing && (
-                            <>
-                              {confirmDeleteDeptIndex === idx ? (
-                                <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteDeptIndex(null)}
-                                    className="text-[10px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition border border-slate-200"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteDepartment(idx)}
-                                    className="text-[10px] uppercase font-mono font-black text-white bg-rose-500 hover:bg-rose-600 px-2.5 py-1 rounded shadow-xs transition flex items-center gap-1"
-                                  >
-                                    <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingDeptIndex(idx);
-                                      setEditingDeptValue(dept);
-                                    }}
-                                    className="text-slate-500 hover:text-blue-650 bg-slate-50 hover:bg-blue-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-blue-200 transition"
-                                    title="Edit Department Name"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteDeptIndex(idx)}
-                                    className="text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-rose-200 transition"
-                                    title="Delete Department"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
-                            </>
+                    return (
+                      <tr key={dept} className="hover:bg-slate-50/50 transition duration-150">
+                        <td className="p-3.5 pl-5 font-mono text-[10px] text-slate-400">{(filteredIdx + 1).toString().padStart(2, '0')}</td>
+                        
+                        <td className="p-3.5 text-slate-900 font-bold">
+                          {isEditing ? (
+                            <div className="flex items-center gap-2 max-w-xs">
+                              <input
+                                type="text"
+                                value={editingDeptValue}
+                                onChange={(e) => setEditingDeptValue(e.target.value)}
+                                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-bold text-slate-900"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditedDepartment(originalIdx)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer"
+                                title="Save Changes"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingDeptIndex(null)}
+                                className="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer"
+                                title="Cancel"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block bg-slate-50 text-slate-700 border border-slate-200/80 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[150px] text-center leading-tight">
+                                {dept}
+                              </span>
+                            </div>
                           )}
-                        </div>
-                      </td>
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedUsers.length > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}>
+                            {associatedUsers.length} staff
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedRoles.length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-400'}`}>
+                            {associatedRoles.length} roles
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 pr-5 text-right font-sans">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {!isEditing && (
+                              <>
+                                {confirmDeleteDeptIndex === originalIdx ? (
+                                  <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteDeptIndex(null)}
+                                      className="text-[10px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition border border-slate-200 cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteDepartment(originalIdx)}
+                                      className="text-[10px] uppercase font-mono font-black text-white bg-rose-500 hover:bg-rose-600 px-2.5 py-1 rounded shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingDeptIndex(originalIdx);
+                                        setEditingDeptValue(dept);
+                                      }}
+                                      className="text-slate-500 hover:text-blue-650 bg-slate-50 hover:bg-blue-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-blue-200 transition cursor-pointer"
+                                      title="Edit Department Name"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteDeptIndex(originalIdx)}
+                                      className="text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-rose-200 transition cursor-pointer"
+                                      title="Delete Department"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
                     </tr>
                   );
                 })}

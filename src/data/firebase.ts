@@ -6,7 +6,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection, 
   getDocs, 
   doc, 
@@ -31,7 +33,12 @@ if (!isFirebasePlaceholder) {
   try {
     app = initializeApp(firebaseConfig);
     const dbId = (firebaseConfig as any).firestoreDatabaseId;
-    db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      }),
+      ...(dbId ? { databaseId: dbId } : {})
+    });
     auth = getAuth(app);
     
     // Validate connection to Firestore as per skill guidelines
@@ -39,9 +46,10 @@ if (!isFirebasePlaceholder) {
       try {
         await getDocFromServer(doc(db, 'test-connection-probe', 'probe'));
       } catch (error) {
-        if (error instanceof Error && error.message.includes('client is offline')) {
-          console.warn("Please check your Firebase configuration. Client appears to be offline.");
-        }
+        console.warn(
+          "Firestore connection test: Client is currently operating in offline/unreachable mode.",
+          error instanceof Error ? error.message : error
+        );
       }
     };
     testConnection();

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig } from '../types';
+import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification } from '../types';
 import { initialRoles, initialUsers, initialChapters, initialUnits, initialProgress, initialDepartments } from './initialRecords';
 import { setCollectionData, setDocumentData, getCollectionData, isFirebasePlaceholder, deleteDocumentsBatch } from './firebase';
 
@@ -19,7 +19,8 @@ const KEYS = {
   CERT_TEMPLATE: 'lms_cert_template_v1',
   COMPANY_BRANDING: 'lms_company_branding_v1',
   QUESTIONS: 'lms_questions_v1',
-  EXAM_CONFIG: 'lms_exam_config_v1'
+  EXAM_CONFIG: 'lms_exam_config_v1',
+  NOTIFICATIONS: 'lms_notifications_v1'
 };
 
 export const defaultCertificateTemplate: CertificateTemplate = {
@@ -255,12 +256,31 @@ export function initializeStorage() {
   if (!localStorage.getItem(KEYS.EXAM_CONFIG)) {
     localStorage.setItem(KEYS.EXAM_CONFIG, JSON.stringify(defaultExamConfig));
   }
+  if (!localStorage.getItem(KEYS.NOTIFICATIONS)) {
+    const initialNotifs: GlobalNotification[] = [
+      {
+        id: 'notif_init_1',
+        title: 'Master LMS Platform Live 🚀',
+        message: 'The standard operative learning portal (LMS) has launched for Aashish Sahu Group. All training workflows are synchronized.',
+        timestamp: new Date().toISOString(),
+        isReadBy: [],
+        type: 'system',
+        isAdminOnly: false,
+        creatorName: 'Aashish Sahu'
+      }
+    ];
+    localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(initialNotifs));
+  }
 }
 
 export function getQuestions(): ExamQuestion[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.QUESTIONS);
-  return data ? JSON.parse(data) : initialQuestions;
+  try {
+    return data ? JSON.parse(data) : initialQuestions;
+  } catch (e) {
+    return initialQuestions;
+  }
 }
 
 export function saveQuestions(data: ExamQuestion[]) {
@@ -271,7 +291,11 @@ export function saveQuestions(data: ExamQuestion[]) {
 export function getExamConfig(): ExamConfig {
   initializeStorage();
   const data = localStorage.getItem(KEYS.EXAM_CONFIG);
-  return data ? JSON.parse(data) : defaultExamConfig;
+  try {
+    return data ? JSON.parse(data) : defaultExamConfig;
+  } catch (e) {
+    return defaultExamConfig;
+  }
 }
 
 export function saveExamConfig(config: ExamConfig) {
@@ -282,7 +306,11 @@ export function saveExamConfig(config: ExamConfig) {
 export function getDepartments(): string[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.DEPARTMENTS);
-  return data ? JSON.parse(data) : initialDepartments;
+  try {
+    return data ? JSON.parse(data) : initialDepartments;
+  } catch (e) {
+    return initialDepartments;
+  }
 }
 
 export function saveDepartments(data: string[]) {
@@ -294,7 +322,11 @@ export function saveDepartments(data: string[]) {
 export function getRoles(): Role[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.ROLES);
-  return data ? JSON.parse(data) : initialRoles;
+  try {
+    return data ? JSON.parse(data) : initialRoles;
+  } catch (e) {
+    return initialRoles;
+  }
 }
 
 export function getUsers(): User[] {
@@ -324,20 +356,32 @@ export function getUsers(): User[] {
 export function getChapters(): Chapter[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.CHAPTERS);
-  return data ? JSON.parse(data) : initialChapters;
+  try {
+    return data ? JSON.parse(data) : initialChapters;
+  } catch (e) {
+    return initialChapters;
+  }
 }
 
 export function getUnits(): Unit[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.UNITS);
-  return data ? JSON.parse(data) : initialUnits;
+  try {
+    return data ? JSON.parse(data) : initialUnits;
+  } catch (e) {
+    return initialUnits;
+  }
 }
 
 export function getProgress(): ProgressLog[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.PROGRESS);
-  const logs: ProgressLog[] = data ? JSON.parse(data) : initialProgress;
-  return logs;
+  try {
+    const logs: ProgressLog[] = data ? JSON.parse(data) : initialProgress;
+    return logs;
+  } catch (e) {
+    return initialProgress;
+  }
 }
 
 export function getCurrentUserId(): string | null {
@@ -662,7 +706,11 @@ export function updateUnitProgress(
 export function getCertificateTemplate(): CertificateTemplate {
   initializeStorage();
   const data = localStorage.getItem(KEYS.CERT_TEMPLATE);
-  return data ? JSON.parse(data) : defaultCertificateTemplate;
+  try {
+    return data ? JSON.parse(data) : defaultCertificateTemplate;
+  } catch (e) {
+    return defaultCertificateTemplate;
+  }
 }
 
 export function saveCertificateTemplate(template: CertificateTemplate) {
@@ -673,7 +721,11 @@ export function saveCertificateTemplate(template: CertificateTemplate) {
 export function getCompanyBranding(): CompanyBranding {
   initializeStorage();
   const data = localStorage.getItem(KEYS.COMPANY_BRANDING);
-  return data ? JSON.parse(data) : defaultCompanyBranding;
+  try {
+    return data ? JSON.parse(data) : defaultCompanyBranding;
+  } catch (e) {
+    return defaultCompanyBranding;
+  }
 }
 
 export function saveCompanyBranding(branding: CompanyBranding) {
@@ -735,6 +787,14 @@ export async function syncAllWithCloud(): Promise<boolean> {
       await setCollectionData('questions', getQuestions());
     }
 
+    // 6.5. Notifications
+    const cloudNotifs = await getCollectionData('notifications');
+    if (cloudNotifs && cloudNotifs.length > 0) {
+      localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(cloudNotifs));
+    } else {
+      await setCollectionData('notifications', getGlobalNotifications());
+    }
+
     // 7. Configs (Departments, Branding, Cert Template, Exam Config)
     const cloudConfigs = await getCollectionData('configs');
     if (cloudConfigs && cloudConfigs.length > 0) {
@@ -777,5 +837,52 @@ export async function syncAllWithCloud(): Promise<boolean> {
     console.error("syncAllWithCloud failed to synchronize data: ", error);
     return false;
   }
+}
+
+export function getGlobalNotifications(): GlobalNotification[] {
+  initializeStorage();
+  const data = localStorage.getItem(KEYS.NOTIFICATIONS);
+  if (!data) return [];
+  try {
+    const list = JSON.parse(data) as GlobalNotification[];
+    // Auto-migrate any past Suresh Rathi text to Aashish Sahu Group for consistency
+    let updated = false;
+    const cleaned = list.map(notif => {
+      if (notif.message.includes('Suresh Rathi')) {
+        updated = true;
+        return {
+          ...notif,
+          message: notif.message.replace(/Suresh Rathi/g, 'Aashish Sahu')
+        };
+      }
+      return notif;
+    });
+    if (updated) {
+      localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(cleaned));
+    }
+    return cleaned;
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveGlobalNotifications(data: GlobalNotification[]) {
+  localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(data));
+  setCollectionData('notifications', data);
+}
+
+export function addGlobalNotification(
+  notification: Omit<GlobalNotification, 'id' | 'timestamp' | 'isReadBy'>
+): GlobalNotification {
+  const current = getGlobalNotifications();
+  const newNotif: GlobalNotification = {
+    ...notification,
+    id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+    timestamp: new Date().toISOString(),
+    isReadBy: []
+  };
+  const updated = [newNotif, ...current];
+  saveGlobalNotifications(updated);
+  return newNotif;
 }
 

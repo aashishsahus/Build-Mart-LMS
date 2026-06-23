@@ -102,6 +102,34 @@
         "data": { "type": "object" }
       },
       "required": ["id", "data"]
+    },
+    "GlobalNotification": {
+      "title": "GlobalNotification",
+      "description": "Global corporate notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isReadBy": { "type": "array" },
+        "type": { "type": "string" },
+        "targetUserId": { "type": "string" },
+        "targetRoleId": { "type": "string" },
+        "targetDept": { "type": "string" },
+        "isAdminOnly": { "type": "boolean" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" }
+      },
+      "required": ["id", "title", "message", "timestamp", "isReadBy", "type"]
+    },
+    "ConnectionProbe": {
+      "title": "ConnectionProbe",
+      "description": "Database connection tester",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -132,6 +160,14 @@
     "configs/{configId}": {
       "schema": "SystemConfig",
       "description": "System branding, certificates, and departments"
+    },
+    "notifications/{notificationId}": {
+      "schema": "GlobalNotification",
+      "description": "Global corporate notifications feed"
+    },
+    "test-connection-probe/{probeId}": {
+      "schema": "ConnectionProbe",
+      "description": "Scylla or Firestore connection probe document"
     }
   }
 }

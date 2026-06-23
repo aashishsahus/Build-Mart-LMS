@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Avatar } from './Avatar';
 import { UserWithRole } from '../data/stateManager';
-import { CompanyBranding } from '../types';
+import { CompanyBranding, GlobalNotification } from '../types';
 import { 
   BookOpen, 
   RefreshCw, 
@@ -26,7 +26,9 @@ import {
   Briefcase, 
   Check, 
   Link, 
-  Upload 
+  Upload,
+  Bell,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -42,6 +44,8 @@ interface HeaderProps {
   originalUser?: UserWithRole | null;
   isSimulating?: boolean;
   onExitSimulation?: () => void;
+  globalNotifications?: GlobalNotification[];
+  onUpdateNotifications?: (updated: GlobalNotification[]) => void;
 }
 
 const PRESET_AVATARS = [
@@ -67,12 +71,18 @@ export default function Header({
   onUpdateUserAvatar,
   originalUser,
   isSimulating = false,
-  onExitSimulation
+  onExitSimulation,
+  globalNotifications = [],
+  onUpdateNotifications = () => {}
 }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarUrl, setCustomAvatarUrl] = useState('');
   const [dragActive, setDragActive] = useState(false);
+
+  // Notification states
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
 
   if (!currentUser) return null;
 
@@ -88,18 +98,86 @@ export default function Header({
     }, 4500);
   };
 
+  const isHRUser = (roleId?: string, dept?: string) => {
+    if (!roleId) return false;
+    const rId = roleId.toLowerCase();
+    const dName = (dept || '').toLowerCase();
+    return rId === 'role_hr_mgr' || rId === 'role_ta_exec' || rId === 'role_training_mgr' || dName.includes('hr') || dName.includes('talent');
+  };
+
   const isAdmin = currentUser.roleId === 'role_sr_acc' || 
                   currentUser.roleId === 'role_md' || 
                   currentUser.roleId === 'role_ceo' || 
                   currentUser.roleId === 'role_coo' || 
-                  currentUser.department === 'Director';
+                  currentUser.department === 'Director' ||
+                  isHRUser(currentUser.roleId, currentUser.department);
+
+  const assignedRoleIds = Array.from(new Set([
+    currentUser.roleId,
+    ...(currentUser.roleIds || [])
+  ])).filter(Boolean);
+
+  // Filter global notifications for the current user
+  const notifications = (globalNotifications || []).filter(notif => {
+    if (dismissedNotifIds.includes(notif.id)) {
+      return false;
+    }
+    if (isAdmin) {
+      return true;
+    }
+    if (notif.isAdminOnly) {
+      return false;
+    }
+    if (notif.targetUserId && notif.targetUserId !== currentUser.id) {
+      return false;
+    }
+    if (notif.targetDept && notif.targetDept.toLowerCase() !== (currentUser.department || '').toLowerCase()) {
+      return false;
+    }
+    if (notif.targetRoleId && notif.targetRoleId !== currentUser.roleId && !currentUser.roleIds?.includes(notif.targetRoleId)) {
+      return false;
+    }
+    return true;
+  });
+
+  const unreadCount = notifications.filter(n => !(n.isReadBy || []).includes(currentUser.id)).length;
+
+  const handleMarkAsRead = (notifId: string) => {
+    const updated = (globalNotifications || []).map(n => {
+      if (n.id === notifId) {
+        const currentReadBy = n.isReadBy || [];
+        const isReadBy = currentReadBy.includes(currentUser.id) ? currentReadBy : [...currentReadBy, currentUser.id];
+        return { ...n, isReadBy };
+      }
+      return n;
+    });
+    onUpdateNotifications(updated);
+  };
+
+  const handleMarkAllRead = () => {
+    const updated = (globalNotifications || []).map(n => {
+      const isFiltered = notifications.some(f => f.id === n.id);
+      if (isFiltered) {
+        const currentReadBy = n.isReadBy || [];
+        const isReadBy = currentReadBy.includes(currentUser.id) ? currentReadBy : [...currentReadBy, currentUser.id];
+        return { ...n, isReadBy };
+      }
+      return n;
+    });
+    onUpdateNotifications(updated);
+  };
+
+  const handleDeleteNotif = (notifId: string) => {
+    setDismissedNotifIds(prev => [...prev, notifId]);
+  };
 
   const realUser = originalUser || currentUser;
   const isOriginalAdmin = realUser.roleId === 'role_sr_acc' || 
                           realUser.roleId === 'role_md' || 
                           realUser.roleId === 'role_ceo' || 
                           realUser.roleId === 'role_coo' || 
-                          realUser.department === 'Director';
+                          realUser.department === 'Director' ||
+                          isHRUser(realUser.roleId, realUser.department);
 
   // Custom company logo renderer
   const renderLogo = () => {
@@ -404,6 +482,125 @@ export default function Header({
                   )}
                 </div>
               )}
+
+              {/* Advanced Interactive Notification Center Bell */}
+              <div className="relative">
+                <button
+                  type="button"
+                  id="header-notifications-bell-btn"
+                  onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                  className={`p-2 rounded-xl border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
+                    showNotificationCenter
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-250'
+                      : 'bg-white hover:bg-slate-50 border-slate-205 border-slate-200 text-slate-600 hover:text-slate-900'
+                  }`}
+                  aria-label="Notification Center"
+                  title="Notification Center"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-rose-605 bg-rose-600 text-[8px] font-black text-white rounded-full flex items-center justify-center border border-white animate-bounce">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Panel Box */}
+                {showNotificationCenter && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowNotificationCenter(false)}></div>
+                    <div className="absolute right-0 mt-2 z-40 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-0 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 text-slate-800">
+                      {/* Header */}
+                      <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-850">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Corporate Notifications Center</span>
+                        </div>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleMarkAllRead}
+                            className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline cursor-pointer bg-transparent border-none py-0 px-1"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Notification list */}
+                      <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+                        {notifications.length === 0 ? (
+                          <div className="p-8 text-center text-slate-400 text-xs">
+                            <span className="text-xl mb-1 block">📯</span>
+                            No new corporate notifications
+                          </div>
+                        ) : (
+                          notifications.map((notif) => {
+                            const isRead = notif.isReadBy ? notif.isReadBy.includes(currentUser.id) : false;
+                            // Select icon based on type
+                            let icon = '🔔';
+                            if (notif.type === 'user_add') icon = '🤝';
+                            else if (notif.type === 'user_remove') icon = '🔐';
+                            else if (notif.type === 'chapter_add') icon = '📚';
+                            else if (notif.type === 'chapter_remove') icon = '📁';
+                            else if (notif.type === 'unit_add') icon = '🎥';
+                            else if (notif.type === 'unit_remove') icon = '🎬';
+                            else if (notif.type === 'approval') icon = '✅';
+
+                            return (
+                              <div
+                                key={notif.id}
+                                className={`p-3 text-left transition relative group ${
+                                  isRead ? 'bg-white opacity-70' : 'bg-emerald-50/20 hover:bg-emerald-50/40'
+                                }`}
+                              >
+                                <div className="flex items-start gap-2.5">
+                                  <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-sm shrink-0 shadow-sm">
+                                    {icon}
+                                  </div>
+                                  <div className="flex-1 min-w-0 pr-6">
+                                    <h4 className="text-[11px] font-bold text-slate-900 leading-snug">
+                                      {notif.title}
+                                    </h4>
+                                    <p className="text-[10px] text-slate-600 leading-normal mt-0.5 whitespace-pre-line">
+                                      {notif.message}
+                                    </p>
+                                    <span className="text-[8px] font-mono font-medium text-slate-400 mt-1 block">
+                                      {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* List interaction overlay */}
+                                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {!isRead && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAsRead(notif.id)}
+                                      className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition cursor-pointer bg-transparent border-none"
+                                      title="Mark as read"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteNotif(notif.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer bg-transparent border-none"
+                                    title="Dismiss"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Profile Info Dropdown */}
               <div className="relative">

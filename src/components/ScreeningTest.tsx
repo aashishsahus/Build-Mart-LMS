@@ -1432,7 +1432,7 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-left border-collapse text-xs bg-white font-sans">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-450 font-mono text-[9px] uppercase border-b border-slate-200 font-bold tracking-widest leading-none">
+                  <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider">
                     <th className="py-3 px-4 font-bold">Candidate Info</th>
                     <th className="py-3 px-4 font-bold">Designation Context</th>
                     <th className="py-3 px-4 font-bold">Score Sheet</th>

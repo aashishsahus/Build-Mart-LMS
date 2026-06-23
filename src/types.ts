@@ -13,7 +13,7 @@ export interface Role {
   skillRequirements: string[];
 }
 
-export type UserStatus = 'Active' | 'Deactivated' | 'Left';
+export type UserStatus = 'Active' | 'Deactivated' | 'Left' | 'Pending Approval';
 
 export interface User {
   id: string;
@@ -111,6 +111,21 @@ export interface ExamQuestion {
 export interface ExamConfig {
   examEnabled: boolean;
   requirePassToUnlockNext: boolean;
+}
+
+export interface GlobalNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  isReadBy: string[]; // List of user IDs who have read/dismissed this notification
+  type: 'chapter_add' | 'chapter_update' | 'chapter_remove' | 'unit_add' | 'unit_update' | 'unit_remove' | 'user_add' | 'user_remove' | 'approval' | 'system' | 'custom';
+  targetUserId?: string; // Optional: Only for this user
+  targetRoleId?: string; // Optional: Only for users of this role
+  targetDept?: string;   // Optional: Only for users of this department
+  isAdminOnly?: boolean;  // True if only Admins/HR should see
+  creatorId?: string;    // Admin who performed the action
+  creatorName?: string;  // Admin name
 }
 
 

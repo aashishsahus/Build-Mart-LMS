@@ -503,7 +503,7 @@ export const initialUsers: User[] = [
   },
   {
     id: 'usr_cfo_suresh',
-    name: 'Suresh Rathi',
+    name: 'Aashish Sahu',
     email: 'misrpr@rathibuildmart.com', // Matches user email from metadata
     roleId: 'role_sr_acc',
     department: 'Accounts & Corporate Fin',

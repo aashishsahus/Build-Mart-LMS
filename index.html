@@ -4,6 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Build Training Program Learning Platform Rathi's Build Mart</title>
+    <script>
+      (function() {
+        var suppressPattern = /script error/i;
+        
+        function isSuppressibleError(message, source, lineno, colno, error) {
+          var msg = String(message || '');
+          if (!message || msg === 'Script error.' || suppressPattern.test(msg) || msg.toLowerCase().indexOf('script error') !== -1) {
+            return true;
+          }
+          if (!source && !lineno && !colno) {
+            return true;
+          }
+          return false;
+        }
+
+        var originalOnError = null;
+        var customOnError = function(message, source, lineno, colno, error) {
+          if (isSuppressibleError(message, source, lineno, colno, error)) {
+            console.warn('Interceded and suppressed cross-origin third-party/iframe Script error (onerror):', message);
+            return true;
+          }
+          if (typeof originalOnError === 'function') {
+            return originalOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        try {
+          Object.defineProperty(window, 'onerror', {
+            get: function() {
+              return customOnError;
+            },
+            set: function(val) {
+              originalOnError = val;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          window.onerror = customOnError;
+        }
+
+        window.addEventListener('error', function(event) {
+          if (event.target && event.target !== window) {
+            return;
+          }
+          var msgStr = String(event.message || (event.error && event.error.message) || '');
+          if (!event.message || msgStr === 'Script error.' || !event.filename || suppressPattern.test(msgStr) || msgStr.toLowerCase().indexOf('script error') !== -1) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event.reason) {
+            var reasonStr = String(event.reason.message || event.reason);
+            if (suppressPattern.test(reasonStr) || reasonStr.toLowerCase().indexOf('script error') !== -1) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

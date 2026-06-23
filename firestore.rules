@@ -41,5 +41,15 @@ service cloud.firestore {
     match /configs/{configId} {
       allow read, write: if true;
     }
+
+    // Global corporate notifications rules
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    // Test connection probe rules
+    match /test-connection-probe/{probeId} {
+      allow read, write: if true;
+    }
   }
 }

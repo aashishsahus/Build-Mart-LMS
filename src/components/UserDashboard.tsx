@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, CompanyBranding } from '../types';
+import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, CompanyBranding, GlobalNotification } from '../types';
 import { calculateUserProgress, UserWithRole, getExamConfig } from '../data/stateManager';
 import { 
   Play, 
@@ -21,10 +21,23 @@ import {
   ChevronDown, 
   ExternalLink,
   MessageSquare,
-  Lock
+  Lock,
+  Bell,
+  Sparkles,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CertificateGenerator from './CertificateGenerator';
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  type: 'approval' | 'system' | 'role' | 'achievement';
+}
 
 interface UserDashboardProps {
   currentUser: UserWithRole;
@@ -35,6 +48,8 @@ interface UserDashboardProps {
   onUpdateProgress: (unitId: string, status: ProgressStatus, notes?: string, watchPercent?: number) => void;
   onStartChapterExam?: (chapterId: string) => void;
   branding?: CompanyBranding;
+  globalNotifications?: GlobalNotification[];
+  onUpdateNotifications?: (updated: GlobalNotification[]) => void;
 }
 
 export default function UserDashboard({
@@ -45,7 +60,9 @@ export default function UserDashboard({
   progress,
   onUpdateProgress,
   onStartChapterExam,
-  branding
+  branding,
+  globalNotifications = [],
+  onUpdateNotifications = () => {}
 }: UserDashboardProps) {
   // Get all assigned role IDs for the user (always fallback/include currentUser.roleId)
   const assignedRoleIds = Array.from(new Set([
@@ -109,6 +126,79 @@ export default function UserDashboard({
   const [expandedUnitIdForHistory, setExpandedUnitIdForHistory] = useState<string | null>(null);
   const [reportStatusFilter, setReportStatusFilter] = useState<string>('All');
 
+  // Notification system states
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [showApprovalBanner, setShowApprovalBanner] = useState(true);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
+
+  // Check if current user is Admin / Director / HR
+  const isHR = (role?: string, dept?: string) => {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    const d = (dept || '').toLowerCase();
+    return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
+  };
+  const isAdminUser = currentUser.roleId === 'role_sr_acc' || 
+                      currentUser.roleId === 'role_md' || 
+                      currentUser.roleId === 'role_ceo' || 
+                      currentUser.roleId === 'role_coo' || 
+                      currentUser.department === 'Director' ||
+                      isHR(currentUser.roleId, currentUser.department);
+
+  // Filter global notifications for the current user
+  const notifications = (globalNotifications || []).filter(notif => {
+    if (dismissedNotifIds.includes(notif.id)) {
+      return false;
+    }
+    if (isAdminUser) {
+      return true;
+    }
+    if (notif.isAdminOnly) {
+      return false;
+    }
+    if (notif.targetUserId && notif.targetUserId !== currentUser.id) {
+      return false;
+    }
+    if (notif.targetRoleId && notif.targetRoleId !== currentUser.roleId && !currentUser.roleIds?.includes(notif.targetRoleId)) {
+      return false;
+    }
+    if (notif.targetDept && notif.targetDept.toLowerCase() !== (currentUser.department || '').toLowerCase()) {
+      return false;
+    }
+    return true;
+  });
+
+  const unreadCount = notifications.filter(n => !(n.isReadBy || []).includes(currentUser.id)).length;
+
+  const handleMarkAsRead = (notifId: string) => {
+    const updated = (globalNotifications || []).map(n => {
+      if (n.id === notifId) {
+        const currentReadBy = n.isReadBy || [];
+        const isReadBy = currentReadBy.includes(currentUser.id) ? currentReadBy : [...currentReadBy, currentUser.id];
+        return { ...n, isReadBy };
+      }
+      return n;
+    });
+    onUpdateNotifications(updated);
+  };
+
+  const handleMarkAllRead = () => {
+    const updated = (globalNotifications || []).map(n => {
+      const isFiltered = notifications.some(f => f.id === n.id);
+      if (isFiltered) {
+        const currentReadBy = n.isReadBy || [];
+        const isReadBy = currentReadBy.includes(currentUser.id) ? currentReadBy : [...currentReadBy, currentUser.id];
+        return { ...n, isReadBy };
+      }
+      return n;
+    });
+    onUpdateNotifications(updated);
+  };
+
+  const handleDeleteNotif = (notifId: string) => {
+    setDismissedNotifIds(prev => [...prev, notifId]);
+  };
+
   // Synchronously update form input values when user changes active video unit
   const [isTrackingActive, setIsTrackingActive] = useState(true);
 
@@ -124,7 +214,7 @@ export default function UserDashboard({
   // Listen to YouTube Player Play/Pause events to automatically match actual watching status
   useEffect(() => {
     const handleYoutubeMessage = (event: MessageEvent) => {
-      if (!event.origin.includes('youtube.com')) return;
+      if (!event.origin || typeof event.origin !== 'string' || !event.origin.includes('youtube.com')) return;
 
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -573,6 +663,59 @@ export default function UserDashboard({
     <div className="bg-transparent">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-10 animate-in fade-in duration-350">
         
+        {/* Trainee Enrollment Approved Banner */}
+        <AnimatePresence>
+          {showApprovalBanner && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden mb-6"
+            >
+              <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 p-0.5 rounded-2xl shadow-lg">
+                <div className="bg-white/95 backdrop-blur-xs p-5 rounded-[14px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-11 h-11 bg-emerald-50 text-emerald-650 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold animate-bounce mt-0.5">
+                      🎉
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-mono font-black uppercase bg-emerald-100/60 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full tracking-wider">
+                        Enrollment Status Updated
+                      </span>
+                      <h3 className="font-display text-sm font-black text-slate-900 mt-1">
+                        Aashish Sahu Group: Trainee Verification Complete!
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5 max-w-2xl leading-relaxed">
+                        Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-stretch md:self-auto justify-end border-t border-slate-100 md:border-t-0 pt-3 md:pt-0 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowApprovalBanner(false);
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 shadow-sm shadow-emerald-100"
+                    >
+                      Acknowledge & Sync
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowApprovalBanner(false)}
+                      className="p-2 border border-slate-200 hover:border-slate-300 text-slate-400 hover:text-slate-650 rounded-xl transition cursor-pointer text-lg font-bold"
+                      title="Dismiss"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Modern, Aesthetic Welcome Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-8 mb-6 lg:mb-12">
           <div className="space-y-3.5">
@@ -583,9 +726,130 @@ export default function UserDashboard({
               </span>
             </div>
             
-            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">
-              Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
-            </h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">
+                Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
+              </h1>
+
+              {/* Advanced Interactive Notification Center */}
+              <div className="relative">
+                <button
+                  type="button"
+                  id="notifications-bell-btn"
+                  onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                  className={`p-2 rounded-xl border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
+                    showNotificationCenter
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                  }`}
+                  aria-label="Notification Center"
+                  title="Notification Center"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-rose-600 text-[8px] font-black text-white rounded-full flex items-center justify-center border border-white animate-bounce">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Panel Box */}
+                {showNotificationCenter && (
+                  <div className="absolute left-0 mt-2 z-40 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-0 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Header */}
+                    <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Corporate Notifications Center</span>
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-black hover:underline cursor-pointer"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Notification List */}
+                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400 text-xs">
+                          <p className="text-xl mb-1">📭</p>
+                          <p className="font-medium text-slate-500">All clear! No current updates.</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Admin alerts or enrollment approvals will appear inside this feed.</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => {
+                          const isRead = notif.isReadBy ? notif.isReadBy.includes(currentUser.id) : false;
+                          // Select icon based on type
+                          let icon = '🔔';
+                          if (notif.type === 'user_add') icon = '🤝';
+                          else if (notif.type === 'user_remove') icon = '🔐';
+                          else if (notif.type === 'chapter_add') icon = '📚';
+                          else if (notif.type === 'chapter_remove') icon = '📁';
+                          else if (notif.type === 'unit_add') icon = '🎥';
+                          else if (notif.type === 'unit_remove') icon = '🎬';
+                          else if (notif.type === 'approval') icon = '✅';
+
+                          return (
+                            <div 
+                              key={notif.id} 
+                              className={`p-3 transition flex gap-3 ${!isRead ? 'bg-emerald-50/30' : 'bg-white hover:bg-slate-50/40'}`}
+                            >
+                              <span className="text-base shrink-0 mt-0.5 select-none">
+                                {icon}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className={`text-xs font-bold leading-tight ${!isRead ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>
+                                    {notif.title}
+                                  </p>
+                                  <span className="text-[8px] font-mono font-bold text-slate-400 shrink-0">
+                                    {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                                  {notif.message}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  {!isRead && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAsRead(notif.id)}
+                                      className="text-[8px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-wider bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                                    >
+                                      <Check className="w-2 h-2" />
+                                      Mark Read
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteNotif(notif.id)}
+                                    className="text-[8px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-wider hover:bg-rose-50 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer ml-auto"
+                                  >
+                                    <Trash2 className="w-2 h-2" />
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 text-center">
+                      <p className="text-[9px] font-mono text-slate-400 uppercase">
+                        Aashish Sahu Buildmart • Training Compliance Console
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             
             <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-xs lg:text-sm text-slate-500 font-medium">
               <span className="flex items-center gap-1.5 text-slate-750">
@@ -1346,21 +1610,21 @@ export default function UserDashboard({
             <div className="overflow-hidden border border-slate-150 rounded-2xl bg-white shadow-3xs">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-150">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th scope="col" className="px-5 py-3 text-left text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Task / Syllabus Unit
                       </th>
-                      <th scope="col" className="px-5 py-3 text-left text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Started On
                       </th>
-                      <th scope="col" className="px-5 py-3 text-left text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Completed On
                       </th>
-                      <th scope="col" className="px-5 py-3 text-left text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Current Status
                       </th>
-                      <th scope="col" className="px-5 py-3 text-center text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400 w-36">
+                      <th scope="col" className="px-5 py-3.5 text-center text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800 w-36">
                         Actions
                       </th>
                     </tr>
