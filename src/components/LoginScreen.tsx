@@ -526,7 +526,7 @@ export default function LoginScreen({
                   required
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  placeholder="e.g. Anand Rathi"
+                  placeholder="e.g. Aashish Sahu"
                   id="reg-name"
                   className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                 />
@@ -542,57 +542,55 @@ export default function LoginScreen({
                   required
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="e.g. anand@rathibuildmart.com"
+                  placeholder="e.g. misrpr@rathibuildmart.com"
                   id="reg-email"
                   className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
-                    Job Role
-                  </label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
+                  Job Role
+                </label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  id="reg-role"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 pl-3 pr-8 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                >
+                  {roles.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Building className="w-3.5 h-3.5 text-emerald-600" />
+                  Department
+                </label>
+                {departments && departments.length > 0 ? (
                   <select
-                    value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value)}
-                    id="reg-role"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                    value={newUserDept}
+                    onChange={(e) => setNewUserDept(e.target.value)}
+                    id="reg-dept"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 pl-3 pr-8 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
                   >
-                    {roles.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
+                    {departments.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Building className="w-3.5 h-3.5 text-emerald-600" />
-                    Department
-                  </label>
-                  {departments && departments.length > 0 ? (
-                    <select
-                      value={newUserDept}
-                      onChange={(e) => setNewUserDept(e.target.value)}
-                      id="reg-dept"
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-2.5 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
-                    >
-                      {departments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={newUserDept}
-                      onChange={(e) => setNewUserDept(e.target.value)}
-                      placeholder="e.g. Internal Audit"
-                      id="reg-dept"
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
-                    />
-                  )}
-                </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={newUserDept}
+                    onChange={(e) => setNewUserDept(e.target.value)}
+                    placeholder="e.g. Internal Audit"
+                    id="reg-dept"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg py-2 px-3 text-sm text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                  />
+                )}
               </div>
 
               <div>

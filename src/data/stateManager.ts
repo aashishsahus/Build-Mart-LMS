@@ -225,6 +225,82 @@ export const defaultExamConfig: ExamConfig = {
 // Initializer function to seed storage
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
+
+  // Local storage cleanup of deprecated AP/AR designations & associations
+  const existingRolesStr = localStorage.getItem(KEYS.ROLES);
+  if (existingRolesStr) {
+    try {
+      const existingRoles = JSON.parse(existingRolesStr) as Role[];
+      const cleanedRoles = existingRoles.filter(r => 
+        r.id !== 'role_ap_ar' && 
+        r.name !== 'Accounts Executive (AP/AR)' && 
+        r.name !== 'Accounts Executive (AP/AR) (Copy)' &&
+        !r.name?.includes('Accounts Executive (AP/AR)')
+      );
+      if (cleanedRoles.length !== existingRoles.length) {
+        localStorage.setItem(KEYS.ROLES, JSON.stringify(cleanedRoles));
+      }
+    } catch (e) {
+      console.error("Error cleaning existing roles in localStorage:", e);
+    }
+  }
+
+  const existingUsersStr = localStorage.getItem(KEYS.USERS);
+  if (existingUsersStr) {
+    try {
+      const existingUsers = JSON.parse(existingUsersStr) as User[];
+      let usersChanged = false;
+      const cleanedUsers = existingUsers.map(u => {
+        if (u.roleId === 'role_ap_ar') {
+          usersChanged = true;
+          return { ...u, roleId: 'role_billing_mgr' };
+        }
+        return u;
+      });
+      if (usersChanged) {
+        localStorage.setItem(KEYS.USERS, JSON.stringify(cleanedUsers));
+      }
+    } catch (e) {
+      console.error("Error cleaning existing users in localStorage:", e);
+    }
+  }
+
+  const existingChaptersStr = localStorage.getItem(KEYS.CHAPTERS);
+  if (existingChaptersStr) {
+    try {
+      const existingChapters = JSON.parse(existingChaptersStr) as Chapter[];
+      const cleanedChapters = existingChapters.filter(c => 
+        c.roleId !== 'role_ap_ar' && 
+        c.id !== 'ch_ap_workflow' && 
+        c.id !== 'ch_ar_debt'
+      );
+      if (cleanedChapters.length !== existingChapters.length) {
+        localStorage.setItem(KEYS.CHAPTERS, JSON.stringify(cleanedChapters));
+      }
+    } catch (e) {
+      console.error("Error cleaning existing chapters in localStorage:", e);
+    }
+  }
+
+  const existingUnitsStr = localStorage.getItem(KEYS.UNITS);
+  if (existingUnitsStr) {
+    try {
+      const existingUnits = JSON.parse(existingUnitsStr) as Unit[];
+      const cleanedUnits = existingUnits.filter(u => 
+        u.chapterId !== 'ch_ap_workflow' && 
+        u.chapterId !== 'ch_ar_debt' &&
+        u.id !== 'u_ap_011' && 
+        u.id !== 'u_ap_012' && 
+        u.id !== 'u_ar_021' && 
+        u.id !== 'u_ar_022'
+      );
+      if (cleanedUnits.length !== existingUnits.length) {
+        localStorage.setItem(KEYS.UNITS, JSON.stringify(cleanedUnits));
+      }
+    } catch (e) {
+      console.error("Error cleaning existing units in localStorage:", e);
+    }
+  }
   
   if (!localStorage.getItem(KEYS.ROLES)) {
     localStorage.setItem(KEYS.ROLES, JSON.stringify(initialRoles));
@@ -318,38 +394,106 @@ export function saveDepartments(data: string[]) {
   setDocumentData('configs', 'departments', { list: data });
 }
 
+// Default mappings for the corporate hierarchy to populate automatically
+export const DEFAULT_ROLE_REPORTS_TO: Record<string, string> = {
+  'role_ceo': 'role_md',
+  'role_coo': 'role_ceo',
+  'role_vp': 'role_ceo',
+  'role_reg_mgr': 'role_coo',
+  'role_area_mgr': 'role_reg_mgr',
+  'role_branch_mgr': 'role_area_mgr',
+  'role_store_mgr': 'role_branch_mgr',
+  'role_ast_store_mgr': 'role_store_mgr',
+  'role_retail_sales_exec': 'role_ast_store_mgr',
+  'role_team_leader': 'role_ast_store_mgr',
+  'role_ops_mgr': 'role_coo',
+  'role_wh_exec': 'role_ops_mgr',
+  'role_dispatch_coord': 'role_ops_mgr',
+  'role_billing_mgr': 'role_ops_mgr',
+  'role_audit_exec': 'role_ops_mgr',
+  'role_hr_mgr': 'role_vp',
+  'role_ta_exec': 'role_hr_mgr',
+  'role_training_mgr': 'role_hr_mgr',
+  'role_fin_mgr': 'role_vp',
+  'role_sr_acc': 'role_fin_mgr',
+  'role_jr_acc': 'role_sr_acc',
+  'role_tax_assoc': 'role_sr_acc',
+  'role_fin_exec': 'role_sr_acc',
+  'role_candidate': 'role_jr_acc',
+  'role_scm_mgr': 'role_vp',
+  'role_proc_mgr': 'role_scm_mgr',
+  'role_proc_exec': 'role_proc_mgr',
+  'role_inv_mgr': 'role_scm_mgr',
+  'role_inv_exec': 'role_inv_mgr',
+  'role_log_mgr': 'role_scm_mgr',
+  'role_log_exec': 'role_log_mgr',
+  'role_mktg_mgr': 'role_vp',
+  'role_mktg_exec': 'role_mktg_mgr',
+  'role_digi_mktg_exec': 'role_mktg_mgr',
+  'role_crm_mgr': 'role_vp',
+  'role_crm_exec': 'role_crm_mgr',
+  'role_cust_srv_mgr': 'role_crm_mgr',
+  'role_cust_supp': 'role_cust_srv_mgr',
+  'role_telecaller': 'role_crm_exec',
+  'role_tele_sales_exec': 'role_crm_exec',
+  'role_mis_mgr': 'role_vp',
+  'role_mis_exec': 'role_mis_mgr',
+  'role_sys_admin': 'role_mis_mgr',
+};
+
+export const DEFAULT_USER_REPORTS_TO: Record<string, string> = {
+  'usr_cfo_suresh': 'usr_owner_harish',
+  'usr_sr_rahul': 'usr_cfo_suresh',
+  'usr_jr_simran': 'usr_sr_rahul',
+  'usr_exec_amit': 'usr_cfo_suresh',
+};
+
 // Getters
 export function getRoles(): Role[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.ROLES);
   try {
-    return data ? JSON.parse(data) : initialRoles;
+    const parsed = data ? JSON.parse(data) as Role[] : initialRoles;
+    return parsed.map(r => ({
+      ...r,
+      reportsTo: r.reportsTo || DEFAULT_ROLE_REPORTS_TO[r.id]
+    }));
   } catch (e) {
-    return initialRoles;
+    return initialRoles.map(r => ({
+      ...r,
+      reportsTo: r.reportsTo || DEFAULT_ROLE_REPORTS_TO[r.id]
+    }));
   }
 }
 
 export function getUsers(): User[] {
   initializeStorage();
   const data = localStorage.getItem(KEYS.USERS);
-  if (!data) return initialUsers;
+  const usersList = data ? JSON.parse(data) as User[] : initialUsers;
   try {
-    let users = JSON.parse(data) as User[];
     let changed = false;
-    users = users.map(u => {
+    const users = usersList.map(u => {
       // If the avatarUrl is a massive base64 string, reset it so that Firestore doesn't fail.
-      if (u.avatarUrl && u.avatarUrl.startsWith('data:image/') && u.avatarUrl.length > 50000) {
+      let currentAvatar = u.avatarUrl;
+      if (u.avatarUrl && u.avatarUrl.startsWith('data:image/') && u.avatarUrl.length > 600000) {
         changed = true;
-        return { ...u, avatarUrl: '' }; // remove the huge avatar
+        currentAvatar = '';
       }
-      return u;
+      return {
+        ...u,
+        avatarUrl: currentAvatar,
+        reportsTo: u.reportsTo || DEFAULT_USER_REPORTS_TO[u.id]
+      };
     });
     if (changed) {
       localStorage.setItem(KEYS.USERS, JSON.stringify(users));
     }
     return users;
   } catch (e) {
-    return initialUsers;
+    return initialUsers.map(u => ({
+      ...u,
+      reportsTo: u.reportsTo || DEFAULT_USER_REPORTS_TO[u.id]
+    }));
   }
 }
 
@@ -391,8 +535,30 @@ export function getCurrentUserId(): string | null {
 
 // Setters
 export function saveRoles(data: Role[]) {
+  const previousDataStr = localStorage.getItem(KEYS.ROLES);
+  let idsToDelete: string[] = [];
+  if (previousDataStr) {
+    try {
+      const previousData = JSON.parse(previousDataStr) as Role[];
+      const newIds = new Set(data.map(item => item.id));
+      previousData.forEach(item => {
+        if (!newIds.has(item.id)) {
+          idsToDelete.push(item.id);
+        }
+      });
+    } catch (e) {
+      console.error("Error parsing previous roles for sync:", e);
+    }
+  }
+
   localStorage.setItem(KEYS.ROLES, JSON.stringify(data));
   setCollectionData('roles', data);
+
+  if (idsToDelete.length > 0) {
+    deleteDocumentsBatch('roles', idsToDelete).catch(err => {
+      console.error("Failed to delete removed roles in cloud:", err);
+    });
+  }
 }
 
 export function saveUsers(data: User[]) {
@@ -740,32 +906,88 @@ export async function syncAllWithCloud(): Promise<boolean> {
   
   try {
     // 1. Roles
-    const cloudRoles = await getCollectionData('roles');
+    let cloudRoles = await getCollectionData('roles');
     if (cloudRoles && cloudRoles.length > 0) {
+      // Auto-cleanup / permanent deletion of requested designations
+      const rolesToDelete = cloudRoles.filter((r: any) => 
+        r.id === 'role_ap_ar' || 
+        r.name === 'Accounts Executive (AP/AR)' || 
+        r.name === 'Accounts Executive (AP/AR) (Copy)' ||
+        r.name?.includes('Accounts Executive (AP/AR)')
+      );
+      
+      if (rolesToDelete.length > 0) {
+        const idsToDelete = rolesToDelete.map((r: any) => r.id);
+        console.log("Cleaning up/permanently deleting deprecated designations from Firestore:", idsToDelete);
+        await deleteDocumentsBatch('roles', idsToDelete).catch(err => {
+          console.error("Failed to delete deprecated designations in cloud:", err);
+        });
+        cloudRoles = cloudRoles.filter((r: any) => !idsToDelete.includes(r.id));
+      }
       localStorage.setItem(KEYS.ROLES, JSON.stringify(cloudRoles));
     } else {
       await setCollectionData('roles', getRoles());
     }
 
     // 2. Users
-    const cloudUsers = await getCollectionData('users');
+    let cloudUsers = await getCollectionData('users');
     if (cloudUsers && cloudUsers.length > 0) {
+      // Update any user having the deleted role_ap_ar to role_billing_mgr
+      let usersChanged = false;
+      cloudUsers = cloudUsers.map((u: any) => {
+        if (u.roleId === 'role_ap_ar') {
+          usersChanged = true;
+          const updatedUser = { ...u, roleId: 'role_billing_mgr' };
+          setDocumentData('users', u.id, updatedUser).catch(err => {
+            console.error(`Failed to update user ${u.id} role in cloud:`, err);
+          });
+          return updatedUser;
+        }
+        return u;
+      });
       localStorage.setItem(KEYS.USERS, JSON.stringify(cloudUsers));
     } else {
       await setCollectionData('users', getUsers());
     }
 
     // 3. Chapters
-    const cloudChapters = await getCollectionData('chapters');
+    let cloudChapters = await getCollectionData('chapters');
     if (cloudChapters && cloudChapters.length > 0) {
+      const chaptersToDelete = cloudChapters.filter((c: any) => 
+        c.roleId === 'role_ap_ar' || 
+        c.id === 'ch_ap_workflow' || 
+        c.id === 'ch_ar_debt'
+      );
+      if (chaptersToDelete.length > 0) {
+        const idsToDelete = chaptersToDelete.map((c: any) => c.id);
+        await deleteDocumentsBatch('chapters', idsToDelete).catch(err => {
+          console.error("Failed to delete deprecated chapters in cloud:", err);
+        });
+        cloudChapters = cloudChapters.filter((c: any) => !idsToDelete.includes(c.id));
+      }
       localStorage.setItem(KEYS.CHAPTERS, JSON.stringify(cloudChapters));
     } else {
       await setCollectionData('chapters', getChapters());
     }
 
     // 4. Units
-    const cloudUnits = await getCollectionData('units');
+    let cloudUnits = await getCollectionData('units');
     if (cloudUnits && cloudUnits.length > 0) {
+      const unitsToDelete = cloudUnits.filter((u: any) => 
+        u.chapterId === 'ch_ap_workflow' || 
+        u.chapterId === 'ch_ar_debt' ||
+        u.id === 'u_ap_011' || 
+        u.id === 'u_ap_012' || 
+        u.id === 'u_ar_021' || 
+        u.id === 'u_ar_022'
+      );
+      if (unitsToDelete.length > 0) {
+        const idsToDelete = unitsToDelete.map((u: any) => u.id);
+        await deleteDocumentsBatch('units', idsToDelete).catch(err => {
+          console.error("Failed to delete deprecated units in cloud:", err);
+        });
+        cloudUnits = cloudUnits.filter((u: any) => !idsToDelete.includes(u.id));
+      }
       localStorage.setItem(KEYS.UNITS, JSON.stringify(cloudUnits));
     } else {
       await setCollectionData('units', getUnits());

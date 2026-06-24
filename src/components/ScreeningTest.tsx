@@ -27,7 +27,9 @@ import {
   Calendar,
   UserCheck,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Send,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -61,6 +63,7 @@ interface EvaluationResult {
   jobRole: string;
   completedAt: string;
   answersSummary?: { questionText: string; selected: string; correct: string; isCorrect: boolean }[];
+  chatTranscript?: { role: 'user' | 'assistant'; content: string }[];
 }
 
 const defaultManualQuestions: ManualQuestion[] = [
@@ -246,6 +249,14 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
   const [knowledgeScore, setKnowledgeScore] = useState<number | null>(null);
   const [allScreeningEvals, setAllScreeningEvals] = useState<any[]>([]);
 
+  // AI Chat Interviewer States
+  const [screeningMode, setScreeningMode] = useState<'mcq' | 'chat'>('mcq');
+  const [chatActive, setChatActive] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [currentChatInput, setCurrentChatInput] = useState('');
+  const [isChatEvaluating, setIsChatEvaluating] = useState(false);
+
   // Search/Filters in Reports Tab
   const [reportSearch, setReportSearch] = useState('');
   const [reportRoleFilter, setReportRoleFilter] = useState('All');
@@ -358,7 +369,164 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
   // Filter questions for the selected candidate role
   const activeRoleQuestions = questions.filter(q => q.jobRole === selectedRole);
 
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatActive) {
+      const container = document.getElementById('chat-messages-container');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, [chatMessages, chatActive]);
+
+  const handleStartChatInterview = async () => {
+    setChatActive(true);
+    setTestActive(true);
+    setIsCompleted(false);
+    setEvaluation(null);
+    setChatMessages([]);
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch('/api/screening/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [],
+          jobRole: selectedRole
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Could not initialize the AI screening system.');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setChatMessages([
+        { role: 'assistant', content: data.reply || 'Welcome to your technical screening. Let us begin.' }
+      ]);
+    } catch (err: any) {
+      showScreeningToast(err.message || 'Connection error. Please try again.', 'error');
+      setChatActive(false);
+      setTestActive(false);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleSendChatMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!currentChatInput.trim() || isChatLoading) return;
+
+    const userMsg = currentChatInput.trim();
+    setCurrentChatInput('');
+
+    const updatedMessages = [...chatMessages, { role: 'user' as const, content: userMsg }];
+    setChatMessages(updatedMessages);
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch('/api/screening/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          jobRole: selectedRole
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get a response from the interviewer.');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setChatMessages(prev => [...prev, { role: 'assistant' as const, content: data.reply }]);
+    } catch (err: any) {
+      showScreeningToast(err.message || 'Error communicating with interviewer.', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleEvaluateChatInterview = async () => {
+    if (chatMessages.length < 2) {
+      showScreeningToast('Please complete at least one exchange with the interviewer.', 'info');
+      return;
+    }
+
+    setIsChatEvaluating(true);
+    showScreeningToast('AI Recruiter is compiling and grading your interview session...', 'info');
+
+    try {
+      const response = await fetch('/api/screening/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: chatMessages,
+          jobRole: selectedRole
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('AI Evaluator failed to process the interview transcript.');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const finalScore = typeof data.score === 'number' ? data.score : parseFloat(data.score || '0');
+      const roundedScore = Math.round(finalScore * 10) / 10;
+
+      const report: EvaluationResult = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        score: roundedScore,
+        strengths: Array.isArray(data.strengths) ? data.strengths : ['Demonstrated technical proficiency'],
+        weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : ['Some domain areas remained un-probed'],
+        summary: data.summary || 'Session evaluated successfully.',
+        jobRole: selectedRole,
+        completedAt: new Date().toISOString(),
+        chatTranscript: chatMessages
+      };
+
+      const allEvalsStr = localStorage.getItem('lms_screening_evaluations_v1') || '[]';
+      const allEvals = JSON.parse(allEvalsStr);
+      const filteredEvals = allEvals.filter((e: any) => e.userId !== currentUser.id || e.jobRole !== selectedRole);
+      filteredEvals.push(report);
+      localStorage.setItem('lms_screening_evaluations_v1', JSON.stringify(filteredEvals));
+
+      setEvaluation(report);
+      setIsCompleted(true);
+      setTestActive(false);
+      setChatActive(false);
+      showScreeningToast('AI Graded evaluation generated successfully!', 'success');
+      
+      if (onAttemptSaved) {
+        onAttemptSaved();
+      }
+    } catch (err: any) {
+      showScreeningToast(err.message || 'Evaluation compilation failed.', 'error');
+    } finally {
+      setIsChatEvaluating(false);
+    }
+  };
+
   const handleStartManualTest = () => {
+    if (screeningMode === 'chat') {
+      handleStartChatInterview();
+      return;
+    }
     if (activeRoleQuestions.length === 0) {
       showScreeningToast(`No screening questions are currently configured for "${selectedRole}". Go to Admin Console or configure default ones.`, "error");
       return;
@@ -486,6 +654,9 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
     setEvaluation(null);
     setSelectedAnswers({});
     setCurrentQuestionIdx(0);
+    setChatActive(false);
+    setChatMessages([]);
+    setCurrentChatInput('');
   };
 
   const handleAddCustomQuestion = (e: React.FormEvent) => {
@@ -694,6 +865,47 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
                   Select the target job designation context below. Each designation is compiled of rigorous conceptual questions to measure technical capabilities, risk profiling, compliance, and dual ledger logic.
                 </p>
 
+                {/* Screening Mode Selection */}
+                <div className="space-y-3">
+                  <label className="block text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Screening Mode</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setScreeningMode('mcq')}
+                      className={`p-4 rounded-2xl border text-left transition duration-200 cursor-pointer flex items-start gap-3.5 ${
+                        screeningMode === 'mcq'
+                          ? 'bg-indigo-50/60 border-indigo-500 ring-2 ring-indigo-100 text-slate-900'
+                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <ClipboardList className={`w-5 h-5 mt-0.5 shrink-0 ${screeningMode === 'mcq' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <div>
+                        <div className="font-extrabold text-xs">Aptitude MCQ Exam</div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed font-semibold">Solve structured conceptual questions mapped to this designation.</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setScreeningMode('chat')}
+                      className={`p-4 rounded-2xl border text-left transition duration-200 cursor-pointer flex items-start gap-3.5 ${
+                        screeningMode === 'chat'
+                          ? 'bg-indigo-50/60 border-indigo-500 ring-2 ring-indigo-100 text-slate-900'
+                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <Sparkles className={`w-5 h-5 mt-0.5 shrink-0 ${screeningMode === 'chat' ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
+                      <div>
+                        <div className="font-extrabold text-xs flex items-center gap-1.5">
+                          AI Recruiter Chat Interview
+                          <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Beta</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed font-semibold">Conversational technical screening session with live Gemini AI.</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Role Designation Selector Grid */}
                 <div className="space-y-4">
                   <label className="block text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Designation Profile</label>
@@ -788,7 +1000,7 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
             )}
 
             {/* 1.2 THE MCQ PLAYER INTERFACE */}
-            {testActive && activeRoleQuestions.length > 0 && (
+            {testActive && !chatActive && activeRoleQuestions.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex flex-col overflow-hidden text-left">
                 {/* Status Bar */}
                 <div className="bg-slate-900 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800">
@@ -923,6 +1135,152 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
               </div>
             )}
 
+            {/* 1.2.B THE AI CHAT PLAYER INTERFACE */}
+            {testActive && chatActive && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex flex-col overflow-hidden text-left h-[550px]" id="ai-chat-player">
+                {/* Status Bar */}
+                <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between gap-3 border-b border-slate-800 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-sm text-indigo-50 border border-indigo-400">
+                      <Sparkles className="w-5 h-5 text-indigo-100 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-xs text-indigo-50 flex items-center gap-1.5 uppercase tracking-wide">
+                        AI Technical Recruiter
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      </h4>
+                      <p className="text-[10px] font-mono text-indigo-300 tracking-wider">Role Designation: {selectedRole}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-950/40 text-indigo-200 text-[10px] font-mono px-3 py-1.5 rounded-lg border border-indigo-800/80 font-extrabold flex items-center gap-2">
+                    <span>LIVE INTERVIEW</span> 
+                  </div>
+                </div>
+
+                {/* Chat Messages Scrolling Body */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50" id="chat-messages-container">
+                  {chatMessages.length === 0 && isChatLoading ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
+                      <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                      <p className="text-xs font-semibold">Configuring environment and establishing AI pipeline...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {chatMessages.map((msg, idx) => {
+                        const isAI = msg.role === 'assistant';
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`flex gap-3 max-w-[85%] ${isAI ? 'mr-auto text-left' : 'ml-auto flex-row-reverse text-right'}`}
+                          >
+                            {isAI ? (
+                              <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 text-slate-700 flex items-center justify-center font-black text-[10px] uppercase shrink-0">
+                                AI
+                              </div>
+                            ) : (
+                              <Avatar 
+                                src={currentUser.avatarUrl}
+                                name={currentUser.name}
+                                className="w-8 h-8 border shrink-0"
+                              />
+                            )}
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest pl-1">
+                                {isAI ? 'AI Interviewer' : 'Candidate (You)'}
+                              </p>
+                              <div className={`rounded-2xl p-4 text-xs font-semibold shadow-3xs leading-relaxed ${
+                                isAI 
+                                  ? 'bg-white border border-slate-200 text-slate-800' 
+                                  : 'bg-indigo-600 text-white border border-transparent'
+                              }`}>
+                                {msg.content}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {isChatLoading && chatMessages.length > 0 && (
+                        <div className="flex gap-3 max-w-[85%] mr-auto text-left animate-pulse">
+                          <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 text-slate-700 flex items-center justify-center font-black text-[10px] uppercase shrink-0">
+                            AI
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest pl-1">AI Interviewer</p>
+                            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-400 shadow-3xs flex items-center gap-2">
+                              <Loader2 className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
+                              Interviewer is formulating next query...
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Input Footer & Evaluation triggers */}
+                <div className="border-t border-slate-200 bg-white p-4 space-y-3 shrink-0">
+                  <form onSubmit={handleSendChatMessage} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={currentChatInput}
+                      onChange={(e) => setCurrentChatInput(e.target.value)}
+                      disabled={isChatLoading || isChatEvaluating}
+                      placeholder={isChatLoading ? "Establishing uplink..." : "Type your technical response here..."}
+                      className="flex-1 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none transition disabled:opacity-50"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!currentChatInput.trim() || isChatLoading || isChatEvaluating}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white px-4 py-3 rounded-xl transition flex items-center justify-center cursor-pointer font-bold text-xs shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </form>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-semibold italic">
+                      💡 Tip: Formulate standard full sentences describing your specific compliance workflows.
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Are you sure you want to cancel the active interview? All current progress will be lost.")) {
+                            setChatActive(false);
+                            setTestActive(false);
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold font-sans cursor-pointer transition active:scale-95"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleEvaluateChatInterview}
+                        disabled={chatMessages.length < 3 || isChatLoading || isChatEvaluating}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold font-sans flex items-center gap-1.5 cursor-pointer shadow-md transition active:scale-95"
+                      >
+                        {isChatEvaluating ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Evaluating...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Finish & Evaluate ({Math.max(0, Math.floor((chatMessages.length - 1) / 2))} Qs)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 1.3 ASSESSMENT SCORECARD REPORT */}
             {isCompleted && evaluation && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sm:p-8 relative overflow-hidden text-left space-y-6">
@@ -994,8 +1352,32 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
                   </p>
                 </div>
 
-                {/* In-depth answers summary breakdown */}
-                {evaluation.answersSummary && (
+                {/* In-depth answers summary breakdown or AI Chat Transcript */}
+                {evaluation.chatTranscript && evaluation.chatTranscript.length > 0 ? (
+                  <div className="space-y-3 pt-2 text-left">
+                    <h4 className="text-xs font-mono font-extrabold uppercase text-slate-400 tracking-wider pl-1">AI Screening Interview Transcript</h4>
+                    <div className="max-h-96 overflow-y-auto space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-200">
+                      {evaluation.chatTranscript.map((msg: any, idx: number) => {
+                        const isAI = msg.role === 'assistant';
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex flex-col max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed shadow-3xs border ${
+                              !isAI
+                                ? 'bg-indigo-50 border-indigo-150 text-indigo-950 ml-auto'
+                                : 'bg-white border-slate-200 text-slate-900 mr-auto'
+                            }`}
+                          >
+                            <span className="text-[8px] font-mono font-black uppercase text-slate-400 mb-1">
+                              {!isAI ? 'Candidate (You)' : 'AI Interviewer'}
+                            </span>
+                            <p className="font-semibold text-slate-800">{msg.content}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : evaluation.answersSummary && (
                   <div className="space-y-3 pt-2">
                     <h4 className="text-xs font-mono font-extrabold uppercase text-slate-400 tracking-wider">Answer Key Verification Sheet</h4>
                     <div className="space-y-3">
@@ -1518,7 +1900,31 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
                 </p>
               </div>
 
-              {selectedReportDetail.answersSummary ? (
+              {selectedReportDetail.chatTranscript && selectedReportDetail.chatTranscript.length > 0 ? (
+                <div className="space-y-3 pt-2 text-left">
+                  <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest pl-1">AI Interview Conversation Logs</p>
+                  <div className="max-h-96 overflow-y-auto space-y-3 bg-white p-4 rounded-xl border">
+                    {selectedReportDetail.chatTranscript.map((msg: any, idx: number) => {
+                      const isAI = msg.role === 'assistant';
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex flex-col max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed border ${
+                            !isAI
+                              ? 'bg-indigo-50 border border-indigo-150 text-indigo-950 self-end ml-auto'
+                              : 'bg-slate-50 border border-slate-200 text-slate-900 mr-auto'
+                          }`}
+                        >
+                          <span className="text-[8px] font-mono font-black uppercase text-slate-400 mb-1">
+                            {!isAI ? 'Candidate' : 'AI Interviewer'}
+                          </span>
+                          <p className="font-semibold text-slate-800">{msg.content}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : selectedReportDetail.answersSummary ? (
                 <div className="space-y-3 pt-2">
                   <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest pl-1">Detailed Answers Breakdown</p>
                   

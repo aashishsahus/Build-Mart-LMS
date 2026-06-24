@@ -33,12 +33,15 @@ if (!isFirebasePlaceholder) {
   try {
     app = initializeApp(firebaseConfig);
     const dbId = (firebaseConfig as any).firestoreDatabaseId;
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      }),
-      ...(dbId ? { databaseId: dbId } : {})
-    });
+    db = initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      },
+      dbId
+    );
     auth = getAuth(app);
     
     // Validate connection to Firestore as per skill guidelines

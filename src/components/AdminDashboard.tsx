@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
+import HierarchyView from './HierarchyView';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig } from '../types';
 import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress } from '../data/stateManager';
 import { 
@@ -192,8 +193,8 @@ interface AdminDashboardProps {
   onSwitchUser: (userId: string) => void;
   branding?: CompanyBranding;
   onUpdateBranding?: (branding: CompanyBranding) => void;
-  selectedTab?: 'reports' | 'approvals' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate';
-  onTabChange?: (tab: 'reports' | 'approvals' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate') => void;
+  selectedTab?: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate';
+  onTabChange?: (tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate') => void;
 }
 
 const getDeptTheme = (name: string) => {
@@ -335,8 +336,8 @@ export default function AdminDashboard({
     }, 4500);
   };
 
-  // Active admin tab: 'reports' | 'approvals' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'
-  const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'>('reports');
+  // Active admin tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'
+  const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'>('reports');
 
   // Synchronize dynamic updates from parent header navigation Tab selector
   useEffect(() => {
@@ -1873,6 +1874,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           {[
             { id: 'reports', emoji: '📊', label: isDirectorOrOwner ? 'Executive Dashboard' : 'Dynamic Workspace', countLabel: 'Live' },
             { id: 'approvals', emoji: '⏳', label: 'Enrollment Approvals', count: users.filter(u => u.status === 'Pending Approval').length, countLabel: users.filter(u => u.status === 'Pending Approval').length > 0 ? `${users.filter(u => u.status === 'Pending Approval').length} Pending` : undefined },
+            { id: 'hierarchy', emoji: '🌿', label: 'Hierarchy Matrix', countLabel: 'Tree' },
             ...(isDirectorOrOwner ? [] : [
               { id: 'users', emoji: '👥', label: 'User Database', count: users.length },
               { id: 'roles', emoji: '🗂️', label: 'Job Roles Matrix', count: roles.length },
@@ -2212,7 +2214,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Search Practitioner Name/Email</label>
                     <input
                       type="text"
-                      placeholder="e.g. Rahul, misrpr@rathibuildmart.com..."
+                      placeholder="e.g. Aashish Sahu, misrpr@rathibuildmart.com..."
                       value={scorecardSearch}
                       onChange={(e) => setScorecardSearch(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-emerald-500 font-medium font-sans"
@@ -2486,6 +2488,21 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           </div>
         </div>
       </div>
+      )}
+
+
+
+      {/* ----------------------------------------------------
+          TAB 1.6: HIERARCHY MAP MATRIX
+          ---------------------------------------------------- */}
+      {adminTab === 'hierarchy' && (
+        <HierarchyView 
+          roles={roles}
+          users={users}
+          onUpdateRoles={onUpdateRoles}
+          onUpdateUsers={onUpdateUsers}
+          branding={branding}
+        />
       )}
 
 
@@ -2975,7 +2992,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Priyanshu Mishra"
+                    placeholder="e.g. Aashish Sahu"
                     value={newUserName}
                     onChange={(e) => setNewUserName(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
@@ -2986,25 +3003,78 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <input
                     type="email"
                     required
-                    placeholder="e.g. employee@rathibuildmart.com"
+                    placeholder="e.g. misrpr@rathibuildmart.com"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Profile Photo (Image URL / Optional)</label>
-                  <input
-                    type="url"
-                    placeholder="e.g. https://images.unsplash.com/photo-..."
-                    value={newUserAvatar}
-                    onChange={(e) => setNewUserAvatar(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
-                  />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Profile Photo (Image URL / Local File)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. https://images.unsplash.com/photo-..."
+                      value={newUserAvatar}
+                      onChange={(e) => setNewUserAvatar(e.target.value)}
+                      className="flex-grow bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
+                    />
+                    <label className="bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded cursor-pointer flex items-center justify-center shrink-0">
+                      Upload File
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                const img = new Image();
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  const MAX_W = 150;
+                                  const MAX_H = 150;
+                                  let w = img.width;
+                                  let h = img.height;
+                                  if (w > h) {
+                                    if (w > MAX_W) {
+                                      h *= MAX_W / w;
+                                      w = MAX_W;
+                                    }
+                                  } else {
+                                    if (h > MAX_H) {
+                                      w *= MAX_H / h;
+                                      h = MAX_H;
+                                    }
+                                  }
+                                  canvas.width = w;
+                                  canvas.height = h;
+                                  const ctx = canvas.getContext('2d');
+                                  if (ctx) {
+                                    ctx.drawImage(img, 0, 0, w, h);
+                                    const compressed = canvas.toDataURL('image/jpeg', 0.85);
+                                    setNewUserAvatar(compressed);
+                                    showToast("✓ Avatar loaded and optimized safely!", "info");
+                                  } else {
+                                    setNewUserAvatar(reader.result as string);
+                                    showToast("✓ Avatar loaded!", "info");
+                                  }
+                                };
+                                img.src = reader.result;
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Assigned Department</label>
                   <select
@@ -3012,7 +3082,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     onChange={(e) => {
                       setNewUserDept(e.target.value);
                     }}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 text-slate-800 font-sans font-medium outline-none text-xs"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 pr-8 focus:border-emerald-500 text-slate-800 font-sans font-medium outline-none text-xs"
                     required
                   >
                     {departments.map((dept) => (
@@ -3039,7 +3109,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <select
                     value={newUserRole}
                     onChange={(e) => setNewUserRole(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 text-slate-850 text-slate-800 font-sans font-medium outline-none text-xs"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 pr-8 focus:border-emerald-500 text-slate-850 text-slate-800 font-sans font-medium outline-none text-xs"
                     required
                   >
                     {roles.map((r) => (
@@ -3095,7 +3165,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <select
                     value={newUserStatus}
                     onChange={(e) => setNewUserStatus(e.target.value as any)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 text-slate-800 font-sans font-medium outline-none text-xs font-bold"
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 pr-8 focus:border-emerald-500 text-slate-800 font-sans font-medium outline-none text-xs font-bold"
                   >
                     <option value="Active">🟢 Active (Staff)</option>
                     <option value="Deactivated">🔴 Deactivated (Suspend)</option>
@@ -3323,13 +3393,66 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             onChange={(e) => setEditUserEmail(e.target.value)}
                             className="bg-white border border-slate-200 focus:border-emerald-400 outline-none rounded px-3 py-1 text-[10px] text-slate-500 mt-1.5 block w-full font-mono"
                           />
-                          <input
-                            type="text"
-                            placeholder="Photo URL (Optional)"
-                            value={editUserAvatar}
-                            onChange={(e) => setEditUserAvatar(e.target.value)}
-                            className="bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-3 py-1 text-[10px] text-slate-500 mt-1.5 block w-full font-mono"
-                          />
+                          <div className="flex gap-1.5 mt-1.5">
+                            <input
+                              type="text"
+                              placeholder="Photo URL (Optional)"
+                              value={editUserAvatar}
+                              onChange={(e) => setEditUserAvatar(e.target.value)}
+                              className="flex-grow bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2.5 py-1 text-[10px] text-slate-500 font-mono"
+                            />
+                            <label className="bg-slate-105 border border-slate-300 hover:bg-slate-200 bg-slate-100 text-slate-700 font-bold text-[9px] px-2 py-1 rounded cursor-pointer flex items-center justify-center shrink-0">
+                              Upload
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      if (typeof reader.result === 'string') {
+                                        const img = new Image();
+                                        img.onload = () => {
+                                          const canvas = document.createElement('canvas');
+                                          const MAX_W = 150;
+                                          const MAX_H = 150;
+                                          let w = img.width;
+                                          let h = img.height;
+                                          if (w > h) {
+                                            if (w > MAX_W) {
+                                              h *= MAX_W / w;
+                                              w = MAX_W;
+                                            }
+                                          } else {
+                                            if (h > MAX_H) {
+                                              w *= MAX_H / h;
+                                              h = MAX_H;
+                                            }
+                                          }
+                                          canvas.width = w;
+                                          canvas.height = h;
+                                          const ctx = canvas.getContext('2d');
+                                          if (ctx) {
+                                            ctx.drawImage(img, 0, 0, w, h);
+                                            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+                                            setEditUserAvatar(compressed);
+                                            showToast("✓ Avatar loaded and optimized safely!", "info");
+                                          } else {
+                                            setEditUserAvatar(reader.result as string);
+                                            showToast("✓ Avatar loaded!", "info");
+                                          }
+                                        };
+                                        img.src = reader.result;
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                         </td>
                         <td className="p-3.5">
                           <select
@@ -3463,8 +3586,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       </td>
                       <td className="p-3.5 text-slate-550 font-medium font-sans">{item.focusEntity}</td>
                       <td className="p-3.5">
-                        <div className="flex flex-col gap-1 max-w-[210px]">
-                          <span className="bg-emerald-605 bg-emerald-50 text-emerald-800 font-extrabold px-2 py-0.5 rounded border border-emerald-500/20 truncate font-sans text-[10px] inline-block">
+                        <div className="flex flex-col gap-1 min-w-[200px] max-w-[320px] whitespace-normal">
+                          <span className="bg-emerald-605 bg-emerald-50 text-emerald-800 font-extrabold px-2.5 py-1 rounded border border-emerald-500/20 font-sans text-[10px] block leading-normal">
                             ★ Primary: {roleObj?.name || 'Unassigned'}
                           </span>
                           {/* Render other assigned roles */}
@@ -3472,7 +3595,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             const otherRole = roles.find(r => r.id === rId);
                             if (!otherRole) return null;
                             return (
-                              <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200/40 truncate font-sans text-[9px] inline-block">
+                              <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded border border-indigo-200/40 font-sans text-[9px] block leading-normal">
                                 ✙ {otherRole.name}
                               </span>
                             );

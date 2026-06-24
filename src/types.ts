@@ -11,6 +11,7 @@ export interface Role {
   department: string;
   description: string;
   skillRequirements: string[];
+  reportsTo?: string; // Referring to parent role's id
 }
 
 export type UserStatus = 'Active' | 'Deactivated' | 'Left' | 'Pending Approval';
@@ -26,6 +27,7 @@ export interface User {
   avatarUrl?: string;
   password?: string; // Plaintext or secure token for client demonstration
   status?: UserStatus; // 'Active' or 'Deactivated' or 'Left' (Resigned)
+  reportsTo?: string; // Referring to parent user's id (Manager/Supervisor)
 }
 
 export interface Chapter {

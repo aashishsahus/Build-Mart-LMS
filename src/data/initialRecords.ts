@@ -448,13 +448,6 @@ export const initialRoles: Role[] = [
     skillRequirements: ['Systematic Outlet Invoicing', 'Voucher Matches Standard', 'Item Rates Database Check', 'Billing Team SLA oversight']
   },
   {
-    id: 'role_ap_ar',
-    name: 'Accounts Executive (AP/AR)',
-    department: 'Billing',
-    description: 'Responsible for invoice collection, 3-way purchase match, customer outstanding dunning, and credit limits oversight.',
-    skillRequirements: ['Purchase Invoice Verification', 'Ageing Analysis', 'Dunning Escalation', 'Creditors Ledger Reconciliation']
-  },
-  {
     id: 'role_tax_assoc',
     name: 'Tax Associate',
     department: 'Account',
@@ -535,7 +528,7 @@ export const initialUsers: User[] = [
     id: 'usr_exec_amit',
     name: 'Amit Patel',
     email: 'amit.patel@rathibuildmart.com',
-    roleId: 'role_ap_ar',
+    roleId: 'role_billing_mgr',
     department: 'Vendors & Billings',
     focusEntity: 'Rathi Buildmart Logistics Wing',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
@@ -570,10 +563,6 @@ export const initialChapters: Chapter[] = [
   // Tax Associate
   { id: 'ch_tax_gst', roleId: 'role_tax_assoc', name: 'GST Compliance & Filings', order: 1 },
   { id: 'ch_tax_tds', roleId: 'role_tax_assoc', name: 'Income Tax TDS/TCS Compliances', order: 2 },
-  
-  // AP/AR
-  { id: 'ch_ap_workflow', roleId: 'role_ap_ar', name: 'Accounts Payable Workflow', order: 1 },
-  { id: 'ch_ar_debt', roleId: 'role_ap_ar', name: 'Accounts Receivable & Credit Control', order: 2 },
   
   // Junior Account
   { id: 'ch_jr_gl_ctl', roleId: 'role_jr_acc', name: 'General Ledger Controls & Reconciliations', order: 1 },
@@ -629,52 +618,6 @@ export const initialUnits: Unit[] = [
     videoTitle: 'Preparing TDS Returns using e-Filing Utility & FVU Validator',
     videoUrl: 'https://www.youtube.com/embed/MhH5V1oA_sU',
     description: 'Mapping corporate cash payments to correct TDS sections under the income tax act. Validate Challan files and create final .fvu texts using the NSDL Return Preparation Utility (RPU).'
-  },
-
-  // AP/AR Units
-  {
-    id: 'u_ap_011',
-    chapterId: 'ch_ap_workflow',
-    code: 'AP-011',
-    taskName: 'Vendor Invoice Processing & 3-Way Match',
-    frequency: 'Daily',
-    skillRequired: 'Beginner',
-    videoTitle: 'Three Way Match in Accounts Payable (PO, GRN, & Invoice)',
-    videoUrl: 'https://www.youtube.com/embed/hO2s7zOnQ-Y',
-    description: 'Perform standard check matching physical seller bills against purchase orders (PO) issued by procurement, and Goods Receipts Notes (GRN) logged by storage hubs.'
-  },
-  {
-    id: 'u_ap_012',
-    chapterId: 'ch_ap_workflow',
-    code: 'AP-012',
-    taskName: 'Aged Creditors Analysis & Payment Scheduling',
-    frequency: 'Weekly',
-    skillRequired: 'Intermediate',
-    videoTitle: 'Accounts Payable Aging Reports & Cash Outflow Control',
-    videoUrl: 'https://www.youtube.com/embed/vK16pndqVsk',
-    description: 'Construct creditor age categories (30, 60, 90+ days), negotiate supplier discount cycles, and structure weekly bank payout batches for approval by the CFO.'
-  },
-  {
-    id: 'u_ar_021',
-    chapterId: 'ch_ar_debt',
-    code: 'AR-021',
-    taskName: 'Customer Invoicing & Credit Limit Controls',
-    frequency: 'Daily',
-    skillRequired: 'Beginner',
-    videoTitle: 'Creating Client Billings & Monitoring Outstanding Balance limits',
-    videoUrl: 'https://www.youtube.com/embed/u_Fw8zYmE6o',
-    description: 'Setting sales invoice drafts based on completed log sheets. Block delivery of subsequent sales goods if active open balances cross corporate credit threshold allowances.'
-  },
-  {
-    id: 'u_ar_022',
-    chapterId: 'ch_ar_debt',
-    code: 'AR-022',
-    taskName: 'Payment Dunning & Debt Recovery Escalation',
-    frequency: 'Weekly',
-    skillRequired: 'Beginner',
-    videoTitle: 'Effective AR Collections: Dunning Letters & Dispute Management',
-    videoUrl: 'https://www.youtube.com/embed/u2mUuY0Iu_M',
-    description: 'Send formal notices asking for client balance clearances. Review cash inflow records to apply corresponding credit logs against unresolved customer invoices.'
   },
 
   // Junior Accountant Units
