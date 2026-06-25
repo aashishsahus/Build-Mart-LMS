@@ -736,8 +736,13 @@ export default function HierarchyView({
         {/* Node Box */}
         <div 
           onClick={() => {
-            setSelectedNodeId(role.id);
-            setNewParentId(role.reportsTo || '');
+            if (selectedNodeId === role.id) {
+              setSelectedNodeId(null);
+              setNewParentId('');
+            } else {
+              setSelectedNodeId(role.id);
+              setNewParentId(role.reportsTo || '');
+            }
             setEditError(null);
             setIsEditing(false);
           }}
@@ -896,8 +901,13 @@ export default function HierarchyView({
         {/* User Card */}
         <div 
           onClick={() => {
-            setSelectedNodeId(user.id);
-            setNewParentId(user.reportsTo || '');
+            if (selectedNodeId === user.id) {
+              setSelectedNodeId(null);
+              setNewParentId('');
+            } else {
+              setSelectedNodeId(user.id);
+              setNewParentId(user.reportsTo || '');
+            }
             setEditError(null);
             setIsEditing(false);
           }}
