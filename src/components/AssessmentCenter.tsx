@@ -527,18 +527,18 @@ export default function AssessmentCenter({
                         onClick={() => selectOption(activeQuestion.id, idx)}
                         className={`w-full p-4 rounded-xl border text-left text-xs sm:text-sm font-medium flex items-center gap-4 transition-all duration-150 outline-none cursor-pointer ${
                           isSelected 
-                            ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 shadow-sm' 
+                            ? 'border-green-500 bg-green-50/50 text-green-800 shadow-sm' 
                             : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/25 text-slate-700'
                         }`}
                       >
                         <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold font-mono text-xs ${
-                          isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          isSelected ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
                           {letter}
                         </span>
                         <span className="flex-grow text-xs sm:text-sm font-medium leading-relaxed">{option}</span>
                         <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'
+                          isSelected ? 'border-green-600 bg-green-600' : 'border-slate-300'
                         }`}>
                           {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
                         </span>
@@ -847,19 +847,19 @@ export default function AssessmentCenter({
                                       key={oIdx} 
                                       className={`p-2 rounded-lg text-xs flex items-center gap-2 border ${
                                         isThisCorrect 
-                                          ? 'bg-emerald-50 border-emerald-150 text-emerald-850 font-medium' 
+                                          ? 'bg-green-50 border-green-200 text-green-800 font-medium' 
                                           : isThisSelected 
                                             ? 'bg-rose-50 border-rose-150 text-rose-850' 
                                             : 'bg-transparent border-slate-100 text-slate-500'
                                       }`}
                                     >
                                       <span className={`w-5 h-5 rounded flex items-center justify-center font-bold font-mono text-[10px] shrink-0 ${
-                                        isThisCorrect ? 'bg-emerald-600 text-white' : isThisSelected ? 'bg-rose-600 text-white' : 'bg-slate-50 text-slate-400'
+                                        isThisCorrect ? 'bg-green-600 text-white' : isThisSelected ? 'bg-rose-600 text-white' : 'bg-slate-50 text-slate-400'
                                       }`}>
                                         {oLetter}
                                       </span>
                                       <span className="leading-snug">{opt}</span>
-                                      {isThisCorrect && <span className="ml-auto text-[10px] text-emerald-700 font-bold uppercase font-mono shrink-0">Correct</span>}
+                                      {isThisCorrect && <span className="ml-auto text-[10px] text-green-700 font-bold uppercase font-mono shrink-0">Correct</span>}
                                       {isThisSelected && !isThisCorrect && <span className="ml-auto text-[10px] text-rose-600 font-bold uppercase font-mono shrink-0">Your Choice</span>}
                                     </div>
                                   );

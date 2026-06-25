@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { PremiumBadge } from './PremiumBadge';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, CompanyBranding, GlobalNotification } from '../types';
 import { calculateUserProgress, UserWithRole, getExamConfig } from '../data/stateManager';
 import { 
@@ -960,9 +961,10 @@ export default function UserDashboard({
               </span>
             </div>
             
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">
+            <div className="flex items-center gap-3.5 flex-wrap">
+              <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-3 flex-wrap">
                 Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
+                <PremiumBadge userId={currentUser.id} userName={currentUser.name} roleId={currentUser.roleId} department={currentUser.department} size="md" className="py-1" />
               </h1>
 
               {/* Advanced Interactive Notification Center */}

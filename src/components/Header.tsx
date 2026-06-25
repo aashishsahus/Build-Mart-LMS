@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { Avatar } from './Avatar';
-import { UserWithRole } from '../data/stateManager';
+import { PremiumBadge } from './PremiumBadge';
+import { UserWithRole, getRoles } from '../data/stateManager';
 import { CompanyBranding, GlobalNotification } from '../types';
 import { 
   BookOpen, 
@@ -455,8 +456,19 @@ export default function Header({
                   >
                     {allUsers.map(u => {
                       const getFriendlyRole = (roleId: string) => {
+                        const dbRoles = getRoles();
+                        const foundRole = dbRoles.find(r => r.id === roleId);
+                        if (foundRole) {
+                          if (roleId === 'role_sr_acc') {
+                            if (foundRole.name === 'Senior Accountant' || foundRole.name === 'Admin Accountant') {
+                              return 'Admin';
+                            }
+                            return foundRole.name;
+                          }
+                          return foundRole.name;
+                        }
                         if (roleId === 'role_md' || roleId === 'role_ceo' || roleId === 'role_coo') return 'Director Console';
-                        if (roleId === 'role_sr_acc') return 'Admin Accountant';
+                        if (roleId === 'role_sr_acc') return 'Admin';
                         if (roleId === 'role_jr_acc') return 'General Ledger Executive';
                         if (roleId === 'role_ap_ar') return 'Billing & AP/AR Executive';
                         if (roleId === 'role_tax_assoc') return 'Taxation Analyst';
@@ -613,11 +625,9 @@ export default function Header({
                     name={realUser.name}
                     className="w-9 h-9 border border-emerald-500/30 group-hover:border-emerald-600 shadow-sm transition"
                   />
-                  <div className="hidden md:block">
+                  <div className="hidden md:flex flex-col items-start gap-0.5">
                     <p className="text-xs font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors leading-tight">{realUser.name}</p>
-                    <p className="text-[9px] text-emerald-700 font-mono tracking-tight font-semibold uppercase mt-0.5">
-                      {realUser.role?.name || 'No Role'}
-                    </p>
+                    <PremiumBadge userId={realUser.id} userName={realUser.name} roleId={realUser.roleId || ''} department={realUser.department} size="xs" />
                   </div>
                 </button>
 
@@ -626,7 +636,12 @@ export default function Header({
                     <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)}></div>
                     <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-20 text-slate-800 text-xs text-left animate-in fade-in slide-in-from-top-2 duration-150">
                       <div className="p-3 border-b border-slate-100 font-medium">
-                        <p className="font-bold text-slate-900 text-sm leading-tight">{realUser.name}</p>
+                        <div className="flex flex-col gap-1 mb-1.5">
+                          <p className="font-bold text-slate-900 text-sm leading-tight">{realUser.name}</p>
+                          <div className="self-start">
+                            <PremiumBadge userId={realUser.id} userName={realUser.name} roleId={realUser.roleId || ''} department={realUser.department} size="xs" />
+                          </div>
+                        </div>
                         <p className="text-slate-500 text-[10px] font-mono mt-0.5">{realUser.email}</p>
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mt-2 font-mono bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/80">
                           <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />

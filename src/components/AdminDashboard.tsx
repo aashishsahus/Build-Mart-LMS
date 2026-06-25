@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { PremiumBadge } from './PremiumBadge';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
@@ -49,7 +50,15 @@ import {
   Zap,
   TrendingUp,
   ArrowUpRight,
-  ChevronDown
+  ChevronDown,
+  Search,
+  Database,
+  Calendar,
+  History,
+  ListFilter,
+  Clock,
+  UserCheck,
+  CheckSquare
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -193,8 +202,8 @@ interface AdminDashboardProps {
   onSwitchUser: (userId: string) => void;
   branding?: CompanyBranding;
   onUpdateBranding?: (branding: CompanyBranding) => void;
-  selectedTab?: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate';
-  onTabChange?: (tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate') => void;
+  selectedTab?: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit';
+  onTabChange?: (tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit') => void;
 }
 
 const getDeptTheme = (name: string) => {
@@ -336,8 +345,8 @@ export default function AdminDashboard({
     }, 4500);
   };
 
-  // Active admin tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'
-  const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate'>('reports');
+  // Active admin tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'
+  const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'>('reports');
 
   // Synchronize dynamic updates from parent header navigation Tab selector
   useEffect(() => {
@@ -514,6 +523,15 @@ export default function AdminDashboard({
   const [recTakerSearchQuery, setRecTakerSearchQuery] = useState('');
   const [questionSearchQuery, setQuestionSearchQuery] = useState('');
   const [questionChapterFilter, setQuestionChapterFilter] = useState('all');
+
+  // Audit states for Compliance Audit Trail
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditUserFilter, setAuditUserFilter] = useState('all');
+  const [auditRoleFilter, setAuditRoleFilter] = useState('all');
+  const [auditDeptFilter, setAuditDeptFilter] = useState('all');
+  const [auditStatusFilter, setAuditStatusFilter] = useState('all');
+  const [auditViewMode, setAuditViewMode] = useState<'matrix' | 'timeline'>('matrix');
+  const [selectedAuditRowId, setSelectedAuditRowId] = useState<string | null>(null);
 
   React.useEffect(() => {
     try {
@@ -1888,6 +1906,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               { id: 'recruitment', emoji: '🎓', label: 'Assessment Exams', countLabel: `${attemptsList.length} Logs` },
               { id: 'departments', emoji: '🏢', label: 'Departments Matrix', count: departments.length },
             ]),
+            { id: 'audit', emoji: '🛡️', label: 'Compliance Audit Trail', countLabel: `${progress.length} Logs` },
             { id: 'certificate', emoji: '📜', label: 'Certificate Settings', countLabel: 'Config' }
           ].map((b) => {
             const isActive = adminTab === b.id;
@@ -3580,6 +3599,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-850 text-sm tracking-tight">{item.name}</p>
+                            <div className="mt-1">
+                              <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" />
+                            </div>
                             <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.email}</p>
                           </div>
                         </div>
@@ -6018,13 +6040,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left animate-in fade-in duration-150">
             
             {/* Form Block (Left 5 Columns) */}
-            <div className="lg:col-span-12 xl:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 h-fit">
+            <div className="lg:col-span-12 xl:col-span-5 bg-gradient-to-br from-indigo-50/40 via-white to-white border border-slate-200 rounded-2xl p-5 space-y-4 h-fit shadow-xs">
               <div className="border-b border-slate-200 pb-3">
-                <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5 uppercase font-sans">
+                <h4 className="text-xs sm:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-900 to-indigo-700 flex items-center gap-1.5 uppercase font-sans tracking-wide">
                   <span>✏️</span>
                   <span>{editingQuestionId ? 'Update Exam Question' : 'Add New Manual Question'}</span>
                 </h4>
-                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Assign target chapters and answer validations dynamically</p>
+                <p className="text-xs text-indigo-600 font-medium mt-1">Assign target chapters and answer validations dynamically</p>
               </div>
 
               {qFormSuccess && (
@@ -6259,9 +6281,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <button
                     type="button"
                     onClick={() => setQIsActive(!qIsActive)}
-                    className={`w-11 h-6 rounded-full transition-colors relative outline-none cursor-pointer ${qIsActive ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                    className={`w-11 h-6 rounded-full transition-all duration-200 relative outline-none cursor-pointer shrink-0 shadow-inner ${qIsActive ? 'bg-[#16a34a]' : 'bg-slate-300'}`}
                   >
-                    <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${qIsActive ? 'translate-x-[22px]' : 'translate-x-1'}`}></span>
+                    <span className={`w-4 h-4 rounded-full bg-white absolute top-1 left-1 transition-all duration-200 shadow-sm ${qIsActive ? 'translate-x-5' : 'translate-x-0'}`}></span>
                   </button>
                 </div>
 
@@ -6371,28 +6393,35 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     const associatedChap = chapters.find(c => c.id === q.chapterId);
 
                     return (
-                      <div key={q.id} className="p-4 bg-white border border-slate-200 hover:border-slate-350 rounded-xl space-y-3.5 transition group shadow-sm relative animate-in fade-in duration-150 text-left">
+                      <div key={q.id} className="p-5 bg-gradient-to-br from-white via-white to-indigo-50/15 border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-4 transition-all duration-200 group shadow-xs hover:shadow-md relative animate-in fade-in duration-150 text-left border-l-4 border-l-indigo-600">
                         
                         <div className="flex items-start justify-between gap-4 flex-wrap">
-                          <div>
+                          <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-[9px] font-extrabold text-[#94a3b8]">
-                                #{qIdx + 1} ({q.id})
+                              <span className="text-xs font-black px-2.5 py-1 bg-indigo-950 text-indigo-50 rounded-lg font-mono tracking-tight shadow-3xs">
+                                #{qIdx + 1}
                               </span>
-                              <span className="text-[10px] font-extrabold font-mono text-blue-600 bg-blue-50 border px-2 py-0.5 rounded">
-                                {q.topic}
+                              <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                                {q.id}
                               </span>
-                              <span className="text-[9px] font-extrabold font-mono text-emerald-600 bg-emerald-50 border px-2 py-0.5 rounded uppercase">
+                              <span className="text-[10px] font-extrabold font-mono text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 uppercase tracking-wider">
                                 {q.type}
                               </span>
-                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase font-space border ${
-                                q.isActive !== false ? 'bg-emerald-100/50 text-emerald-805 border-emerald-200 text-emerald-800' : 'bg-slate-100 text-slate-400 border-slate-200'
+                              <span className={`text-[9px] px-2.5 py-1 rounded-lg font-bold uppercase font-sans border shadow-3xs ${
+                                q.isActive !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'
                               }`}>
                                 {q.isActive !== false ? 'Active' : 'Draft'}
                               </span>
                             </div>
-                            <p className="text-[10px] font-mono font-bold text-slate-500 mt-1 uppercase">
-                              Assigned: {associatedChap ? `${associatedChap.name} (${q.chapterId})` : `Module not found (${q.chapterId})`}
+
+                            <h4 className="text-sm sm:text-base font-black text-indigo-900 font-sans tracking-tight pt-1 flex items-center gap-1.5">
+                              <span className="text-lg">📁</span> {q.topic}
+                            </h4>
+
+                            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
+                              <span className="text-slate-400">Assigned Module:</span>
+                              <span className="font-bold text-slate-700">{associatedChap ? associatedChap.name : `Module not found`}</span>
+                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-mono">({q.chapterId})</span>
                             </p>
                           </div>
 
@@ -6439,7 +6468,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                     setQExplanationText(q.explanation || '');
                                     setQIsActive(q.isActive !== false);
                                   }}
-                                  className="px-2.5 py-1.5 bg-slate-900 border border-slate-900 font-bold text-[9px] text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-indigo-950 border border-indigo-950 font-black text-[9px] text-white hover:bg-indigo-900 rounded-lg transition-all duration-150 cursor-pointer shadow-3xs"
                                   title="Edit question definition"
                                 >
                                   EDIT
@@ -6447,7 +6476,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteQuestionId(q.id)}
-                                  className="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold text-[9px] rounded-lg transition cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-black text-[9px] rounded-lg transition-all duration-150 cursor-pointer"
                                   title="Delete permanently"
                                 >
                                   DELETE
@@ -6458,29 +6487,39 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
 
                         {/* The prompt */}
-                        <div className="p-3 bg-slate-50 border border-slate-150 rounded-xl">
-                          <p className="text-xs font-bold text-slate-900 leading-relaxed font-sans">{q.question}</p>
+                        <div className="p-4 bg-gradient-to-br from-indigo-50/30 via-white to-slate-50/30 border border-slate-200/80 rounded-2xl shadow-3xs">
+                          <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-relaxed font-sans">{q.question}</p>
                         </div>
 
                         {/* Options visualizer */}
                         {q.type === 'text' ? (
-                          <div className="text-xs pl-2 border-l-4 border-l-emerald-500 py-1 font-sans">
+                          <div className="text-xs pl-3.5 border-l-4 border-l-emerald-500 py-1.5 font-sans bg-emerald-50/30 rounded-r-xl pr-3">
                             <span className="font-bold text-slate-600">Regex check target match value: </span>
                             <strong className="text-emerald-700 font-mono text-xs">{q.correctAnswerText}</strong>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pl-1 font-sans">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-1 font-sans">
                             {q.options?.map((opt, oIdx) => {
                               const isCorrectOpt = q.correctAnswerIndex === oIdx;
                               const letter = String.fromCharCode(65 + oIdx);
 
                               return (
-                                <div key={oIdx} className={`p-1.5 px-2.5 rounded-lg border border-dashed flex items-center gap-1.5 ${
-                                  isCorrectOpt ? 'bg-emerald-50 border-emerald-305 font-semibold text-emerald-800' : 'bg-transparent border-slate-155 text-slate-500'
+                                <div key={oIdx} className={`p-2.5 px-3.5 rounded-xl border flex items-center gap-2.5 transition-all duration-150 ${
+                                  isCorrectOpt 
+                                    ? 'bg-emerald-50/70 border-emerald-250 text-emerald-900 font-semibold shadow-3xs' 
+                                    : 'bg-white border-slate-200/80 text-slate-600 hover:border-slate-300'
                                 }`}>
-                                  <span className="font-mono text-[9px] font-extrabold text-slate-400">{letter}.</span>
-                                  <span className="truncate leading-relaxed">{opt}</span>
-                                  {isCorrectOpt && <span className="text-[8px] font-black uppercase text-emerald-750 block ml-auto shrink-0 font-mono font-bold animate-pulse">Target Correct</span>}
+                                  <span className={`w-5 h-5 rounded-lg flex items-center justify-center font-bold font-mono text-[10px] shrink-0 ${
+                                    isCorrectOpt ? 'bg-emerald-600 text-white shadow-3xs' : 'bg-slate-100 text-slate-400'
+                                  }`}>
+                                    {letter}
+                                  </span>
+                                  <span className="truncate leading-relaxed text-xs font-medium">{opt}</span>
+                                  {isCorrectOpt && (
+                                    <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-200/55 px-1.5 py-0.5 rounded-md ml-auto shrink-0 font-mono font-bold">
+                                      Correct Target
+                                    </span>
+                                  )}
                                 </div>
                               );
                             })}
@@ -6489,8 +6528,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                         {/* Explanation summary */}
                         {q.explanation && (
-                          <p className="text-[10px] text-slate-405 text-slate-400 pl-1 leading-normal font-sans">
-                            <span className="text-slate-500 font-bold">Explanation Log: </span>
+                          <p className="text-[11px] text-slate-500 pl-1 leading-normal font-sans bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
+                            <span className="text-indigo-900 font-extrabold">Explanation Log: </span>
                             {q.explanation}
                           </p>
                         )}
@@ -6551,9 +6590,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 <button
                   type="button"
                   onClick={() => setCfgExamEnabled(!cfgExamEnabled)}
-                  className={`w-12 h-6.5 rounded-full transition-colors relative outline-none cursor-pointer shrink-0 ${cfgExamEnabled ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                  className={`w-11 h-6 rounded-full transition-all duration-250 relative outline-none cursor-pointer shrink-0 shadow-inner ${cfgExamEnabled ? 'bg-[#16a34a]' : 'bg-slate-300'}`}
                 >
-                  <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${cfgExamEnabled ? 'translate-x-[24px]' : 'translate-x-1'}`}></span>
+                  <span className={`w-4 h-4 rounded-full bg-white absolute top-1 left-1 transition-all duration-250 shadow-sm ${cfgExamEnabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
                 </button>
               </div>
 
@@ -6568,9 +6607,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 <button
                   type="button"
                   onClick={() => setCfgRequirePass(!cfgRequirePass)}
-                  className={`w-12 h-6.5 rounded-full transition-colors relative outline-none cursor-pointer shrink-0 ${cfgRequirePass ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                  className={`w-11 h-6 rounded-full transition-all duration-250 relative outline-none cursor-pointer shrink-0 shadow-inner ${cfgRequirePass ? 'bg-[#16a34a]' : 'bg-slate-300'}`}
                 >
-                  <span className={`w-4.5 h-4.5 rounded-full bg-white absolute top-1 transition-transform ${cfgRequirePass ? 'translate-x-[24px]' : 'translate-x-1'}`}></span>
+                  <span className={`w-4 h-4 rounded-full bg-white absolute top-1 left-1 transition-all duration-250 shadow-sm ${cfgRequirePass ? 'translate-x-5' : 'translate-x-0'}`}></span>
                 </button>
               </div>
 
@@ -6837,6 +6876,677 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------
+          TAB 9: COMPLIANCE AUDIT TRAIL
+          ---------------------------------------------------- */}
+      {adminTab === 'audit' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in duration-200 space-y-6 text-slate-900">
+          <div className="border-b border-slate-100 pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <span className="text-xl">🛡️</span>
+                Compliance Audit Trail & Verification Logbook
+              </h3>
+              <p className="text-xs text-slate-500 font-sans">
+                Central corporate ledger for real-time tracking of employee syllabus progress, compliance logs, verifications, and notes.
+              </p>
+            </div>
+            {/* View Mode Selector */}
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold font-sans self-start">
+              <button
+                type="button"
+                onClick={() => setAuditViewMode('matrix')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  auditViewMode === 'matrix'
+                    ? 'bg-white text-emerald-800 shadow-3xs'
+                    : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-800'
+                }`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Syllabus Matrix</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuditViewMode('timeline')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  auditViewMode === 'timeline'
+                    ? 'bg-white text-emerald-800 shadow-3xs'
+                    : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-800'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Timeline Log</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Statistics widgets */}
+          {(() => {
+            const pendingCount = progress.filter(p => p.status === 'Completed (Pending Review)').length;
+            const verifiedCount = progress.filter(p => p.status === 'Verified & Mastered').length;
+            const inProgressCount = progress.filter(p => p.status === 'In Progress').length;
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-black text-slate-400 tracking-wider">Total Records</span>
+                    <h4 className="text-xl font-bold text-slate-800 leading-tight">{progress.length}</h4>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-black text-slate-400 tracking-wider">Verified Mastery</span>
+                    <h4 className="text-xl font-bold text-slate-800 leading-tight">{verifiedCount}</h4>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
+                    <Clock className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-black text-slate-400 tracking-wider">Pending Review</span>
+                    <h4 className="text-xl font-bold text-slate-800 leading-tight flex items-center gap-1.5">
+                      {pendingCount}
+                      {pendingCount > 0 && (
+                        <span className="text-[9px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded-full font-mono">
+                          Action
+                        </span>
+                      )}
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-black text-slate-400 tracking-wider">Mapped Trainees</span>
+                    <h4 className="text-xl font-bold text-slate-800 leading-tight">{users.length}</h4>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Interactive Dynamic Filters Panel */}
+          <div className="bg-slate-50/60 border border-slate-200/70 p-4 rounded-xl space-y-3.5">
+            <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider font-mono">
+              <ListFilter className="w-4 h-4 text-emerald-600" />
+              <span>Dynamic Filter controls</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* Search input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={auditSearch}
+                  onChange={(e) => setAuditSearch(e.target.value)}
+                  placeholder="Search trainee, task, code..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 placeholder-slate-400"
+                />
+              </div>
+
+              {/* User Dropdown */}
+              <select
+                value={auditUserFilter}
+                onChange={(e) => setAuditUserFilter(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+              >
+                <option value="all">All Trainees ({users.length})</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+
+              {/* Department Dropdown */}
+              <select
+                value={auditDeptFilter}
+                onChange={(e) => setAuditDeptFilter(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+              >
+                <option value="all">All Departments ({departments.length})</option>
+                {departments.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              {/* Role Dropdown */}
+              <select
+                value={auditRoleFilter}
+                onChange={(e) => setAuditRoleFilter(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+              >
+                <option value="all">All Job Roles ({roles.length})</option>
+                {roles.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+
+              {/* Status Dropdown */}
+              <select
+                value={auditStatusFilter}
+                onChange={(e) => setAuditStatusFilter(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed (Pending Review)">Completed (Pending Review)</option>
+                <option value="Verified & Mastered">Verified & Mastered</option>
+              </select>
+            </div>
+
+            {/* Clear filters trigger */}
+            {(auditSearch || auditUserFilter !== 'all' || auditDeptFilter !== 'all' || auditRoleFilter !== 'all' || auditStatusFilter !== 'all') && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuditSearch('');
+                    setAuditUserFilter('all');
+                    setAuditDeptFilter('all');
+                    setAuditRoleFilter('all');
+                    setAuditStatusFilter('all');
+                    showToast('🔍 Compliance filters successfully reset.', 'info');
+                  }}
+                  className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Reset All Active Filters</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Dynamic Views: Matrix vs Timeline */}
+          {auditViewMode === 'matrix' ? (
+            /* ========================================================
+               A) SYLLABUS STATUS MATRIX GRID SPREADSHEET
+               ======================================================== */
+            (() => {
+              const auditRows = (() => {
+                const rows: {
+                  user: User;
+                  unit: Unit;
+                  chapter: Chapter;
+                  log: ProgressLog | undefined;
+                  id: string;
+                }[] = [];
+
+                users.forEach(u => {
+                  const userChapters = chapters.filter(c => c.roleId === u.roleId);
+                  userChapters.forEach(c => {
+                    const chapUnits = units.filter(un => un.chapterId === c.id);
+                    chapUnits.forEach(un => {
+                      const log = progress.find(p => p.userId === u.id && p.unitId === un.id);
+                      rows.push({
+                        user: u,
+                        unit: un,
+                        chapter: c,
+                        log,
+                        id: `${u.id}_${un.id}`
+                      });
+                    });
+                  });
+                });
+
+                return rows.filter(r => {
+                  if (auditUserFilter !== 'all' && r.user.id !== auditUserFilter) return false;
+                  if (auditDeptFilter !== 'all' && r.user.department !== auditDeptFilter) return false;
+                  if (auditRoleFilter !== 'all' && r.user.roleId !== auditRoleFilter) return false;
+                  if (auditStatusFilter !== 'all') {
+                    const status = r.log?.status || 'Not Started';
+                    if (status !== auditStatusFilter) return false;
+                  }
+                  if (auditSearch.trim()) {
+                    const query = auditSearch.toLowerCase();
+                    const userName = r.user.name.toLowerCase();
+                    const userEmail = r.user.email.toLowerCase();
+                    const unitCode = r.unit.code.toLowerCase();
+                    const taskName = r.unit.taskName.toLowerCase();
+                    const chapName = r.chapter.name.toLowerCase();
+                    if (
+                      !userName.includes(query) &&
+                      !userEmail.includes(query) &&
+                      !unitCode.includes(query) &&
+                      !taskName.includes(query) &&
+                      !chapName.includes(query)
+                    ) {
+                      return false;
+                    }
+                  }
+                  return true;
+                });
+              })();
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider">
+                      Showing {auditRows.length} Mapped Syllabus Tasks
+                    </span>
+                    {/* Excel Export */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const worksheetData = auditRows.map(r => ({
+                          'Employee': r.user.name,
+                          'Email': r.user.email,
+                          'Department': r.user.department,
+                          'Role ID': r.user.roleId,
+                          'Chapter': r.chapter.name,
+                          'Unit Code': r.unit.code,
+                          'Task Name': r.unit.taskName,
+                          'Status': r.log?.status || 'Not Started',
+                          'Watch %': r.log?.watchPercent || 0,
+                          'Last Updated': r.log?.lastUpdated ? new Date(r.log.lastUpdated).toLocaleDateString() : 'N/A'
+                        }));
+                        const ws = XLSX.utils.json_to_sheet(worksheetData);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Compliance Ledger");
+                        XLSX.writeFile(wb, "Rathi_Compliance_Audit_Ledger.xlsx");
+                        showToast('📥 Spreadsheet exported successfully as Excel!', 'success');
+                      }}
+                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-emerald-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export Excel Ledger</span>
+                    </button>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-3xs">
+                    <table className="w-full text-left border-collapse bg-white">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-150">
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Trainee</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Syllabus Task</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4 text-center">Status</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Log Notes</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditRows.map((r) => {
+                          const isExpanded = selectedAuditRowId === r.id;
+                          const currentStatus = r.log?.status || 'Not Started';
+                          
+                          // Badge color config
+                          let badgeStyles = 'bg-slate-100 text-slate-500 border-slate-200';
+                          if (currentStatus === 'Verified & Mastered') {
+                            badgeStyles = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                          } else if (currentStatus === 'Completed (Pending Review)') {
+                            badgeStyles = 'bg-amber-50 text-amber-700 border-amber-200';
+                          } else if (currentStatus === 'In Progress') {
+                            badgeStyles = 'bg-blue-50 text-blue-700 border-blue-200';
+                          }
+
+                          return (
+                            <React.Fragment key={r.id}>
+                              <tr className="hover:bg-slate-50/40 border-b border-slate-100 transition-colors">
+                                {/* Trainee Col */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar src={r.user.avatarUrl} name={r.user.name} size="sm" className="ring-1 ring-slate-100 shrink-0" />
+                                    <div>
+                                      <h5 className="font-bold text-slate-850 text-xs">{r.user.name}</h5>
+                                      <p className="text-[10px] text-slate-400 font-mono">{r.user.email} • <span className="font-semibold text-indigo-600">{r.user.department}</span></p>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Task Col */}
+                                <td className="py-3 px-4">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[9px] font-mono font-black bg-slate-100 text-slate-600 border border-slate-200 px-1 py-0.2 rounded">
+                                        {r.unit.code}
+                                      </span>
+                                      <span className="font-bold text-slate-800 text-xs truncate max-w-[200px] inline-block">{r.unit.taskName}</span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 truncate max-w-xs mt-0.5">Ch: <span className="font-medium text-slate-600">{r.chapter.name}</span></p>
+                                  </div>
+                                </td>
+
+                                {/* Status Col */}
+                                <td className="py-3 px-4 text-center">
+                                  <div className="flex justify-center">
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.8 rounded-full text-[9px] font-bold border ${badgeStyles}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${
+                                        currentStatus === 'Verified & Mastered' ? 'bg-emerald-500' :
+                                        currentStatus === 'Completed (Pending Review)' ? 'bg-amber-500 animate-pulse' :
+                                        currentStatus === 'In Progress' ? 'bg-blue-500' : 'bg-slate-400'
+                                      }`} />
+                                      {currentStatus}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Notes Col */}
+                                <td className="py-3 px-4 text-xs font-sans text-slate-500 max-w-[150px] truncate">
+                                  {r.log?.notes ? (
+                                    <span className="italic">" {r.log.notes} "</span>
+                                  ) : (
+                                    <span className="text-slate-300 italic">No notes</span>
+                                  )}
+                                </td>
+
+                                {/* Actions Col */}
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {currentStatus === 'Completed (Pending Review)' && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            onSettleVerification(r.user.id, r.unit.id, 'verify');
+                                            showToast(`✓ Mastered verification logged for ${r.user.name}.`, 'success');
+                                          }}
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[9px] py-1 px-2 rounded-lg transition uppercase tracking-wider cursor-pointer shadow-3xs"
+                                        >
+                                          Verify
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            onSettleVerification(r.user.id, r.unit.id, 'reject');
+                                            showToast(`✕ Task status returned back to trainee for revision.`, 'error');
+                                          }}
+                                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-[9px] py-1 px-2 rounded-lg border border-rose-200 transition uppercase tracking-wider cursor-pointer"
+                                        >
+                                          Reject
+                                        </button>
+                                      </>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedAuditRowId(isExpanded ? null : r.id)}
+                                      className="text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50/50 p-1 rounded-lg border border-slate-200 transition cursor-pointer"
+                                      title="View History Details"
+                                    >
+                                      {isExpanded ? <X className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* Expanded Accordion Details */}
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={5} className="bg-slate-50/50 px-6 py-4 border-b border-slate-150">
+                                    <div className="space-y-3 max-w-4xl animate-in slide-in-from-top-1 duration-150">
+                                      <h6 className="text-[10px] font-black uppercase text-indigo-700 tracking-wider font-mono flex items-center gap-1">
+                                        <History className="w-3.5 h-3.5" />
+                                        Compliance Verification Ledger Log
+                                      </h6>
+
+                                      {/* Log metadata */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] bg-white border border-slate-200 rounded-xl p-3 shadow-3xs">
+                                        <div>
+                                          <span className="text-slate-400">Watch Video Percent:</span>
+                                          <p className="font-bold font-mono text-slate-800">{r.log?.watchPercent || 0}% completed</p>
+                                        </div>
+                                        <div>
+                                          <span className="text-slate-400">Total Started:</span>
+                                          <p className="font-bold text-slate-850">
+                                            {r.log?.startedAt ? new Date(r.log.startedAt).toLocaleString() : 'N/A'}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <span className="text-slate-400">Total Completed:</span>
+                                          <p className="font-bold text-slate-850">
+                                            {r.log?.completedAt ? new Date(r.log.completedAt).toLocaleString() : 'N/A'}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Expanded history timeline steps */}
+                                      <div className="space-y-2">
+                                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider font-mono">Transition logs:</span>
+                                        {r.log?.history && r.log.history.length > 0 ? (
+                                          <div className="border-l-2 border-indigo-100 pl-4 space-y-2.5">
+                                            {r.log.history.map((hist, histIdx) => (
+                                              <div key={histIdx} className="relative">
+                                                {/* Bullet dot */}
+                                                <span className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 border border-white" />
+                                                <div className="text-[11px]">
+                                                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                                                    <span>Changed to {hist.status}</span>
+                                                    <span className="text-[10px] text-slate-400 font-normal">by {hist.changedBy}</span>
+                                                    <span className="text-[9px] font-mono text-slate-400 font-normal ml-auto">{new Date(hist.timestamp).toLocaleString()}</span>
+                                                  </div>
+                                                  {hist.notes && (
+                                                    <p className="text-[10px] text-slate-500 italic mt-0.5">" {hist.notes} "</p>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <p className="text-[11px] text-slate-400 italic font-sans">No transition logs found for this item. Active status reflects first entry.</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+
+                        {auditRows.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-slate-400 italic text-xs font-sans">
+                              No mapped syllabus tasks found matching your active compliance filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            /* ========================================================
+               B) DETAILED CHRONOLOGICAL TIMELINE LOG
+               ======================================================== */
+            (() => {
+              const timelineEvents = (() => {
+                const events: {
+                  user: User;
+                  unit: Unit;
+                  chapter: Chapter;
+                  status: ProgressStatus;
+                  timestamp: string;
+                  changedBy: string;
+                  notes?: string;
+                  logId: string;
+                  id: string;
+                }[] = [];
+
+                progress.forEach(log => {
+                  const u = users.find(usr => usr.id === log.userId);
+                  const un = units.find(uni => uni.id === log.unitId);
+                  if (!u || !un) return;
+                  const c = chapters.find(ch => ch.id === un.chapterId);
+                  if (!c) return;
+
+                  if (log.history && log.history.length > 0) {
+                    log.history.forEach((hist, hIdx) => {
+                      events.push({
+                        user: u,
+                        unit: un,
+                        chapter: c,
+                        status: hist.status,
+                        timestamp: hist.timestamp,
+                        changedBy: hist.changedBy,
+                        notes: hist.notes,
+                        logId: log.id,
+                        id: `${log.id}_h_${hIdx}`
+                      });
+                    });
+                  } else {
+                    events.push({
+                      user: u,
+                      unit: un,
+                      chapter: c,
+                      status: log.status,
+                      timestamp: log.lastUpdated,
+                      changedBy: log.verifiedBy || u.name,
+                      notes: log.notes,
+                      logId: log.id,
+                      id: `${log.id}_fallback`
+                    });
+                  }
+                });
+
+                const filtered = events.filter(e => {
+                  if (auditUserFilter !== 'all' && e.user.id !== auditUserFilter) return false;
+                  if (auditDeptFilter !== 'all' && e.user.department !== auditDeptFilter) return false;
+                  if (auditRoleFilter !== 'all' && e.user.roleId !== auditRoleFilter) return false;
+                  if (auditStatusFilter !== 'all' && e.status !== auditStatusFilter) return false;
+                  if (auditSearch.trim()) {
+                    const query = auditSearch.toLowerCase();
+                    const userName = e.user.name.toLowerCase();
+                    const userEmail = e.user.email.toLowerCase();
+                    const unitCode = e.unit.code.toLowerCase();
+                    const taskName = e.unit.taskName.toLowerCase();
+                    const chapName = e.chapter.name.toLowerCase();
+                    if (
+                      !userName.includes(query) &&
+                      !userEmail.includes(query) &&
+                      !unitCode.includes(query) &&
+                      !taskName.includes(query) &&
+                      !chapName.includes(query)
+                    ) {
+                      return false;
+                    }
+                  }
+                  return true;
+                });
+
+                return [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+              })();
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider">
+                      Showing {timelineEvents.length} Historical Chronological Events
+                    </span>
+                    {/* Excel export */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const worksheetData = timelineEvents.map(e => ({
+                          'Timestamp': new Date(e.timestamp).toLocaleString(),
+                          'Actor': e.changedBy,
+                          'Trainee Name': e.user.name,
+                          'Trainee Email': e.user.email,
+                          'Department': e.user.department,
+                          'Task SKU': e.unit.code,
+                          'Task Description': e.unit.taskName,
+                          'New Status State': e.status,
+                          'Captured Remarks': e.notes || ''
+                        }));
+                        const ws = XLSX.utils.json_to_sheet(worksheetData);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Compliance History Log");
+                        XLSX.writeFile(wb, "Rathi_Compliance_Audit_Timeline_History.xlsx");
+                        showToast('📥 Timeline log history exported as Excel successfully!', 'success');
+                      }}
+                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-indigo-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export Excel Timeline</span>
+                    </button>
+                  </div>
+
+                  <div className="relative border border-slate-200 rounded-xl bg-white p-6 shadow-3xs max-h-[650px] overflow-y-auto">
+                    {timelineEvents.length > 0 ? (
+                      <div className="border-l border-slate-200 pl-6 space-y-6">
+                        {timelineEvents.map((e) => {
+                          const isVerifyAction = e.status === 'Verified & Mastered';
+                          const isCompleteAction = e.status === 'Completed (Pending Review)';
+                          
+                          let badgeBg = 'bg-slate-100 text-slate-600 border-slate-200';
+                          if (isVerifyAction) badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200/50';
+                          else if (isCompleteAction) badgeBg = 'bg-amber-50 text-amber-700 border-amber-200/50';
+                          else if (e.status === 'In Progress') badgeBg = 'bg-blue-50 text-blue-700 border-blue-200/50';
+
+                          return (
+                            <div key={e.id} className="relative group">
+                              {/* Bullet dot */}
+                              <span className={`absolute -left-[32px] top-1.5 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center shrink-0 ${
+                                isVerifyAction ? 'bg-emerald-500 text-white' :
+                                isCompleteAction ? 'bg-amber-500 text-white' :
+                                e.status === 'In Progress' ? 'bg-blue-500 text-white' : 'bg-slate-400 text-white'
+                              }`}>
+                                <span className="w-1 h-1 rounded-full bg-white" />
+                              </span>
+
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 border-b border-slate-100 pb-3">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-extrabold text-slate-800 text-xs">{e.changedBy}</span>
+                                    <span className="text-[10px] text-slate-400 font-sans">transitioned status for</span>
+                                    <span className="font-bold text-slate-800 text-xs underline decoration-indigo-200">{e.user.name}</span>
+                                  </div>
+
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <span className="text-[9px] font-mono bg-slate-100 border border-slate-200 text-slate-600 px-1 py-0.2 rounded">
+                                      {e.unit.code}
+                                    </span>
+                                    <p className="text-xs text-slate-600 font-medium">
+                                      {e.unit.taskName} <span className="text-[10px] text-slate-400 font-normal">({e.chapter.name})</span>
+                                    </p>
+                                  </div>
+
+                                  {e.notes && (
+                                    <div className="mt-2 bg-slate-50 border border-slate-200/70 p-2 rounded-lg text-[11px] text-slate-600 italic">
+                                      " {e.notes} "
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col items-start sm:items-end shrink-0 gap-1 mt-1 sm:mt-0">
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${badgeBg}`}>
+                                    {e.status}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-[9px] text-slate-400 font-mono">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    <span>{new Date(e.timestamp).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-slate-400 italic text-xs font-sans">
+                        No historical compliance events matched your active dynamic filter selectors.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()
+          )}
         </div>
       )}
 
