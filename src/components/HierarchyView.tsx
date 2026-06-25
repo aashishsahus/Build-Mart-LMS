@@ -147,6 +147,7 @@ export default function HierarchyView({
   const [viewMode, setViewMode] = useState<'roles' | 'employees'>('roles');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [zoomScale, setZoomScale] = useState(0.95);
@@ -166,6 +167,7 @@ export default function HierarchyView({
     setCollapsedNodes(new Set());
     setSearchQuery('');
     setSelectedNodeId(null);
+    setFocusedNodeId(null);
   };
 
   // Toggle Collapse
@@ -279,6 +281,10 @@ export default function HierarchyView({
 
   // Recursive Tree structures builder
   const rolesTree = useMemo(() => {
+    if (focusedNodeId && viewMode === 'roles') {
+      const match = roles.find(r => r.id === focusedNodeId);
+      return match ? [match] : [];
+    }
     const roleIds = new Set(roles.map(r => r.id));
     // Root nodes are those with no reportsTo, or reporting to a role that doesn't exist
     const roots = roles.filter(r => !r.reportsTo || !roleIds.has(r.reportsTo));
@@ -291,9 +297,13 @@ export default function HierarchyView({
     });
 
     return roots;
-  }, [roles]);
+  }, [roles, focusedNodeId, viewMode]);
 
   const usersTree = useMemo(() => {
+    if (focusedNodeId && viewMode === 'employees') {
+      const match = users.find(u => u.id === focusedNodeId);
+      return match ? [match] : [];
+    }
     const userIds = new Set(users.map(u => u.id));
     const roots = users.filter(u => !u.reportsTo || !userIds.has(u.reportsTo));
     
@@ -305,7 +315,7 @@ export default function HierarchyView({
     });
 
     return roots;
-  }, [users]);
+  }, [users, focusedNodeId, viewMode]);
 
   // Selected detail nodes
   const selectedRole = useMemo(() => {
@@ -317,6 +327,15 @@ export default function HierarchyView({
     if (viewMode !== 'employees' || !selectedNodeId) return null;
     return users.find(u => u.id === selectedNodeId) || null;
   }, [viewMode, selectedNodeId, users]);
+
+  const focusedNodeName = useMemo(() => {
+    if (!focusedNodeId) return null;
+    if (viewMode === 'roles') {
+      return roles.find(r => r.id === focusedNodeId)?.name || null;
+    } else {
+      return users.find(u => u.id === focusedNodeId)?.name || null;
+    }
+  }, [focusedNodeId, viewMode, roles, users]);
 
   // Options for parent roles dropdown
   const parentRoleOptions = useMemo(() => {
@@ -375,9 +394,46 @@ export default function HierarchyView({
       return html;
     };
 
-    const treeDataHTML = viewMode === 'roles' 
-      ? buildNestedHTML(roles, undefined, 0)
-      : buildNestedHTML(users, undefined, 0);
+    const getDescendantIds = (parentId: string): Set<string> => {
+      const descendants = new Set<string>([parentId]);
+      const collect = (id: string) => {
+        const children = (viewMode === 'roles' ? roles : users).filter(x => x.reportsTo === id);
+        children.forEach(c => {
+          descendants.add(c.id);
+          collect(c.id);
+        });
+      };
+      collect(parentId);
+      return descendants;
+    };
+
+    const focusedDescendants = focusedNodeId ? getDescendantIds(focusedNodeId) : null;
+
+    let treeDataHTML = '';
+    if (focusedNodeId) {
+      const focusedItem = (viewMode === 'roles' ? roles : users).find(x => x.id === focusedNodeId);
+      if (focusedItem) {
+        const subtext = viewMode === 'roles' 
+          ? `<span style="font-size: 11px; color: #475569; font-weight: 500; font-family: sans-serif; background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">${focusedItem.department}</span>`
+          : `<span style="font-size: 11px; color: #0284c7; font-weight: 500; font-family: sans-serif; margin-left: 8px;">— ${roles.find(r => r.id === (focusedItem as any).roleId)?.name || 'Unassigned'} (${focusedItem.department})</span>`;
+
+        treeDataHTML = `
+          <ul style="list-style-type: none; padding-left: 0; margin: 4px 0;">
+            <li style="margin: 6px 0; position: relative; padding-left: 8px;">
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-family: system-ui, -apple-system, sans-serif; padding: 6px 12px; background-color: #f0fdf4; border: 1.5px solid #10b981; border-radius: 6px; width: fit-content; max-width: 100%;">
+                <span style="font-size: 13px; font-weight: 900; color: #166534;">🎯 FOCUSED SUBTREE ROOT: ${focusedItem.name}</span>
+                ${subtext}
+              </div>
+              ${buildNestedHTML(viewMode === 'roles' ? roles : users, focusedNodeId, 1)}
+            </li>
+          </ul>
+        `;
+      }
+    } else {
+      treeDataHTML = viewMode === 'roles' 
+        ? buildNestedHTML(roles, undefined, 0)
+        : buildNestedHTML(users, undefined, 0);
+    }
 
     const dateStr = new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -386,7 +442,14 @@ export default function HierarchyView({
       day: 'numeric'
     });
 
-    const activeListHTML = (viewMode === 'roles' ? roles : users).map((item, index) => {
+    const listToRender = (viewMode === 'roles' ? roles : users).filter(item => {
+      if (focusedDescendants) {
+        return focusedDescendants.has(item.id);
+      }
+      return true;
+    });
+
+    const activeListHTML = listToRender.map((item, index) => {
       const parentName = viewMode === 'roles' 
         ? (roles.find(r => r.id === item.reportsTo)?.name || 'None (Absolute Top)')
         : (users.find(u => u.id === item.reportsTo)?.name || 'None (Absolute Top)');
@@ -1133,6 +1196,41 @@ export default function HierarchyView({
             </div>
           </div>
 
+          {/* Subtree Focus Dropdown Selector */}
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-start">
+            <span className="text-[10px] uppercase font-bold font-mono text-slate-400 whitespace-nowrap">Focused Tree:</span>
+            <select
+              value={focusedNodeId || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFocusedNodeId(val ? val : null);
+                if (val) {
+                  setSelectedNodeId(val);
+                }
+              }}
+              className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-500 font-sans font-bold text-slate-700 shadow-3xs max-w-[210px] cursor-pointer"
+            >
+              <option value="">-- Complete Org Hierarchy --</option>
+              {viewMode === 'roles' ? (
+                [...roles]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))
+              ) : (
+                [...users]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))
+              )}
+            </select>
+          </div>
+
           {/* Live Search bar */}
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1154,18 +1252,53 @@ export default function HierarchyView({
           </div>
         </div>
 
+        {focusedNodeId && focusedNodeName && (
+          <div className="mb-4 bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl text-[9px] font-bold font-mono tracking-wider">🎯 FOCUS ACTIVE</span>
+              <div>
+                <p className="text-xs font-black text-slate-900">
+                  Isolating reporting structure for: <span className="text-indigo-700 font-extrabold">{focusedNodeName}</span>
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium font-sans">
+                  Showing only direct and indirect subordinate team members in a single isolated subtree view.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  printHierarchy();
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print & Save Subtree PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => setFocusedNodeId(null)}
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-rose-600 border border-rose-200 rounded-xl text-[10px] font-extrabold cursor-pointer transition flex items-center gap-1"
+              >
+                Clear Focus
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* CORE INTERACTIVE TREE CANVAS AREA */}
-        <div className="flex-1 border border-dashed border-slate-200 rounded-2xl bg-slate-50/20 p-8 overflow-auto flex items-start justify-center min-h-[480px] max-h-[800px] scrollbar-thin">
+        <div className="flex-1 border border-dashed border-slate-200 rounded-2xl bg-slate-50/20 p-8 overflow-auto min-h-[480px] max-h-[800px] scrollbar-thin">
           <div 
-            className="transition-transform duration-200 transform origin-top pt-4"
+            className="transition-transform duration-200 transform origin-top pt-4 mx-auto w-fit min-w-max flex flex-col items-center"
             style={{ transform: `scale(${zoomScale})` }}
           >
             {viewMode === 'roles' ? (
-              <div className="flex gap-16 items-start">
+              <div className="flex gap-16 items-start justify-center">
                 {rolesTree.map(role => renderRoleNode(role))}
               </div>
             ) : (
-              <div className="flex gap-16 items-start">
+              <div className="flex gap-16 items-start justify-center">
                 {usersTree.map(user => renderUserNode(user))}
               </div>
             )}
@@ -1244,14 +1377,23 @@ export default function HierarchyView({
                 </div>
               </div>
 
-              {/* EDITOR TRIGGER */}
+              {/* ACTIONS */}
               {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full bg-emerald-650 hover:bg-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
-                >
-                  <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setFocusedNodeId(selectedRole.id)}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px] shadow-3xs"
+                  >
+                    <GitFork className="w-3.5 h-3.5" /> Isolate & Focus Subtree
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
+                  </button>
+                </div>
               )}
             </div>
           ) : viewMode === 'employees' && selectedUser ? (
@@ -1307,14 +1449,23 @@ export default function HierarchyView({
                 </div>
               </div>
 
-              {/* EDITOR TRIGGER */}
+              {/* ACTIONS */}
               {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full bg-emerald-650 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
-                >
-                  <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setFocusedNodeId(selectedUser.id)}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px] shadow-3xs"
+                  >
+                    <GitFork className="w-3.5 h-3.5" /> Isolate & Focus Subtree
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
+                  </button>
+                </div>
               )}
             </div>
           ) : (

@@ -39,7 +39,8 @@ import AdminDashboard from './components/AdminDashboard';
 import AssessmentCenter from './components/AssessmentCenter';
 import ScreeningTest from './components/ScreeningTest';
 import CertificateGenerator from './components/CertificateGenerator';
-import { Activity, BookOpen, Layers } from 'lucide-react';
+import { Activity, BookOpen, Layers, Database } from 'lucide-react';
+import { isFirebasePlaceholder } from './data/firebase';
 
 export default function App() {
   // Application Data States
@@ -402,7 +403,7 @@ export default function App() {
           />
 
           {/* Core Content Area */}
-          <main className="flex-grow pb-16 lg:pb-0">
+          <main className="flex-grow pt-14 lg:pt-16 pb-32 lg:pb-20">
             {activeTab === 'learning' ? (
               <UserDashboard
                 currentUser={currentUserDetail}
@@ -492,19 +493,42 @@ export default function App() {
             )}
           </main>
 
-          {/* Footer bar */}
-          <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400 font-medium font-sans">
-            <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-mono tracking-wider">
-                <Activity className="w-3.5 h-3.5 text-emerald-600" />
-                SECURITY MATRIX COMPLIANCE IN FORCE
+          {/* Modern & Stylish Fixed Status Footer bar */}
+          <footer className="bg-white/85 backdrop-blur-lg border-t border-slate-200/60 py-3 text-center text-[10px] font-sans shrink-0 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] lg:pb-3 pb-[calc(3.5rem+10px)] transition-all duration-300">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-6">
+              
+              {/* Compliance Indicator Badge */}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/70 text-emerald-700 rounded-full border border-emerald-100/80 text-[9px] font-mono tracking-wider uppercase font-bold shadow-3xs">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Security Matrix Compliant
               </span>
-              <span>
-                Build Training Program  Learning Platform  Rathi's Build Mart
+              
+              {/* Central Title */}
+              <span className="text-[10px] text-slate-500 hover:text-slate-700 font-sans tracking-tight font-medium transition duration-150">
+                Rathi's Build Mart LMS <span className="text-slate-300 mx-1">•</span> Enterprise Training & Compliance Platform
               </span>
-              <p className="font-mono text-[10px] text-slate-400">
-                System Time Check: UTC 2026-06-05
-              </p>
+
+              {/* Server/Database Cloud telemetry */}
+              <div className="flex items-center gap-3 sm:gap-4 text-[9px] font-mono">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border ${
+                  isFirebasePlaceholder 
+                    ? 'bg-amber-50/70 text-amber-700 border-amber-100/80' 
+                    : 'bg-indigo-50/70 text-indigo-700 border-indigo-100/80'
+                } font-bold shadow-3xs`}>
+                  <Database className={`w-3 h-3 ${isFirebasePlaceholder ? 'text-amber-500' : 'text-indigo-500'}`} />
+                  <span>Cloud DB: {isFirebasePlaceholder ? 'Local Sandbox' : 'Firebase Active'}</span>
+                </span>
+                
+                <span className="text-slate-200 hidden xs:inline">|</span>
+                
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50/70 text-slate-500 rounded-md border border-slate-200/50">
+                  <Activity className="w-3 h-3 text-slate-400" />
+                  <span>UTC: 2026-06-25</span>
+                </span>
+              </div>
             </div>
           </footer>
         </div>

@@ -343,36 +343,36 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-white border-b border-slate-200 text-slate-700 sticky top-0 z-50 shadow-xs backdrop-blur-md bg-opacity-95">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 text-slate-700 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(15,23,42,0.03)] transition-all duration-300">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 lg:h-16 items-center">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <div className="bg-emerald-600/90 hover:bg-emerald-600 p-2 sm:p-2.5 rounded-xl shadow-lg shadow-emerald-500/10 flex items-center justify-center transition-all duration-200 shrink-0">
+              <div className="bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 p-2 sm:p-2.5 rounded-xl shadow-md shadow-emerald-500/10 flex items-center justify-center transition-all duration-300 shrink-0">
                 {renderLogo()}
               </div>
               <div className="min-w-0">
-                <h1 className="font-display text-xs sm:text-base font-extrabold tracking-tight text-slate-900 flex items-center gap-1.5">
-                  <span className="truncate">{branding?.companyName || 'Build Mart'}</span>
-                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-medium px-1.5 py-0.5 rounded border border-emerald-200/60 tracking-widest shrink-0">
+                <h1 className="font-display text-xs sm:text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                  <span className="truncate bg-gradient-to-r from-slate-900 to-slate-750 bg-clip-text text-transparent">{branding?.companyName || 'Build Mart'}</span>
+                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-extrabold px-1.5 py-0.5 rounded border border-emerald-200/60 tracking-widest shrink-0 shadow-3xs uppercase">
                     {branding?.companyAbbreviation || 'LMS'}
                   </span>
                 </h1>
-                <p className="hidden sm:block text-[9px] text-slate-500 font-mono tracking-widest uppercase font-semibold">
+                <p className="hidden sm:block text-[8px] text-slate-400 font-mono tracking-widest uppercase font-black">
                   {branding?.companyTagline || 'MEMBER OF RATHI BUILDMART PLC'}
                 </p>
               </div>
             </div>
 
             {/* Navigation/Tabs - Segment Control Design (Hidden on Mobile to avoid horizontal scrollbar) */}
-            <nav className="hidden lg:flex items-center bg-slate-100 border border-slate-200 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none max-w-[280px] xs:max-w-[340px] sm:max-w-none">
+            <nav className="hidden lg:flex items-center bg-slate-100/80 border border-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none shadow-3xs">
               {isAdmin ? (
                 <button
                   onClick={() => onChangeTab('admin-reports')}
-                  className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
+                  className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
                     currentTab.startsWith('admin-') || currentTab === 'admin'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
                   }`}
                   id="nav-admin-reports"
                 >
@@ -383,10 +383,10 @@ export default function Header({
                 <>
                   <button
                     onClick={() => onChangeTab('learning')}
-                    className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center shrink-0 ${
+                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center shrink-0 cursor-pointer ${
                       currentTab === 'learning'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
                     }`}
                     id="nav-learning-path"
                   >
@@ -394,10 +394,10 @@ export default function Header({
                   </button>
                   <button
                     onClick={() => onChangeTab('exams')}
-                    className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-205 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
+                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
                       currentTab === 'exams'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
                     }`}
                     id="nav-exam-center"
                   >
@@ -406,10 +406,10 @@ export default function Header({
                   </button>
                   <button
                     onClick={() => onChangeTab('testing')}
-                    className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-205 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
+                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
                       currentTab === 'testing'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
                     }`}
                     id="nav-only-testing"
                   >
@@ -418,10 +418,10 @@ export default function Header({
                   </button>
                   <button
                     onClick={() => onChangeTab('certificate')}
-                    className={`px-3.5 py-1.5 text-xs font-display font-extrabold rounded-lg transition-all duration-200 h-8 flex items-center justify-center gap-1.5 shrink-0 ${
+                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
                       currentTab === 'certificate'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
                     }`}
                     id="nav-mastery-certificate"
                   >
@@ -436,21 +436,21 @@ export default function Header({
             <div className="flex items-center gap-4">
               {/* Quick switcher for testing simulated environments */}
               {isOriginalAdmin && (
-                <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300 ${
+                <div className={`hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all duration-300 shadow-3xs ${
                   isSimulating 
-                    ? 'bg-rose-50 border-rose-200' 
-                    : 'bg-slate-50 border-slate-205 border-slate-200'
+                    ? 'bg-rose-50/60 border-rose-200/80' 
+                    : 'bg-slate-50/60 border-slate-200/60'
                 }`}>
-                  <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${
-                    isSimulating ? 'text-rose-600 animate-pulse' : 'text-slate-500'
+                  <span className={`text-[9px] font-mono uppercase tracking-wider font-extrabold ${
+                    isSimulating ? 'text-rose-600 animate-pulse' : 'text-slate-405 text-slate-400'
                   }`}>
                     {isSimulating ? 'Simulated View:' : 'Simulate:'}
                   </span>
                   <select
                     value={currentUser.id}
                     onChange={(e) => onSwitchUser(e.target.value)}
-                    className={`bg-transparent text-xs border-none font-bold focus:ring-0 cursor-pointer pr-6 py-0 font-sans outline-none ${
-                      isSimulating ? 'text-rose-700' : 'text-emerald-700'
+                    className={`bg-transparent text-xs border-none font-extrabold focus:ring-0 cursor-pointer pr-6 py-0 font-sans outline-none ${
+                      isSimulating ? 'text-rose-705 text-rose-700' : 'text-emerald-705 text-emerald-750'
                     }`}
                   >
                     {allUsers.map(u => {

@@ -683,6 +683,7 @@ export default function AdminDashboard({
   const [unitSkill, setUnitSkill] = useState<UnitSkillLevel>('Beginner');
   const [unitVideoTitle, setUnitVideoTitle] = useState('');
   const [unitVideoUrl, setUnitVideoUrl] = useState('');
+  const [unitPdfUrl, setUnitPdfUrl] = useState('');
   const [unitDesc, setUnitDesc] = useState('');
 
   // Dropdown helper for adding a unit
@@ -1023,6 +1024,7 @@ export default function AdminDashboard({
             skillRequired: unitSkill,
             videoTitle: unitVideoTitle,
             videoUrl: unitVideoUrl,
+            pdfUrl: unitPdfUrl,
             description: unitDesc,
             chapterId: unitChapterId
           };
@@ -1043,6 +1045,7 @@ export default function AdminDashboard({
         skillRequired: unitSkill,
         videoTitle: unitVideoTitle || 'Guidance Walkthrough',
         videoUrl: unitVideoUrl || 'https://www.youtube.com/embed/nE1E1xidV2U',
+        pdfUrl: unitPdfUrl,
         description: unitDesc
       };
       onUpdateUnits([...units, newUnit]);
@@ -1055,6 +1058,7 @@ export default function AdminDashboard({
     setUnitTaskName('');
     setUnitVideoTitle('');
     setUnitVideoUrl('');
+    setUnitPdfUrl('');
     setUnitDesc('');
     setUnitChapterId('');
     setIsUnitModalOpen(false);
@@ -1069,6 +1073,7 @@ export default function AdminDashboard({
     setUnitSkill(unit.skillRequired);
     setUnitVideoTitle(unit.videoTitle);
     setUnitVideoUrl(unit.videoUrl);
+    setUnitPdfUrl(unit.pdfUrl || '');
     setUnitDesc(unit.description);
     setIsUnitModalOpen(true);
   };
@@ -4677,6 +4682,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         setUnitTaskName('');
                         setUnitVideoTitle('');
                         setUnitVideoUrl('');
+                        setUnitPdfUrl('');
                         setUnitDesc('');
                         setUnitChapterId('');
                         setIsUnitModalOpen(true);
@@ -4822,6 +4828,20 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 placeholder="e.g. https://www.youtube.com/embed/S7U_F7F9-kM"
                                 value={unitVideoUrl}
                                 onChange={(e) => setUnitVideoUrl(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-indigo-650 text-indigo-650 mb-1.5 flex items-center gap-1.5">
+                                <span className="font-extrabold">📄 SOP Lesson PDF URL Link</span>
+                                <span className="bg-indigo-50 text-indigo-750 text-[8px] px-1.5 py-0.5 rounded-sm font-black font-mono">OPTIONAL</span>
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Google Drive PDF preview/share link"
+                                value={unitPdfUrl}
+                                onChange={(e) => setUnitPdfUrl(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
                               />
                             </div>

@@ -49,6 +49,7 @@ export interface Unit {
   skillRequired: UnitSkillLevel;
   videoTitle: string;
   videoUrl: string; // YouTube Embed or Vimeo or placeholder link
+  pdfUrl?: string; // Optional PDF Link for this Unit SKU
   description: string;
 }
 

@@ -25,7 +25,8 @@ import {
   Bell,
   Sparkles,
   Trash2,
-  Check
+  Check,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CertificateGenerator from './CertificateGenerator';
@@ -86,6 +87,17 @@ export default function UserDashboard({
   // Active unit selection
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const selectedUnit = userUnits.find(u => u.id === selectedUnitId) || userUnits[0];
+
+  // Tab switch for active Lesson Player: 'video' (Tutorial Video) vs 'pdf' (SOP document)
+  const [lessonPlayerTab, setLessonPlayerTab] = useState<'video' | 'pdf'>('video');
+
+  useEffect(() => {
+    if (selectedUnit && selectedUnit.pdfUrl && (!selectedUnit.videoUrl || selectedUnit.videoUrl.trim() === '' || selectedUnit.videoUrl === 'none')) {
+      setLessonPlayerTab('pdf');
+    } else {
+      setLessonPlayerTab('video');
+    }
+  }, [selectedUnitId, selectedUnit]);
 
   // Auto-set first unit whenever selected role view or available units changes
   useEffect(() => {
@@ -255,6 +267,17 @@ export default function UserDashboard({
   // Mobile sub-tab responsive control ('syllabus' | 'player')
   const [mobileTab, setMobileTab] = useState<'syllabus' | 'player'>('syllabus');
 
+  // Main navigation tab ('workspace' | 'audit')
+  const [userActiveTab, setUserActiveTab] = useState<'workspace' | 'audit'>('workspace');
+
+  // PDF Reader configuration states
+  const [pdfUrl, setPdfUrl] = useState<string>(() => {
+    return localStorage.getItem('lms_corporate_curriculum_pdf') || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+  });
+  const [isEditingPdf, setIsEditingPdf] = useState(false);
+  const [customPdfInput, setCustomPdfInput] = useState(pdfUrl);
+  const [pdfReaderCollapsed, setPdfReaderCollapsed] = useState(false);
+
   // Automatic watch progress tracker simulation state & effect
   const progressRef = useRef(progress);
   
@@ -299,6 +322,50 @@ export default function UserDashboard({
   // Helper: check if chapter is unlocked
   const checkIsChapterUnlocked = (idx: number) => {
     return true; // Chapter locking is disabled, progress is fully open.
+  };
+
+  // Trainee data analyzer for smart training pathways
+  const getSyllabusInsights = () => {
+    // Next unit that needs work: Not Started or In Progress
+    const nextUnit = userUnits.find(u => {
+      const p = progress.find(log => log.userId === currentUser.id && log.unitId === u.id);
+      return !p || (p.status !== 'Verified & Mastered' && p.status !== 'Completed (Pending Review)');
+    });
+
+    // Group units by Chapter to analyze mastery rate per chapter
+    const chapterAnalyses = userChapters.map(chap => {
+      const chapUnits = userUnits.filter(u => u.chapterId === chap.id);
+      const chapDone = chapUnits.filter(u => {
+        const p = progress.find(log => log.userId === currentUser.id && log.unitId === u.id);
+        return p && p.status === 'Verified & Mastered';
+      }).length;
+      const masteryRate = chapUnits.length > 0 ? Math.round((chapDone / chapUnits.length) * 100) : 0;
+      return {
+        id: chap.id,
+        name: chap.name,
+        masteryRate,
+        total: chapUnits.length,
+        done: chapDone
+      };
+    });
+
+    // Lowest mastery chapter (where masteryRate < 100 and total > 0)
+    const inProgressChapters = chapterAnalyses.filter(c => c.total > 0 && c.masteryRate < 100);
+    const lowestChapter = inProgressChapters.length > 0 
+      ? [...inProgressChapters].sort((a, b) => a.masteryRate - b.masteryRate)[0]
+      : null;
+
+    // Highest mastery chapter
+    const highestChapter = chapterAnalyses.length > 0
+      ? [...chapterAnalyses].sort((a, b) => b.masteryRate - a.masteryRate)[0]
+      : null;
+
+    return {
+      nextUnit,
+      lowestChapter,
+      highestChapter,
+      chapterAnalyses
+    };
   };
 
   // Track accordion state for chapters
@@ -457,6 +524,131 @@ export default function UserDashboard({
     return { type: 'none', url: '' };
   };
 
+  // Centralised PDF Reader Stage
+  const renderPdfStage = (isMobile: boolean) => {
+    const cleanPdfUrl = pdfUrl.trim();
+    
+    // Resolve Drive or standard URL
+    let resolvedUrl = cleanPdfUrl;
+    if (cleanPdfUrl.includes('drive.google.com')) {
+      const match = cleanPdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        resolvedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+      }
+    }
+
+    return (
+      <div 
+        id={isMobile ? "mobile-pdf-reader" : "desktop-pdf-reader"}
+        className={`bg-white rounded-3xl border-2 border-indigo-200 shadow-xs overflow-hidden transition-all duration-200 ${
+          isMobile ? 'mb-6 block lg:hidden ring-4 ring-indigo-50/60' : 'mb-6 hidden lg:block'
+        }`}
+      >
+        {/* Header */}
+        <div className="px-5 py-3.5 border-b border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/30">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+              <FileText className="w-4 h-4 shrink-0" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[9px] text-indigo-500 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
+                Corporate Curriculum Architecture
+              </span>
+              <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[200px] sm:max-w-md md:max-w-xl">
+                My Learning Path PDF Reader
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Quick Presets Dropdown - Admin only */}
+            {isAdminUser && (
+              <select
+                value={cleanPdfUrl}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPdfUrl(val);
+                  setCustomPdfInput(val);
+                  localStorage.setItem('lms_corporate_curriculum_pdf', val);
+                }}
+                className="bg-white border border-indigo-200 rounded-xl px-2.5 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer max-w-[170px]"
+              >
+                <option value="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf">📄 Preset: Operations Manual</option>
+                <option value="https://unstats.un.org/unsd/nationalaccount/docs/SNA2008.pdf">📄 Preset: Ledger Audits</option>
+                <option value="https://www.mca.gov.in/Ministry/pdf/CompaniesAct2013.pdf">📄 Preset: Compliance Act</option>
+              </select>
+            )}
+
+            {isAdminUser && (
+              <button
+                type="button"
+                onClick={() => setIsEditingPdf(!isEditingPdf)}
+                className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 border-indigo-200 px-2.5 py-1 rounded-xl transition cursor-pointer"
+              >
+                {isEditingPdf ? 'Close Editor' : 'Edit PDF Link'}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPdfReaderCollapsed(!pdfReaderCollapsed)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              title={pdfReaderCollapsed ? "Expand PDF Reader" : "Collapse PDF Reader"}
+            >
+              <ChevronDown className={`w-4 h-4 transform transition-transform duration-200 ${pdfReaderCollapsed ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Input */}
+        {isEditingPdf && (
+          <div className="p-4 bg-slate-50 border-b border-indigo-100 flex flex-col gap-2.5 text-left">
+            <span className="text-[9px] font-bold text-slate-500 uppercase font-mono tracking-wider">
+              Configure Corporate Curriculum PDF Link (Direct PDF, Google Drive Link, OneDrive link):
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Paste corporate curriculum PDF URL here (Google Drive share link, OneDrive, or any web PDF URL)"
+                value={customPdfInput}
+                onChange={(e) => setCustomPdfInput(e.target.value)}
+                className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-sans focus:border-indigo-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const targetUrl = customPdfInput.trim() || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+                  setPdfUrl(targetUrl);
+                  localStorage.setItem('lms_corporate_curriculum_pdf', targetUrl);
+                  setIsEditingPdf(false);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-3xs"
+              >
+                Apply Link
+              </button>
+            </div>
+            <p className="text-[9px] text-slate-400 font-medium">
+              💡 <strong>Google Drive Tip:</strong> Google Drive standard viewer links will automatically convert to clean, responsive embedded preview frames.
+            </p>
+          </div>
+        )}
+
+        {/* Iframe stage */}
+        {!pdfReaderCollapsed && (
+          <div className="w-full bg-slate-900 relative shadow-inner" style={{ height: '480px' }}>
+            <iframe
+              src={resolvedUrl}
+              title="Corporate Curriculum Architecture PDF Frame"
+              className="absolute inset-0 w-full h-full border-none bg-slate-800"
+              referrerPolicy="no-referrer"
+              allow="autoplay"
+            ></iframe>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Centralised Tube Video rendering engine
   const renderVideoStage = (isMobile: boolean) => {
     if (!selectedUnit) return null;
@@ -511,9 +703,51 @@ export default function UserDashboard({
           </div>
         </div>
 
+        {/* Tab Switcher if Unit has a PDF */}
+        {selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '' && (
+          <div className="bg-slate-100/60 p-1.5 border-b border-slate-200 flex gap-2 justify-center">
+            <button
+              type="button"
+              onClick={() => setLessonPlayerTab('video')}
+              className={`px-4 py-1.5 text-[10px] font-extrabold uppercase font-mono tracking-wider rounded-lg transition duration-150 flex items-center gap-1.5 cursor-pointer ${
+                lessonPlayerTab === 'video'
+                  ? 'bg-rose-650 bg-rose-600 text-white shadow-xs'
+                  : 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 border border-slate-200'
+              }`}
+            >
+              <Play className="w-3 h-3 shrink-0" />
+              🎥 Video Walkthrough
+            </button>
+            <button
+              type="button"
+              onClick={() => setLessonPlayerTab('pdf')}
+              className={`px-4 py-1.5 text-[10px] font-extrabold uppercase font-mono tracking-wider rounded-lg transition duration-150 flex items-center gap-1.5 cursor-pointer ${
+                lessonPlayerTab === 'pdf'
+                  ? 'bg-indigo-650 bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 border border-slate-200'
+              }`}
+            >
+              <FileText className="w-3 h-3 shrink-0" />
+              📄 Lesson SOP Document (PDF)
+            </button>
+          </div>
+        )}
+
         {/* Video Player Main Canvas */}
         <div className="aspect-video w-full bg-slate-950 relative shadow-inner">
-          {type === 'embed' ? (
+          {lessonPlayerTab === 'pdf' ? (
+            <iframe
+              src={selectedUnit.pdfUrl?.includes('drive.google.com') 
+                ? (selectedUnit.pdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] 
+                    ? `https://drive.google.com/file/d/${selectedUnit.pdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1]}/preview` 
+                    : selectedUnit.pdfUrl) 
+                : selectedUnit.pdfUrl}
+              title={`${selectedUnit.taskName} SOP PDF`}
+              className="absolute inset-0 w-full h-full border-none bg-slate-800"
+              referrerPolicy="no-referrer"
+              allow="autoplay"
+            ></iframe>
+          ) : type === 'embed' ? (
             <iframe
               src={url}
               title={selectedUnit.videoTitle}
@@ -969,39 +1203,187 @@ export default function UserDashboard({
           stats={stats}
         />
 
-        {/* Mobile Persistent Video Stream Player ("All-Type Tube Player") */}
-        {mobileTab === 'player' && renderVideoStage(true)}
-
-        {/* Mobile-Friendly Sub-Tab Selector (only visible on mobile/tablet screens to prevent scrolling fatigue) */}
-        <div className="lg:hidden flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 mb-4 select-none">
-          <button
-            type="button"
-            onClick={() => setMobileTab('syllabus')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 cursor-pointer ${
-              mobileTab === 'syllabus'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            📋 Syllabus Checklist
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('player')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 cursor-pointer ${
-              mobileTab === 'player'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            📺 Video & Submit
-            {selectedUnit && (
-              <span className="text-[9px] bg-slate-900/10 px-1 py-0.5 rounded font-mono font-extrabold">
-                {selectedUnit.code}
+        {/* Modern Tab Bar for switching between Curriculum Workspace & Audit Trail */}
+        <div className="flex justify-center my-8">
+          <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50 shadow-3xs gap-1.5 w-full max-w-xl">
+            <button
+              type="button"
+              onClick={() => setUserActiveTab('workspace')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                userActiveTab === 'workspace'
+                  ? 'bg-white text-emerald-700 shadow-xs font-black border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-850 hover:bg-white/40 font-bold'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+              <span>Syllabus Workspace</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserActiveTab('audit')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                userActiveTab === 'audit'
+                  ? 'bg-white text-indigo-700 shadow-xs font-black border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-850 hover:bg-white/40 font-bold'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
+              <span>Compliance Audit Trail</span>
+              <span className="px-1.5 py-0.5 text-[9px] bg-slate-100 text-slate-500 rounded-md font-mono font-bold">
+                {userUnits.length}
               </span>
-            )}
-          </button>
+            </button>
+          </div>
         </div>
+
+        {userActiveTab === 'workspace' ? (
+          <>
+            {/* Visual Syllabus Smart Analytics Card */}
+            {(() => {
+              const { nextUnit, lowestChapter, highestChapter } = getSyllabusInsights();
+              return (
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {/* Next Recommended Task */}
+                  <div className="bg-gradient-to-tr from-emerald-50/60 to-teal-50/20 border border-emerald-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
+                    <div>
+                      <span className="text-[8px] font-mono font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full tracking-wider">
+                        Next Recommended Task
+                      </span>
+                      {nextUnit ? (
+                        <div className="mt-2.5">
+                          <h5 className="font-bold text-slate-900 text-xs truncate">
+                            {nextUnit.code}: {nextUnit.taskName}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Frequency: <strong className="text-slate-700">{nextUnit.frequency}</strong> · Difficulty: <strong className="text-slate-700">{nextUnit.skillRequired}</strong>
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-emerald-700 font-bold mt-3">
+                          🎉 All mapped checklist units are fully mastered!
+                        </p>
+                      )}
+                    </div>
+                    {nextUnit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedUnitId(nextUnit.id);
+                          // Auto expand corresponding chapter in sidebar accordion
+                          setExpandedChapters(prev => ({ ...prev, [nextUnit.chapterId]: true }));
+                          // Scroll to player stage if on mobile
+                          if (window.innerWidth < 1024) {
+                            setMobileTab('player');
+                          }
+                          setToastMsg(`🎯 Selected: ${nextUnit.code} to continue your workspace journey.`);
+                        }}
+                        className="mt-3.5 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] py-1.5 px-3 rounded-xl transition-all uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98] shadow-3xs"
+                      >
+                        <span>Start Work Now</span>
+                        <span>➔</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Weakest Area (Focus Chapter) */}
+                  <div className="bg-gradient-to-tr from-rose-50/60 to-amber-50/10 border border-rose-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
+                    <div>
+                      <span className="text-[8px] font-mono font-black uppercase bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full tracking-wider">
+                        Recommended Focus Area
+                      </span>
+                      {lowestChapter ? (
+                        <div className="mt-2.5">
+                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
+                            {lowestChapter.name}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Current Mastery: <strong className="text-rose-600 font-mono">{lowestChapter.masteryRate}%</strong> ({lowestChapter.done} of {lowestChapter.total} tasks)
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-emerald-700 font-bold mt-3">
+                          ✨ 100% mastery rate achieved across all chapters!
+                        </p>
+                      )}
+                    </div>
+                    {lowestChapter && (
+                      <div className="mt-3.5">
+                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${lowestChapter.masteryRate}%` }} />
+                        </div>
+                        <p className="text-[9px] text-slate-400 mt-1 font-mono text-right">Focus target for today</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Best Performance Chapter */}
+                  <div className="bg-gradient-to-tr from-indigo-50/60 to-blue-50/10 border border-indigo-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
+                    <div>
+                      <span className="text-[8px] font-mono font-black uppercase bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full tracking-wider">
+                        Highest Mastery Chapter
+                      </span>
+                      {highestChapter ? (
+                        <div className="mt-2.5">
+                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
+                            {highestChapter.name}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Current Mastery: <strong className="text-indigo-600 font-mono">{highestChapter.masteryRate}%</strong> ({highestChapter.done} of {highestChapter.total} tasks)
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic mt-3">No mapped chapters found.</p>
+                      )}
+                    </div>
+                    {highestChapter && (
+                      <div className="mt-3.5">
+                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${highestChapter.masteryRate}%` }} />
+                        </div>
+                        <p className="text-[9px] text-indigo-600 font-bold mt-1 font-mono text-right">Excellent progress!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Mobile Corporate Curriculum PDF Reader */}
+            {mobileTab === 'player' && renderPdfStage(true)}
+
+            {/* Mobile Persistent Video Stream Player ("All-Type Tube Player") */}
+            {mobileTab === 'player' && renderVideoStage(true)}
+
+            {/* Mobile-Friendly Sub-Tab Selector (only visible on mobile/tablet screens to prevent scrolling fatigue) */}
+            <div className="lg:hidden flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 mb-4 select-none">
+              <button
+                type="button"
+                onClick={() => setMobileTab('syllabus')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 cursor-pointer ${
+                  mobileTab === 'syllabus'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                📋 Syllabus Checklist
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('player')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-bold transition-all duration-200 cursor-pointer ${
+                  mobileTab === 'player'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                📺 Video & Submit
+                {selectedUnit && (
+                  <span className="text-[9px] bg-slate-900/10 px-1 py-0.5 rounded font-mono font-extrabold">
+                    {selectedUnit.code}
+                  </span>
+                )}
+              </button>
+            </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Premium Soft Light Curriculum Sidebar */}
@@ -1364,6 +1746,9 @@ export default function UserDashboard({
                 </p>
               </div>
 
+              {/* Desktop Corporate Curriculum PDF Reader */}
+              {renderPdfStage(false)}
+
               {/* Desktop Theater Mode Video Lesson Panel */}
               {renderVideoStage(false)}
 
@@ -1524,9 +1909,10 @@ export default function UserDashboard({
         </div>
 
       </div>
-
-      {/* 📊 ENTERPRISE TRAINING COMPLIANCE LOGBOOK & SUMMARY REPORT */}
-      <div className="mt-12 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8">
+          </>
+        ) : (
+          /* 📊 ENTERPRISE TRAINING COMPLIANCE LOGBOOK & SUMMARY REPORT */
+          <div className="mt-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 animate-in fade-in duration-300">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
           <div>
             <div className="flex items-center gap-2">
@@ -1780,6 +2166,7 @@ export default function UserDashboard({
           );
         })()}
       </div>
+        )}
 
       {/* Floating System Notification overlay for superior visual polish */}
       <AnimatePresence>
