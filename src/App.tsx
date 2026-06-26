@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, CompanyBranding, GlobalNotification } from './types';
+import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, CompanyBranding, GlobalNotification, HelplineContact } from './types';
 import { 
   getUsers, 
   getRoles, 
@@ -26,11 +26,14 @@ import {
   saveDepartments,
   getCompanyBranding,
   saveCompanyBranding,
+  getHelplineContacts,
+  saveHelplineContacts,
   syncAllWithCloud,
   calculateUserProgress,
   getGlobalNotifications,
   saveGlobalNotifications,
-  addGlobalNotification
+  addGlobalNotification,
+  updateUserActivity
 } from './data/stateManager';
 import Header from './components/Header';
 import LoginScreen from './components/LoginScreen';
@@ -39,7 +42,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AssessmentCenter from './components/AssessmentCenter';
 import ScreeningTest from './components/ScreeningTest';
 import CertificateGenerator from './components/CertificateGenerator';
-import { Activity, BookOpen, Layers, Database } from 'lucide-react';
+import { Activity, BookOpen, Layers, Database, HelpCircle, ShieldCheck, Keyboard, LifeBuoy, AlertTriangle, CheckCircle, RefreshCw, Users, Server } from 'lucide-react';
 import { isFirebasePlaceholder } from './data/firebase';
 
 export default function App() {
@@ -53,11 +56,44 @@ export default function App() {
   const [currentUserId, setUserId] = useState<string | null>(null);
   const [simulatedUserId, setSimulatedUserId] = useState<string | null>(null);
   const [branding, setBranding] = useState<CompanyBranding>(() => getCompanyBranding());
+  const [helplineContacts, setHelplineContacts] = useState<HelplineContact[]>(() => getHelplineContacts());
   const [selectedExamChapterId, setSelectedExamChapterId] = useState<string | null>(null);
   const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
 
   // Active Routing/Tab
   const [activeTab, setActiveTab] = useState<string>('learning'); // ('learning' | 'admin')
+
+  // Interactive Footer Support States
+  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
+  const [modalTab, setModalTab] = useState<'ticket' | 'hotkeys' | 'helpline' | 'online'>('ticket');
+  const [reportIssueType, setReportIssueType] = useState<string>('sop_guideline');
+  const [reportMessage, setReportMessage] = useState<string>('');
+  const [reportContact, setReportContact] = useState<string>('');
+  const [reportSuccess, setReportSuccess] = useState<boolean>(false);
+  const [reportSubmitting, setReportSubmitting] = useState<boolean>(false);
+
+  // Dynamic Real-time Active Trainees Sync
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    // Immediately record activity on load/change
+    updateUserActivity(currentUserId);
+    setUsers(getUsers());
+
+    // Set interval to keep updating activity and fetching latest users list
+    const interval = setInterval(() => {
+      updateUserActivity(currentUserId);
+      setUsers(getUsers());
+    }, 15000); // every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [currentUserId]);
+
+  const activeOnlineUsers = users.filter(u => {
+    if (!u.lastActive) return false;
+    const diff = Date.now() - new Date(u.lastActive).getTime();
+    return diff < 15 * 60 * 1000;
+  });
 
   // Load state on mount
   useEffect(() => {
@@ -80,6 +116,7 @@ export default function App() {
     setProgress(getProgress());
     setDepartments(getDepartments());
     setBranding(getCompanyBranding());
+    setHelplineContacts(getHelplineContacts());
     setGlobalNotifications(getGlobalNotifications());
     
     // Auto-login on mount/refresh is not required; keep it clean and let users sign in manually.
@@ -487,6 +524,8 @@ export default function App() {
                 onSwitchUser={handleSwitchUser}
                 branding={branding}
                 onUpdateBranding={handleUpdateCompanyBranding}
+                helplineContacts={helplineContacts}
+                onUpdateHelplineContacts={(updated) => { saveHelplineContacts(updated); setHelplineContacts(updated); }}
                 selectedTab={activeTab.startsWith('admin-') ? (activeTab.replace('admin-', '') as any) : undefined}
                 onTabChange={(tab) => setActiveTab('admin-' + tab)}
               />
@@ -494,26 +533,52 @@ export default function App() {
           </main>
 
           {/* Modern & Stylish Fixed Status Footer bar */}
-          <footer className="bg-white/85 backdrop-blur-lg border-t border-slate-200/60 py-3 text-center text-[10px] font-sans shrink-0 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] lg:pb-3 pb-[calc(3.5rem+10px)] transition-all duration-300">
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-6">
+          <footer className="bg-white/85 backdrop-blur-lg border-t border-slate-200/60 py-2.5 text-center text-[10px] font-sans shrink-0 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] lg:pb-2.5 pb-[calc(3.5rem+10px)] transition-all duration-300">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
               
-              {/* Compliance Indicator Badge */}
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/70 text-emerald-700 rounded-full border border-emerald-100/80 text-[9px] font-mono tracking-wider uppercase font-bold shadow-3xs">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              {/* Left Side: Compliance & Real-time Live Counters */}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/70 text-emerald-700 rounded-full border border-emerald-100/80 text-[9px] font-mono tracking-wider uppercase font-bold shadow-3xs">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Security Matrix Compliant
                 </span>
-                Security Matrix Compliant
-              </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalTab('online');
+                    setShowHelpModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-full border border-sky-100/80 text-[9px] font-mono tracking-wider font-bold shadow-3xs cursor-pointer transition"
+                >
+                  <Users className="w-3.5 h-3.5 text-sky-500" />
+                  <span>Active Online: {activeOnlineUsers.length} Trainees 🟢</span>
+                </button>
+              </div>
               
-              {/* Central Title */}
-              <span className="text-[10px] text-slate-500 hover:text-slate-700 font-sans tracking-tight font-medium transition duration-150">
-                Rathi's Build Mart LMS <span className="text-slate-300 mx-1">•</span> Enterprise Training & Compliance Platform
-              </span>
+              {/* Central Title & Interactive Help Button */}
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 hover:text-slate-700 font-sans tracking-tight font-medium transition duration-150">
+                <span>Rathi's Build Mart LMS</span>
+                <span className="text-slate-300">•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportSuccess(false);
+                    setShowHelpModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100/60 transition font-bold cursor-pointer"
+                >
+                  <LifeBuoy className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>SOP Helpdesk & Hotkeys 🛎️</span>
+                </button>
+              </div>
 
               {/* Server/Database Cloud telemetry */}
-              <div className="flex items-center gap-3 sm:gap-4 text-[9px] font-mono">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border ${
+              <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-4 text-[9px] font-mono">
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
                   isFirebasePlaceholder 
                     ? 'bg-amber-50/70 text-amber-700 border-amber-100/80' 
                     : 'bg-indigo-50/70 text-indigo-700 border-indigo-100/80'
@@ -521,8 +586,11 @@ export default function App() {
                   <Database className={`w-3 h-3 ${isFirebasePlaceholder ? 'text-amber-500' : 'text-indigo-500'}`} />
                   <span>Cloud DB: {isFirebasePlaceholder ? 'Local Sandbox' : 'Firebase Active'}</span>
                 </span>
-                
-                <span className="text-slate-200 hidden xs:inline">|</span>
+
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50/70 text-emerald-700 rounded-md border border-emerald-200/50">
+                  <Server className="w-3 h-3 text-emerald-500" />
+                  <span>SLA: 99.99% Operational</span>
+                </span>
                 
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50/70 text-slate-500 rounded-md border border-slate-200/50">
                   <Activity className="w-3 h-3 text-slate-400" />
@@ -531,6 +599,346 @@ export default function App() {
               </div>
             </div>
           </footer>
+
+          {/* Interactive Help Desk & Issue reporter modal popup */}
+          {showHelpModal && (
+            <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in transition duration-250">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-150">
+                {/* Header banner */}
+                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-5 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <LifeBuoy className="w-5 h-5 text-indigo-400 animate-pulse" />
+                    <div>
+                      <h4 className="font-display font-black text-sm tracking-tight">Rathi Build Mart Helpline</h4>
+                      <p className="text-[10px] text-slate-300 font-mono">Enterprise Training & SOP Helpdesk Console</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowHelpModal(false)}
+                    className="text-slate-400 hover:text-white transition duration-150 font-bold p-1.5 hover:bg-slate-800/50 rounded-lg text-xs"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+
+                {/* Navigation tabs */}
+                <div className="bg-slate-50 border-b border-slate-100 flex flex-wrap p-1.5 gap-1 md:gap-1.5 text-[11px] md:text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('online')}
+                    className={`flex-1 min-w-[110px] py-1.5 md:py-2 px-2 rounded-lg font-bold transition duration-150 flex items-center justify-center gap-1 ${
+                      modalTab === 'online'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-850'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                    <span>Who's Online ({activeOnlineUsers.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('ticket')}
+                    className={`flex-1 min-w-[110px] py-1.5 md:py-2 px-2 rounded-lg font-bold transition duration-150 flex items-center justify-center gap-1 ${
+                      modalTab === 'ticket'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-850'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Report SOP Issue</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('hotkeys')}
+                    className={`flex-1 min-w-[110px] py-1.5 md:py-2 px-2 rounded-lg font-bold transition duration-150 flex items-center justify-center gap-1 ${
+                      modalTab === 'hotkeys'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-850'
+                    }`}
+                  >
+                    <Keyboard className="w-3.5 h-3.5 shrink-0" />
+                    <span>Hotkeys</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('helpline')}
+                    className={`flex-1 min-w-[110px] py-1.5 md:py-2 px-2 rounded-lg font-bold transition duration-150 flex items-center justify-center gap-1 ${
+                      modalTab === 'helpline'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-850'
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                    <span>Contacts</span>
+                  </button>
+                </div>
+
+                {/* Main Tab content */}
+                <div className="p-6 max-h-[360px] overflow-y-auto">
+                  
+                  {/* TAB: ONLINE TRAINEES */}
+                  {modalTab === 'online' && (
+                    <div className="space-y-4 animate-in fade-in duration-150">
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        The following Rathi Build Mart trainees are currently logged in or have completed standard execution training tasks in the last 15 minutes:
+                      </p>
+
+                      <div className="space-y-3">
+                        {activeOnlineUsers.map((u) => {
+                          const isSelf = u.id === currentUserId;
+                          let activeText = "Active now";
+                          if (u.lastActive) {
+                            const diffMs = Date.now() - new Date(u.lastActive).getTime();
+                            const diffMins = Math.floor(diffMs / 60000);
+                            if (diffMins > 0) {
+                              activeText = `Active ${diffMins}m ago`;
+                            }
+                          }
+
+                          return (
+                            <div key={u.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100/80 flex items-center justify-between hover:bg-slate-100/40 transition">
+                              <div className="flex items-center gap-3">
+                                <div className="relative">
+                                  {u.avatarUrl ? (
+                                    <img src={u.avatarUrl} alt={u.name} className="w-9 h-9 rounded-full object-cover border border-slate-200" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs font-bold border border-indigo-100">
+                                      {u.name.charAt(0)}
+                                    </div>
+                                  )}
+                                  <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-extrabold text-slate-800">{u.name}</span>
+                                    {isSelf && (
+                                      <span className="px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-black tracking-wider uppercase rounded">
+                                        You
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 font-mono">{u.department} • {u.focusEntity}</p>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                {activeText}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 1: SUBMIT REPORT */}
+                  {modalTab === 'ticket' && (
+                    <div>
+                      {reportSuccess ? (
+                        <div className="text-center py-6 animate-in zoom-in-95">
+                          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3.5 border border-emerald-100 shadow-3xs">
+                            <CheckCircle className="w-6 h-6" />
+                          </div>
+                          <h5 className="font-display font-black text-slate-900 text-base mb-1.5">SOP Ticket Submitted!</h5>
+                          <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
+                            Thank you! Your feedback has been registered and dispatched directly into the Administration & Compliance alerts matrix.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setReportSuccess(false)}
+                            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-850 text-white text-xs font-bold rounded-lg transition"
+                          >
+                            Submit Another Issue
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!reportMessage.trim()) return;
+                          setReportSubmitting(true);
+                          
+                          setTimeout(() => {
+                            sendNotification({
+                              title: `⚠️ SOP Ticket: ${reportIssueType.replace('_', ' ').toUpperCase()}`,
+                              message: `${reportMessage} [Submitting contact: ${reportContact || currentUserDetail?.name || 'Anonymous'}]`,
+                              type: 'system',
+                              isAdminOnly: true
+                            });
+                            setReportSuccess(true);
+                            setReportSubmitting(false);
+                            setReportMessage('');
+                          }, 900);
+                        }} className="space-y-4">
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Faced an issue with an SOP guide, video walkthrough link, or PDF document? Submit a quick ticket directly to the compliance department below:
+                          </p>
+                          
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-slate-700 uppercase font-mono tracking-wider mb-1">Issue Category</label>
+                            <select
+                              value={reportIssueType}
+                              onChange={(e) => setReportIssueType(e.target.value)}
+                              className="w-full text-xs border border-slate-200 rounded-lg p-2 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            >
+                              <option value="broken_video">🎥 Broken SOP Video Walkthrough Link</option>
+                              <option value="missing_pdf">📄 SOP Document (PDF) Missing or Incorrect</option>
+                              <option value="guideline_clarity">❓ SOP Training Guideline lacks clarity</option>
+                              <option value="compliance_doubt">⚖️ Compliance / Legal Audit Policy doubt</option>
+                              <option value="technical_bug">💻 LMS Platform Technical Bug</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-slate-700 uppercase font-mono tracking-wider mb-1">Explain the Issue</label>
+                            <textarea
+                              rows={3}
+                              required
+                              value={reportMessage}
+                              onChange={(e) => setReportMessage(e.target.value)}
+                              placeholder="Please describe what is wrong (e.g. Video shows unavailable, PDF doesn't match Unit code GST-004)..."
+                              className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            ></textarea>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-extrabold text-slate-700 uppercase font-mono tracking-wider mb-1">Your Email / WhatsApp No. (Optional)</label>
+                            <input
+                              type="text"
+                              value={reportContact}
+                              onChange={(e) => setReportContact(e.target.value)}
+                              placeholder="For support team follow up (e.g., misrpr@rathibuildmart.com)"
+                              className="w-full text-xs border border-slate-200 rounded-lg p-2 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            />
+                          </div>
+
+                          <div className="pt-2">
+                            <button
+                              type="submit"
+                              disabled={reportSubmitting || !reportMessage.trim()}
+                              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold rounded-lg transition duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                            >
+                              {reportSubmitting ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  Registering Support Ticket...
+                                </>
+                              ) : (
+                                "Disptach Help Ticket to Admin Panel"
+                              )}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 2: HOTKEYS */}
+                  {modalTab === 'hotkeys' && (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Navigate Rathi's Build Mart LMS with elite efficiency using these standard keyboard shortcuts and accessibility gestures:
+                      </p>
+                      
+                      <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
+                        <div className="flex justify-between items-center p-3 text-xs bg-slate-50/50">
+                          <span className="font-semibold text-slate-700">Exit / Close active Modal</span>
+                          <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded-md font-mono text-[10px] font-bold text-slate-500 shadow-3xs">Esc</kbd>
+                        </div>
+                        <div className="flex justify-between items-center p-3 text-xs">
+                          <span className="font-semibold text-slate-700">Submit Practice Test Answer</span>
+                          <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded-md font-mono text-[10px] font-bold text-slate-500 shadow-3xs">Enter</kbd>
+                        </div>
+                        <div className="flex justify-between items-center p-3 text-xs bg-slate-50/50">
+                          <span className="font-semibold text-slate-700">Toggle Admin Dashboard</span>
+                          <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded-md font-mono text-[10px] font-bold text-slate-500 shadow-3xs">Ctrl + Shift + A</kbd>
+                        </div>
+                        <div className="flex justify-between items-center p-3 text-xs">
+                          <span className="font-semibold text-slate-700">Play/Pause Walkthrough video</span>
+                          <kbd className="px-2 py-0.5 bg-white border border-slate-200 rounded-md font-mono text-[10px] font-bold text-slate-500 shadow-3xs">Spacebar</kbd>
+                        </div>
+                      </div>
+
+                      <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-amber-850 flex items-start gap-2.5">
+                        <Keyboard className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-extrabold uppercase tracking-wide font-mono mb-0.5">Quick Navigation Note</p>
+                          <p className="text-[10px] leading-relaxed">
+                            For optimum compliance results, it is highly recommended to follow the SOP steps sequentially before attempting the Final Certification Tests.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: HELPLINE */}
+                  {modalTab === 'helpline' && (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        For institutional training escalations, certification approvals, or curriculum policy changes, feel free to contact the designated officers:
+                      </p>
+
+                      <div className="space-y-3">
+                        {helplineContacts.map((contact, index) => {
+                          // Determine the badge color with fallbacks so even if badgeType is missing/undefined,
+                          // we assign a distinct high-contrast color based on index or keywords.
+                          let type = (contact.badgeType || '').toLowerCase();
+                          if (!type) {
+                            // Smart fallback
+                            const roleText = (contact.roleBadge || '').toLowerCase();
+                            if (roleText.includes('admin') || roleText.includes('platform')) {
+                              type = 'rose';
+                            } else if (roleText.includes('compliance') || roleText.includes('hr') || roleText.includes('legal')) {
+                              type = 'emerald';
+                            } else if (roleText.includes('sop') || roleText.includes('content') || roleText.includes('owner')) {
+                              type = 'indigo';
+                            } else {
+                              // Assign distinct colors based on index fallback
+                              const fallbackColors = ['indigo', 'rose', 'emerald', 'amber'];
+                              type = fallbackColors[index % fallbackColors.length];
+                            }
+                          }
+
+                          let badgeColors = 'bg-indigo-100 text-indigo-800 border border-indigo-200/80';
+                          if (type === 'rose') badgeColors = 'bg-rose-100 text-rose-800 border border-rose-200/80';
+                          if (type === 'emerald') badgeColors = 'bg-emerald-100 text-emerald-800 border border-emerald-200/80';
+                          if (type === 'amber') badgeColors = 'bg-amber-100 text-amber-800 border border-amber-200/80';
+                          if (type === 'indigo') badgeColors = 'bg-indigo-100 text-indigo-800 border border-indigo-200/80';
+
+                          return (
+                            <div key={contact.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                              <div>
+                                <p className="text-xs font-extrabold text-slate-800">{contact.name}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">{contact.designation}</p>
+                              </div>
+                              <span className={`px-2 py-0.5 ${badgeColors} text-[9px] font-extrabold uppercase rounded-full shadow-3xs`}>
+                                {contact.roleBadge}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-[10px] text-slate-400 text-center font-medium pt-2">
+                        Official Hotline Support active Mon - Sat (9:30 AM to 6:30 PM IST)
+                      </p>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Footer action bar */}
+                <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowHelpModal(false)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition"
+                  >
+                    Got It, Close Help
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Unauthenticated view */

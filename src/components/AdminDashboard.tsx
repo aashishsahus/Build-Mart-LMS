@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
 import HierarchyView from './HierarchyView';
-import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig } from '../types';
-import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress } from '../data/stateManager';
+import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact } from '../types';
+import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts } from '../data/stateManager';
 import { 
   Users, 
   Layers, 
@@ -58,7 +58,16 @@ import {
   ListFilter,
   Clock,
   UserCheck,
-  CheckSquare
+  CheckSquare,
+  Pin,
+  PinOff,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -202,6 +211,8 @@ interface AdminDashboardProps {
   onSwitchUser: (userId: string) => void;
   branding?: CompanyBranding;
   onUpdateBranding?: (branding: CompanyBranding) => void;
+  helplineContacts?: HelplineContact[];
+  onUpdateHelplineContacts?: (contacts: HelplineContact[]) => void;
   selectedTab?: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit';
   onTabChange?: (tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit') => void;
 }
@@ -325,9 +336,30 @@ export default function AdminDashboard({
   onSwitchUser,
   branding,
   onUpdateBranding,
+  helplineContacts,
+  onUpdateHelplineContacts,
   selectedTab,
   onTabChange
 }: AdminDashboardProps) {
+
+  // Helpline Contacts State
+  const [localHelplineContacts, setLocalHelplineContacts] = useState<HelplineContact[]>(() => helplineContacts || getHelplineContacts());
+  const [helplineSavingSuccess, setHelplineSavingSuccess] = useState('');
+
+  const handleSaveHelplineContacts = () => {
+    try {
+      if (onUpdateHelplineContacts) {
+        onUpdateHelplineContacts(localHelplineContacts);
+      } else {
+        saveHelplineContacts(localHelplineContacts);
+      }
+      setHelplineSavingSuccess("Shabaash! Helpline & SOP Contacts list successfully updated!");
+      setTimeout(() => setHelplineSavingSuccess(''), 4000);
+      showToast("✓ Helpline & SOP Contacts saved successfully!", "success");
+    } catch (err: any) {
+      showToast("Error saving helpline contacts: " + err.message, 'error');
+    }
+  };
   
   // Checking admin and group directorship/ownership authorization
   const isAdmin = currentUser.roleId === 'role_sr_acc';
@@ -348,6 +380,34 @@ export default function AdminDashboard({
   // Active admin tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'
   const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'>('reports');
 
+  // Sidebar and Sub-tab control state
+  const [adminSubTab, setAdminSubTab] = useState<string>('reports_overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarLocked, setSidebarLocked] = useState<boolean>(true);
+  const [sidebarVisible, setSidebarVisible] = useState<boolean>(true);
+  const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({ reports: true });
+  const [showDepartmentsSidebar, setShowDepartmentsSidebar] = useState<boolean>(false);
+  const [welcomeBannerDismissed, setWelcomeBannerDismissed] = useState<boolean>(() => {
+    return localStorage.getItem('welcome_banner_dismissed_v2') === 'true';
+  });
+
+  const handleSubTabClick = (tabId: string, subTabId: string) => {
+    setAdminTabState(tabId as any);
+    setAdminSubTab(subTabId);
+    
+    // Auto-scroll to the anchor ID if it exists
+    setTimeout(() => {
+      const element = document.getElementById(subTabId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'transition-all', 'duration-500');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
+        }, 1500);
+      }
+    }, 100);
+  };
+
   // Synchronize dynamic updates from parent header navigation Tab selector
   useEffect(() => {
     if (selectedTab && selectedTab !== adminTab) {
@@ -355,8 +415,24 @@ export default function AdminDashboard({
     }
   }, [selectedTab]);
 
+  useEffect(() => {
+    // Show a beautiful welcome toast on login/mount
+    showToast(`Welcome back, ${currentUser.name}! You have entered the Admin Control Cockpit.`, 'success');
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    setExpandedTabs(prev => ({ ...prev, [adminTab]: true }));
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (helplineContacts) {
+      setLocalHelplineContacts(helplineContacts);
+    }
+  }, [helplineContacts]);
+
   const setAdminTab = (tab: typeof adminTab) => {
     setAdminTabState(tab);
+    setExpandedTabs(prev => ({ ...prev, [tab]: true }));
     if (onTabChange) {
       onTabChange(tab);
     }
@@ -1246,6 +1322,7 @@ export default function AdminDashboard({
       const idxSkill = headers.findIndex(h => h.includes('skill') || h.includes('complexity') || h.includes('level') || h.includes('difficulty'));
       const idxVidTitle = headers.findIndex(h => h.includes('video title') || h.includes('video_title') || h.includes('tutorial'));
       const idxVidUrl = headers.findIndex(h => h.includes('video url') || h.includes('video link') || h.includes('url') || h.includes('embed'));
+      const idxPdfUrl = headers.findIndex(h => h.includes('document pdf') || h.includes('pdf url') || h.includes('pdf link') || h.includes('pdf') || h.includes('document (pdf)'));
       const idxDesc = headers.findIndex(h => h.includes('desc') || h.includes('description') || h.includes('instruction') || h.includes('sop'));
 
       if (idxProfile === -1 || idxChapter === -1 || idxCode === -1 || idxTask === -1) {
@@ -1267,6 +1344,7 @@ export default function AdminDashboard({
         const skillVal = idxSkill !== -1 ? (rowCells[idxSkill] || '').trim() : 'Beginner';
         const vidTitleVal = idxVidTitle !== -1 ? (rowCells[idxVidTitle] || '').trim() : '';
         const vidUrlVal = idxVidUrl !== -1 ? (rowCells[idxVidUrl] || '').trim() : '';
+        const pdfUrlVal = idxPdfUrl !== -1 ? (rowCells[idxPdfUrl] || '').trim() : '';
         const descVal = idxDesc !== -1 ? (rowCells[idxDesc] || '').trim() : '';
 
         // Validation errors and warned items
@@ -1340,6 +1418,7 @@ export default function AdminDashboard({
           cleanSkill,
           vidTitle: vidTitleVal || `${codeVal} Video SOP Walkthrough`,
           vidUrl: vidUrlVal || 'https://www.youtube.com/embed/nE1E1xidV2U',
+          pdfUrl: pdfUrlVal || '',
           desc: descVal || 'Guidance document & training notes.',
           errors,
           warnings,
@@ -1410,6 +1489,7 @@ export default function AdminDashboard({
         skillRequired: row.cleanSkill,
         videoTitle: row.vidTitle,
         videoUrl: row.vidUrl,
+        pdfUrl: row.pdfUrl || '',
         description: row.desc
       };
 
@@ -1434,11 +1514,11 @@ export default function AdminDashboard({
   };
 
   const copySampleData = () => {
-    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDescription
-Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
-Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
-Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\tCalculate depreciation using straight-line and WDV methods, update active registers.
-Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
+    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription
+Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
+Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
+Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.
+Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
     
     try {
       if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -1531,11 +1611,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
   };
 
   const autofillSampleIntoInput = () => {
-    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDescription
-Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
-Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
-Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\tCalculate depreciation using straight-line and WDV methods, update active registers.
-Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
+    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription
+Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
+Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
+Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.
+Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
     setBulkInputText(sampleText);
     setBulkImportSuccess("Successfully loaded the entire sample dataset directly into the input box! Check the real-time preview matrix below.");
     setBulkImportError('');
@@ -1552,6 +1632,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         "Skill Level",
         "Video Title",
         "Video Embed URL",
+        "Document (PDF)",
         "Description"
       ];
       
@@ -1565,6 +1646,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Skill Level": "Intermediate",
           "Video Title": "GSTR-2B Mismatch Audit Guide",
           "Video Embed URL": "https://www.youtube.com/embed/S7U_F7F9-kM",
+          "Document (PDF)": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
           "Description": "Check invoice inputs against online GSTR-2B records to maximize input tax credit."
         },
         {
@@ -1576,6 +1658,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Skill Level": "Advanced",
           "Video Title": "FIN-502 BRS SOP Walkthrough",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
+          "Document (PDF)": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
           "Description": "Reconcile all bank statements with general ledger logs, check adjusting entry errors."
         },
         {
@@ -1587,6 +1670,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Skill Level": "Beginner",
           "Video Title": "AST-101 Depreciation Guide",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
+          "Document (PDF)": "",
           "Description": "Calculate depreciation using straight-line and WDV methods, update active registers."
         },
         {
@@ -1598,6 +1682,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Skill Level": "Beginner",
           "Video Title": "AP-201 Invoice verification guidelines",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
+          "Document (PDF)": "",
           "Description": "Verify incoming supplier bills against matching purchase orders and GRN inputs."
         }
       ];
@@ -1611,6 +1696,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         { "Column Name": "Skill Level", "Requirement": "Optional", "Allowed Values / Example": "Beginner, Intermediate, Advanced", "Description": "Designated level of complexity. Standard default is Beginner." },
         { "Column Name": "Video Title", "Requirement": "Optional", "Allowed Values / Example": "GSTR-2B Mismatch Audit Guide", "Description": "SOP video topic or description title." },
         { "Column Name": "Video Embed URL", "Requirement": "Optional", "Allowed Values / Example": "https://www.youtube.com/embed/S7U_F7F9-kM", "Description": "YouTube embed link or standard SOP video URL to watch." },
+        { "Column Name": "Document (PDF)", "Requirement": "Optional", "Allowed Values / Example": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "Description": "SOP Standard Operating Procedure PDF file link, e.g. from Google Drive preview or direct link." },
         { "Column Name": "Description", "Requirement": "Optional", "Allowed Values / Example": "Step-by-step audit guidelines...", "Description": "Detailed SOP guidelines text for performing this unit." }
       ];
 
@@ -1760,191 +1846,740 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
   });
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 animate-in fade-in duration-300 relative">
+    <div className="flex min-h-screen bg-slate-50/50 relative">
       
-      {/* Dynamic Modern Toast Notification Layer */}
-      {toast && (
-        <div id="toast-container" className="fixed bottom-6 right-6 z-[9999] bg-slate-900 border border-slate-700/60 text-white font-sans text-xs px-5 py-3.5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-350">
-          <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${toast.type === 'error' ? 'bg-rose-500' : toast.type === 'info' ? 'bg-indigo-400' : 'bg-emerald-400'}`}></span>
-          <span className="font-semibold text-slate-150">{toast.text}</span>
-          <button 
-            onClick={() => setToast(null)}
-            className="text-slate-400 hover:text-white font-bold ml-2 focus:outline-none cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-      
-      {/* Redesigned Workspace Cockpit Welcomer */}
-      <div className="bg-gradient-to-br from-white via-slate-50 to-emerald-50/20 rounded-3xl p-6 sm:p-8 text-slate-900 relative overflow-hidden shadow-xs mb-8 border border-slate-200">
-        {/* Animated grid overlay and aesthetic soft lighting */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#0f172a04,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
-        
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-start gap-6">
-            <div className="relative group shrink-0">
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-30 group-hover:opacity-55 transition duration-300"></div>
-              <Avatar
-                src={currentUser.avatarUrl}
-                name={currentUser.name}
-                className="w-20 h-20 border-2 border-emerald-500/30 overflow-hidden relative shadow-sm cursor-pointer hover:scale-105 transition duration-300"
-              />
-            </div>
+      {/* PREMIUM LIGHT LEFT SIDEBAR CONSOLE */}
+      {sidebarVisible && (
+        <aside 
+          id="admin-sidebar"
+          className={`bg-white/95 border-r border-slate-200/80 transition-all duration-350 z-40 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
+            sidebarCollapsed ? 'w-20' : 'w-72'
+          } ${
+            sidebarLocked ? 'sticky top-0 h-screen' : 'fixed top-0 left-0 h-screen shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-50'
+          }`}
+        >
+          {/* Header area of sidebar */}
+          <div className="p-4.5 border-b border-slate-100/90 flex items-center justify-between gap-2.5 bg-gradient-to-r from-indigo-50/20 via-sky-50/10 to-transparent">
+            {!sidebarCollapsed ? (
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 shrink-0">
+                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                </span>
+                <div className="min-w-0">
+                  <h4 className="font-display text-xs font-black uppercase tracking-wider text-slate-800 truncate">
+                    Control Hub
+                  </h4>
+                  <p className="text-[9px] text-slate-500 font-mono font-bold mt-0.5 truncate">
+                    COCKPIT CONSOLE
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto">
+                <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+              </div>
+            )}
             
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-mono tracking-widest text-emerald-800 bg-emerald-50/70 px-3 py-1 rounded-full border border-emerald-200/60 uppercase font-black">
-                  {isDirectorOrOwner ? 'Executive Dashboard Portal' : 'Enterprise Admin Panel'}
-                </span>
-              </div>
-              
-              <h2 className="font-display text-2xl sm:text-4xl font-extrabold text-slate-900 leading-none tracking-tight">
-                Welcome back, {currentUser.name}
-              </h2>
-              
-              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs text-slate-500 font-sans">
-                <span className="font-extrabold text-slate-700">
-                  {isDirectorOrOwner ? 'Corporate Director / Executive View' : 'Senior Quality Checker & Audit Admin'}
-                </span>
-                <span className="text-slate-300">•</span>
-                <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                  <Building className="w-3.5 h-3.5 text-emerald-600" />
-                  {currentUser.department || 'Corporate Compliance'}
-                </span>
-                <span className="text-slate-300">•</span>
-                <span className="text-emerald-700 font-extrabold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Checked Ledger Scope
-                </span>
-              </div>
-            </div>
-          </div>
-          {/* Quick Stats Panel inside Banner - Modern Bento Layout */}
-          <div className="bg-white/80 p-4 sm:p-5 rounded-2xl border border-slate-200 min-w-[300px] shadow-xs space-y-3 shrink-0">
-            <div className="flex justify-between items-center text-[10px] font-mono font-black text-slate-500 tracking-wider">
-              <span>ADMIN HOME STATUS</span>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2.5 py-0.5 rounded flex items-center gap-1.5 font-bold uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                LIVE ACTIVE
-              </span>
-            </div>
-            <div className="border-t border-slate-100"></div>
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-100">
-                <span className="text-[9px] text-slate-500 block uppercase font-mono tracking-wider font-bold">Designated Units</span>
-                <span className="text-lg font-black font-mono text-slate-800 mt-0.5 block">
-                  {units.length}
-                </span>
-              </div>
-              <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-100">
-                <span className="text-[9px] text-slate-500 block uppercase font-mono tracking-wider font-bold">Enrolled Trainees</span>
-                <span className="text-lg font-black font-mono text-emerald-700 mt-0.5 block">
-                  {users.length}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Ribbon Control for Non-Reports View */}
-      {adminTab !== 'reports' && (
-        <div className="mb-6 flex justify-between items-center bg-emerald-50/65 border border-emerald-200/50 p-4 rounded-2xl shadow-xs animate-in slide-in-from-top-4 duration-200 text-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-emerald-600">⚡</span>
-            <span className="text-xs font-semibold text-slate-650">Currently administering the <strong className="text-emerald-800 capitalize font-extrabold">{adminTab}</strong> subsystem console</span>
-          </div>
-          <button 
-            type="button"
-            onClick={() => setAdminTab('reports')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-          >
-            📊 Back to AI Cockpit Home
-          </button>
-        </div>
-      )}
-
-      {/* COCKPIT SWITCHES: TOP HORIZONTAL MAIN CENTER TAB BAR (Modern Slimmed Card) */}
-      <div className="bg-white border border-slate-205 border-slate-200 rounded-2xl p-3 shadow-xs relative overflow-hidden text-slate-900 mb-6 animate-in fade-in slide-in-from-top-3 duration-300">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/[0.01] rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-emerald-500/[0.01] rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_10px_10px,#0f172a04,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <div>
-              <h4 className="font-display text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                Control Hub Cockpit
-              </h4>
-              <p className="text-[10px] text-slate-500 font-medium font-sans mt-0.5">
-                Central command console to manage directories, curriculum files, and credential ledgers.
-              </p>
-            </div>
-          </div>
-          
-          <span className="self-start md:self-center text-[8px] font-mono font-black uppercase text-emerald-800 bg-emerald-50 border border-emerald-250/50 border-emerald-200 px-2 py-0.5 rounded tracking-wider">
-            COCKPIT SWITCHES
-          </span>
-        </div>
-
-        <div className="border-t border-slate-100 my-2.5"></div>
-
-        {/* Row Flex Container with wrapping to prevent hidden overflow (Slim Design) */}
-        <div className="relative z-10 flex flex-wrap items-center gap-1.5 pb-0.5 select-none px-1">
-          {[
-            { id: 'reports', emoji: '📊', label: isDirectorOrOwner ? 'Executive Dashboard' : 'Dynamic Workspace', countLabel: 'Live' },
-            { id: 'approvals', emoji: '⏳', label: 'Enrollment Approvals', count: users.filter(u => u.status === 'Pending Approval').length, countLabel: users.filter(u => u.status === 'Pending Approval').length > 0 ? `${users.filter(u => u.status === 'Pending Approval').length} Pending` : undefined },
-            { id: 'hierarchy', emoji: '🌿', label: 'Hierarchy Matrix', countLabel: 'Tree' },
-            ...(isDirectorOrOwner ? [] : [
-              { id: 'users', emoji: '👥', label: 'User Database', count: users.length },
-              { id: 'roles', emoji: '🗂️', label: 'Job Roles Matrix', count: roles.length },
-              { id: 'curriculum', emoji: '⚡', label: 'Curriculum Builder', countLabel: `${chapters.length} Ch` },
-              { id: 'analytics', emoji: '📈', label: 'Data Visuals', countLabel: 'Charts' },
-              { id: 'recruitment', emoji: '🎓', label: 'Assessment Exams', countLabel: `${attemptsList.length} Logs` },
-              { id: 'departments', emoji: '🏢', label: 'Departments Matrix', count: departments.length },
-            ]),
-            { id: 'audit', emoji: '🛡️', label: 'Compliance Audit Trail', countLabel: `${progress.length} Logs` },
-            { id: 'certificate', emoji: '📜', label: 'Certificate Settings', countLabel: 'Config' }
-          ].map((b) => {
-            const isActive = adminTab === b.id;
-            return (
+            <div className={`flex items-center gap-1 shrink-0 ${sidebarCollapsed ? 'mx-auto hidden' : ''}`}>
+              {/* Collapse Button */}
               <button
-                key={b.id}
                 type="button"
-                onClick={() => setAdminTab(b.id as any)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all duration-200 border whitespace-nowrap group cursor-pointer text-[10px] font-bold font-sans tracking-wide ${
-                  isActive 
-                    ? 'bg-gradient-to-r from-emerald-50 to-teal-50/40 text-emerald-800 border-emerald-500/30 shadow-xs scale-[1.01]' 
-                    : 'bg-slate-50/53 bg-slate-50/50 hover:bg-slate-50 text-slate-500 border-slate-200/60 hover:border-slate-300 hover:text-slate-850 hover:text-slate-800'
+                onClick={() => setSidebarCollapsed(true)}
+                title="Collapse Panel (Icons Mode)"
+                className="text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Lock/Unlock Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarLocked(!sidebarLocked);
+                  setToast({
+                    text: !sidebarLocked ? "Sidebar locked in place! Layout expanded." : "Sidebar unlocked! Floating mode activated.",
+                    type: 'info'
+                  });
+                }}
+                title={sidebarLocked ? "Unlock/Float Sidebar" : "Lock Sidebar (Fixed Column)"}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  sidebarLocked ? 'text-emerald-650 hover:text-emerald-700 bg-emerald-50' : 'text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60'
                 }`}
               >
-                <span className="text-[11px] group-hover:scale-110 transition duration-150 select-none">{b.emoji}</span>
-                <span>{b.label}</span>
-                {b.countLabel ? (
-                  <span className={`text-[7.5px] uppercase font-mono px-1 py-0.2 rounded font-black tracking-wide border ${
-                    isActive
-                      ? 'bg-emerald-100/80 text-emerald-800 border-emerald-250/30'
-                      : 'bg-white text-slate-400 border-slate-200'
-                  }`}>
-                    {b.countLabel}
-                  </span>
-                ) : b.count !== undefined ? (
-                  <span className={`text-[8px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
-                    isActive 
-                      ? 'bg-emerald-100/85 text-emerald-800 border-emerald-250/30' 
-                      : 'bg-white text-slate-400 border-slate-200'
-                  }`}>
-                    {b.count}
-                  </span>
-                ) : null}
+                {sidebarLocked ? <Pin className="w-3.5 h-3.5" /> : <PinOff className="w-3.5 h-3.5" />}
               </button>
-            );
-          })}
-        </div>
-      </div>
+
+              {/* Hide Sidebar button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarVisible(false);
+                  setToast({ text: "Sidebar hidden! Bring it back via the float button.", type: 'info' });
+                }}
+                title="Hide Sidebar Complete"
+                className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsed state Expand trigger */}
+          {sidebarCollapsed && (
+            <div className="py-2 flex justify-center border-b border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                title="Expand Panel"
+                className="text-slate-400 hover:text-indigo-650 bg-slate-50 hover:bg-indigo-100 p-1.5 rounded-lg transition duration-200 cursor-pointer border border-slate-200/50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Sidebar Nav Items List */}
+          <div className="flex-1 p-3 space-y-2 overflow-y-auto custom-scrollbar">
+            {(() => {
+              const sidebarTabs = [
+                { 
+                  id: 'reports', 
+                  label: isDirectorOrOwner ? 'Executive Dashboard' : 'Dynamic Workspace', 
+                  icon: BarChart2,
+                  countLabel: 'Live',
+                  subTabs: [
+                    { 
+                      id: 'reports_overview', 
+                      label: 'Overview Metrics', 
+                      isActive: adminTab === 'reports',
+                      onClick: () => {
+                        setAdminTab('reports');
+                      }
+                    }
+                  ]
+                },
+                { 
+                  id: 'approvals', 
+                  label: 'Enrollment Approvals', 
+                  icon: UserCheck,
+                  count: users.filter(u => u.status === 'Pending Approval').length, 
+                  countLabel: users.filter(u => u.status === 'Pending Approval').length > 0 ? `${users.filter(u => u.status === 'Pending Approval').length} Pending` : undefined,
+                  subTabs: [
+                    { 
+                      id: 'pending_approvals', 
+                      label: 'All Pending Queues', 
+                      isActive: adminTab === 'approvals' && approvalDeptFilter === 'all',
+                      onClick: () => {
+                        setAdminTab('approvals');
+                        setApprovalDeptFilter('all');
+                      }
+                    }
+                  ]
+                },
+                { 
+                  id: 'hierarchy', 
+                  label: 'Hierarchy Matrix', 
+                  icon: Network,
+                  countLabel: 'Tree',
+                  subTabs: [
+                    { 
+                      id: 'hierarchy_matrix', 
+                      label: 'Org Hierarchy Tree', 
+                      isActive: adminTab === 'hierarchy',
+                      onClick: () => {
+                        setAdminTab('hierarchy');
+                      }
+                    }
+                  ]
+                },
+                ...(isDirectorOrOwner ? [] : [
+                  { 
+                    id: 'users', 
+                    label: 'User Database', 
+                    icon: Users,
+                    count: users.length,
+                    subTabs: [
+                      { 
+                        id: 'user_directory', 
+                        label: 'Trainee Registry (All Checked)', 
+                        isActive: adminTab === 'users' && !showBatchSyncer && !isAddingUser,
+                        onClick: () => {
+                          setAdminTab('users');
+                          setShowBatchSyncer(false);
+                          setIsAddingUser(false);
+                          setUserDeptFilter('all');
+                          setUserStatusFilter('all');
+                        }
+                      },
+                      { 
+                        id: 'user_add', 
+                        label: 'Deploy New User profile', 
+                        isActive: adminTab === 'users' && isAddingUser,
+                        onClick: () => {
+                          setAdminTab('users');
+                          setIsAddingUser(true);
+                          setShowBatchSyncer(false);
+                        }
+                      },
+                      { 
+                        id: 'user_sync', 
+                        label: 'Bulk Profile Syncer (Select All)', 
+                        isActive: adminTab === 'users' && showBatchSyncer,
+                        onClick: () => {
+                          setAdminTab('users');
+                          setShowBatchSyncer(true);
+                          setIsAddingUser(false);
+                          // Auto Check All targets
+                          setSyncTargetUserIds(users.map(u => u.id));
+                          setToast({ text: "All corporate trainees checked for batch sync! 👥", type: 'success' });
+                        }
+                      }
+                    ]
+                  },
+                  { 
+                    id: 'roles', 
+                    label: 'Job Roles Matrix', 
+                    icon: Shield,
+                    count: roles.length,
+                    subTabs: [
+                      { 
+                        id: 'roles_matrix', 
+                        label: 'Manage Permissions Matrix', 
+                        isActive: adminTab === 'roles' && rolesSubTab === 'matrix',
+                        onClick: () => {
+                          setAdminTab('roles');
+                          setRolesSubTab('matrix');
+                        }
+                      },
+                      { 
+                        id: 'roles_list', 
+                        label: 'Standard Job Profiles List', 
+                        isActive: adminTab === 'roles' && rolesSubTab === 'list',
+                        onClick: () => {
+                          setAdminTab('roles');
+                          setRolesSubTab('list');
+                        }
+                      },
+                      { 
+                        id: 'roles_add', 
+                        label: 'Add & Deploy Job Role', 
+                        isActive: adminTab === 'roles' && rolesSubTab === 'add',
+                        onClick: () => {
+                          setAdminTab('roles');
+                          setRolesSubTab('add');
+                        }
+                      }
+                    ]
+                  },
+                  { 
+                    id: 'curriculum', 
+                    label: 'Curriculum Builder', 
+                    icon: BookOpen,
+                    countLabel: `${chapters.length} Ch`,
+                    subTabs: [
+                      { 
+                        id: 'curriculum_manual', 
+                        label: 'SOP Curriculum (All Checked)', 
+                        isActive: adminTab === 'curriculum' && curriculumMode === 'manual',
+                        onClick: () => {
+                          setAdminTab('curriculum');
+                          setCurriculumMode('manual');
+                          // "All check" auto selection logic
+                          setSelectedCurriculumRoleIds(roles.map(r => r.id));
+                          setToast({ text: "All Job Profiles auto-checked & unified! 🌐", type: 'success' });
+                        }
+                      },
+                      { 
+                        id: 'curriculum_bulk', 
+                        label: 'Bulk Excel SOP Loader', 
+                        isActive: adminTab === 'curriculum' && curriculumMode === 'bulk',
+                        onClick: () => {
+                          setAdminTab('curriculum');
+                          setCurriculumMode('bulk');
+                        }
+                      }
+                    ]
+                  },
+                  { 
+                    id: 'analytics', 
+                    label: 'Data Visuals', 
+                    icon: TrendingUp,
+                    countLabel: 'Charts',
+                    subTabs: [
+                      { 
+                        id: 'analytics_charts', 
+                        label: 'Progress Visuals', 
+                        isActive: adminTab === 'analytics',
+                        onClick: () => {
+                          setAdminTab('analytics');
+                        }
+                      }
+                    ]
+                  },
+                  { 
+                    id: 'recruitment', 
+                    label: 'Assessment Exams', 
+                    icon: CheckSquare,
+                    countLabel: `${attemptsList.length} Logs`,
+                    subTabs: [
+                      { 
+                        id: 'rec_logs', 
+                        label: 'Exam Gating Logs (All Logs)', 
+                        isActive: adminTab === 'recruitment' && recSubTab === 'logs',
+                        onClick: () => {
+                          setAdminTab('recruitment');
+                          setRecSubTab('logs');
+                          setRecFilterRole('all');
+                          setRecFilterResult('all');
+                        }
+                      },
+                      { 
+                        id: 'rec_questions', 
+                        label: 'Exam Question Builder', 
+                        isActive: adminTab === 'recruitment' && recSubTab === 'questions',
+                        onClick: () => {
+                          setAdminTab('recruitment');
+                          setRecSubTab('questions');
+                        }
+                      },
+                      { 
+                        id: 'rec_gating', 
+                        label: 'Hard Gating Audits', 
+                        isActive: adminTab === 'recruitment' && recSubTab === 'gating',
+                        onClick: () => {
+                          setAdminTab('recruitment');
+                          setRecSubTab('gating');
+                        }
+                      }
+                    ]
+                  },
+                  { 
+                    id: 'departments', 
+                    label: 'Departments Matrix', 
+                    icon: Building,
+                    count: departments.length,
+                    subTabs: [
+                      { 
+                        id: 'departments_grid', 
+                        label: 'Division Departments Grid', 
+                        isActive: adminTab === 'departments',
+                        onClick: () => {
+                          setAdminTab('departments');
+                        }
+                      }
+                    ]
+                  },
+                ]),
+                { 
+                  id: 'audit', 
+                  label: 'Compliance Audit Trail', 
+                  icon: History,
+                  countLabel: `${progress.length} Logs`,
+                  subTabs: [
+                    { 
+                      id: 'audit_matrix', 
+                      label: 'Compliance Matrix (All Check)', 
+                      isActive: adminTab === 'audit' && auditViewMode === 'matrix',
+                      onClick: () => {
+                        setAdminTab('audit');
+                        setAuditViewMode('matrix');
+                        setAuditUserFilter('all');
+                        setAuditRoleFilter('all');
+                        setAuditDeptFilter('all');
+                        setAuditStatusFilter('all');
+                      }
+                    },
+                    { 
+                      id: 'audit_timeline', 
+                      label: 'Live Chrono Feed', 
+                      isActive: adminTab === 'audit' && auditViewMode === 'timeline',
+                      onClick: () => {
+                        setAdminTab('audit');
+                        setAuditViewMode('timeline');
+                      }
+                    }
+                  ]
+                },
+                { 
+                  id: 'certificate', 
+                  label: 'Certificate Settings', 
+                  icon: Sliders,
+                  countLabel: 'Config',
+                  subTabs: [
+                    { 
+                      id: 'cert_config', 
+                      label: 'Layout & Template Config', 
+                      isActive: adminTab === 'certificate',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                      }
+                    }
+                  ]
+                }
+              ];
+
+              const colorThemes: Record<string, {
+                activeBg: string;
+                inactiveHover: string;
+                activeIcon: string;
+                inactiveIcon: string;
+                activeBadge: string;
+                inactiveBadge: string;
+              }> = {
+                reports: {
+                  activeBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-blue-50/70 hover:text-blue-900 hover:border-blue-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-blue-50 text-blue-600 border border-blue-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-blue-50/80 text-blue-750 border border-blue-100/40 text-[7.5px]'
+                },
+                approvals: {
+                  activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-amber-50/70 hover:text-amber-900 hover:border-amber-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-amber-50 text-amber-600 border border-amber-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-amber-50/80 text-amber-755 border border-amber-100/40 text-[7.5px]'
+                },
+                hierarchy: {
+                  activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-emerald-50/70 hover:text-emerald-900 hover:border-emerald-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-emerald-50 text-emerald-600 border border-emerald-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-emerald-50/80 text-emerald-755 border border-emerald-100/40 text-[7.5px]'
+                },
+                users: {
+                  activeBg: 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-violet-50/70 hover:text-violet-900 hover:border-violet-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-violet-50 text-violet-600 border border-violet-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-violet-50/80 text-violet-755 border border-violet-100/40 text-[7.5px]'
+                },
+                roles: {
+                  activeBg: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-rose-50/70 hover:text-rose-900 hover:border-rose-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-rose-50 text-rose-600 border border-rose-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-rose-50/80 text-rose-755 border border-rose-100/40 text-[7.5px]'
+                },
+                curriculum: {
+                  activeBg: 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-red-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-orange-50/60 hover:text-orange-900 hover:border-orange-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-orange-50 text-orange-600 border border-orange-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-orange-50/80 text-orange-755 border border-orange-100/40 text-[7.5px]'
+                },
+                analytics: {
+                  activeBg: 'bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white shadow-md shadow-pink-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-fuchsia-50/60 hover:text-fuchsia-900 hover:border-fuchsia-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-fuchsia-50/80 text-fuchsia-755 border border-fuchsia-100/40 text-[7.5px]'
+                },
+                recruitment: {
+                  activeBg: 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md shadow-teal-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-teal-50/60 hover:text-teal-900 hover:border-teal-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-teal-50 text-teal-600 border border-teal-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-teal-50/80 text-teal-755 border border-teal-100/40 text-[7.5px]'
+                },
+                departments: {
+                  activeBg: 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-indigo-50/60 hover:text-indigo-900 hover:border-indigo-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-indigo-50 text-indigo-600 border border-indigo-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-indigo-50/80 text-indigo-755 border border-indigo-100/40 text-[7.5px]'
+                },
+                audit: {
+                  activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-md shadow-cyan-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-cyan-50/60 hover:text-cyan-900 hover:border-cyan-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-cyan-50 text-cyan-600 border border-cyan-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-cyan-50/80 text-cyan-755 border border-cyan-100/40 text-[7.5px]'
+                },
+                certificate: {
+                  activeBg: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-pink-50/60 hover:text-pink-900 hover:border-pink-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-pink-50 text-pink-600 border border-pink-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-pink-50/80 text-pink-755 border border-pink-100/40 text-[7.5px]'
+                }
+              };
+
+              return sidebarTabs.map((t) => {
+                const isTabActive = adminTab === t.id;
+                const Icon = t.icon;
+                const theme = colorThemes[t.id] || colorThemes.reports;
+                
+                return (
+                  <div key={t.id} className="space-y-1 font-sans">
+                    {/* Main Sidebar Tab button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminTab(t.id as any);
+                        setExpandedTabs(prev => ({ ...prev, [t.id]: !prev[t.id] }));
+                        if (t.subTabs && t.subTabs.length > 0) {
+                          t.subTabs[0].onClick();
+                        }
+                      }}
+                      className={`w-full group relative flex items-center justify-between gap-2.5 p-2 rounded-xl transition-all duration-200 text-left cursor-pointer ${
+                        isTabActive 
+                          ? theme.activeBg + ' font-semibold scale-[1.01]' 
+                          : theme.inactiveHover
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`p-1.5 rounded-lg shrink-0 transition-colors duration-200 ${
+                          isTabActive ? theme.activeIcon : theme.inactiveIcon
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        
+                        {!sidebarCollapsed && (
+                          <span className="text-xs font-bold font-sans tracking-wide truncate">
+                            {t.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Right metadata badge/count */}
+                      {!sidebarCollapsed && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {t.countLabel ? (
+                            <span className={`px-1.5 py-0.5 rounded shrink-0 uppercase border font-mono font-black ${
+                              isTabActive ? theme.activeBadge : theme.inactiveBadge
+                            }`}>
+                              {t.countLabel}
+                            </span>
+                          ) : t.count !== undefined ? (
+                            <span className={`px-1.5 py-0.5 rounded-full shrink-0 border font-mono font-black ${
+                              isTabActive ? theme.activeBadge : theme.inactiveBadge
+                            }`}>
+                              {t.count}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Expandable nested sub-tabs */}
+                    {!sidebarCollapsed && t.subTabs && expandedTabs[t.id] && (
+                      <div className="pl-4 pr-1 py-1 border-l border-slate-200 ml-5.5 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {t.subTabs.map((st) => (
+                          <button
+                            key={st.id}
+                            type="button"
+                            onClick={st.onClick}
+                            className={`w-full text-left py-1.5 px-3 rounded-lg text-[10.5px] transition-all cursor-pointer flex items-center gap-2 ${
+                              st.isActive 
+                                ? 'bg-slate-100 text-slate-900 font-bold border border-slate-200/60 shadow-3xs' 
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`w-1 h-1 rounded-full shrink-0 ${st.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                            <span className="truncate flex-1">{st.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          {/* Footer of Sidebar */}
+          {!sidebarCollapsed && (
+            <div className="p-3.5 border-t border-slate-100 bg-slate-50/40 text-[9px] text-slate-500 font-mono space-y-1">
+              <div className="flex justify-between gap-1.5">
+                <span className="text-slate-400 font-semibold">IDENTITY:</span>
+                <span className="text-slate-700 font-bold truncate max-w-[130px]">{currentUser.name}</span>
+              </div>
+              <div className="flex justify-between gap-1.5">
+                <span className="text-slate-400 font-semibold">AUTH LEVEL:</span>
+                <span className="text-emerald-600 font-black">{isDirectorOrOwner ? 'Executive / Director' : 'Quality Checker'}</span>
+              </div>
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* MAIN RIGHT AREA FOR VIEWS */}
+      <div className="flex-1 min-w-0 flex flex-col relative transition-all duration-350">
+        
+        {/* Sleek Floating Toggle Button when Sidebar is fully hidden */}
+        {!sidebarVisible && (
+          <button 
+            type="button"
+            onClick={() => {
+              setSidebarVisible(true);
+              setToast({ text: "Control console panel restored!", type: 'success' });
+            }}
+            className="fixed left-5 top-24 z-50 bg-white/95 hover:bg-indigo-50 border border-slate-200/80 p-3 rounded-2xl shadow-[0_12px_40px_rgba(148,163,184,0.18)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:text-indigo-650"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+            <span>Open Console Panel</span>
+          </button>
+        )}
+
+        {/* Existing Content wrapped inside responsive container */}
+        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 animate-in fade-in duration-300 relative">
+          
+          {/* Dynamic Modern Toast Notification Layer */}
+          {toast && (
+            <div id="toast-container" className="fixed bottom-6 right-6 z-[9999] bg-slate-900 border border-slate-700/60 text-white font-sans text-xs px-5 py-3.5 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-350">
+              <span className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${toast.type === 'error' ? 'bg-rose-500' : toast.type === 'info' ? 'bg-indigo-400' : 'bg-emerald-400'}`}></span>
+              <span className="font-semibold text-slate-150">{toast.text}</span>
+              <button 
+                onClick={() => setToast(null)}
+                className="text-slate-400 hover:text-white font-bold ml-2 focus:outline-none cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          
+          {/* Highly Compact & Toggleable Workspace Cockpit Welcomer */}
+          {welcomeBannerDismissed ? (
+            <div className="mb-4 flex justify-end animate-in fade-in duration-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setWelcomeBannerDismissed(false);
+                  localStorage.removeItem('welcome_banner_dismissed_v2');
+                  showToast("✓ Welcome banner restored!", "success");
+                }}
+                className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 bg-white hover:bg-slate-100 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 cursor-pointer border border-slate-200/80 shadow-3xs"
+              >
+                <span>👁️ Show Welcome Banner</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-white via-slate-50 to-emerald-50/10 rounded-2xl p-4 sm:p-5 text-slate-900 relative overflow-hidden shadow-xs mb-5 border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+              {/* Close Button to hide completely */}
+              <button
+                onClick={() => {
+                  setWelcomeBannerDismissed(true);
+                  localStorage.setItem('welcome_banner_dismissed_v2', 'true');
+                  showToast("✓ Welcome banner minimized to optimize screen space!", "info");
+                }}
+                className="absolute top-3 right-3 text-slate-400 hover:text-rose-500 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer z-10"
+                title="Minimize Banner"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Animated soft lighting */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/[0.03] rounded-full blur-2xl pointer-events-none"></div>
+              <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-500/[0.03] rounded-full blur-2xl pointer-events-none"></div>
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 pr-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-30"></div>
+                    <Avatar
+                      src={currentUser.avatarUrl}
+                      name={currentUser.name}
+                      className="w-12 h-12 sm:w-14 sm:h-14 border-2 border-emerald-500/20 overflow-hidden relative shadow-2xs"
+                    />
+                  </div>
+                  
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[8px] font-mono tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/50 uppercase font-black">
+                        {isDirectorOrOwner ? 'Executive Scope' : 'Checker Panel'}
+                      </span>
+                    </div>
+                    
+                    <h2 className="font-display text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-snug">
+                      Welcome back, {currentUser.name}
+                    </h2>
+                    
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500 font-sans">
+                      <span className="font-bold text-slate-600">
+                        {isDirectorOrOwner ? 'Director View' : 'Quality Checker & Audit'}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="flex items-center gap-1 text-slate-500">
+                        <Building className="w-3 h-3 text-emerald-600" />
+                        {currentUser.department || 'Compliance'}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" /> Active Scope
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Highly compact, colorful & premium Horizontal stats indicators next to each other */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
+                  {/* Course Units Badge */}
+                  <div className="flex items-center gap-1.5 bg-sky-50/80 border border-sky-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
+                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-sky-600 font-bold">Units:</span>
+                    <span className="font-mono font-black text-sky-900 text-sm">{units.length}</span>
+                  </div>
+
+                  {/* Designated Units Badge */}
+                  <div className="flex items-center gap-1.5 bg-emerald-50/80 border border-emerald-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
+                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-emerald-600 font-bold">Designated Units:</span>
+                    <span className="font-mono font-black text-emerald-900 text-sm">{departments.length}</span>
+                  </div>
+
+                  {/* Enrolled Trainees Badge */}
+                  <div className="flex items-center gap-1.5 bg-indigo-50/80 border border-indigo-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
+                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-indigo-600 font-bold">Trainees:</span>
+                    <span className="font-mono font-black text-indigo-900 text-sm">{users.length}</span>
+                  </div>
+
+                  {/* Avg Mastery Index Badge */}
+                  <div className="flex items-center gap-1.5 bg-purple-50/80 border border-purple-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
+                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-purple-600 font-bold">Avg Mastery:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-black text-purple-900 text-sm">{systemAverageMastery}%</span>
+                      <div className="w-10 bg-purple-200/50 h-1 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                        <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${systemAverageMastery}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live status capsule */}
+                  <div className="flex items-center bg-teal-50 border border-teal-100/70 text-[8px] font-bold px-2 py-1 rounded-xl uppercase gap-1 font-mono text-teal-800 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                    Live
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ribbon Control for Non-Reports View */}
+          {adminTab !== 'reports' && (
+            <div className="mb-6 flex justify-between items-center bg-emerald-50/65 border border-emerald-200/50 p-4 rounded-2xl shadow-xs animate-in slide-in-from-top-4 duration-200 text-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-600">⚡</span>
+                <span className="text-xs font-semibold text-slate-650">Currently administering the <strong className="text-emerald-800 capitalize font-extrabold">{adminTab}</strong> subsystem console</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setAdminTab('reports')}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                📊 Back to AI Cockpit Home
+              </button>
+            </div>
+          )}
 
       <div className="space-y-6">
         
@@ -1955,199 +2590,48 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           {adminTab === 'reports' && (
             <div className="space-y-6 animate-in fade-in duration-200">
               
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-slate-200/90 border-t-4 border-t-indigo-600 p-5 shadow-xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md transition-all duration-300">
-                  <div>
-                    <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider font-mono">Workforce Enrolled</span>
-                    <h3 className="font-display text-3xl font-extrabold text-slate-900 mt-1.5">{users.length}</h3>
-                  </div>
-                  <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-full self-start mt-4 font-mono">
-                    Active Trainees
+              {/* Premium Top Action Bar to Toggle Departments Panel */}
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3.5 px-5 rounded-2xl border border-slate-200/90 shadow-3xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/60 shadow-3xs">
+                    <Building className="w-4 h-4 text-emerald-600" />
                   </span>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200/90 border-t-4 border-t-emerald-600 p-5 shadow-xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md transition-all duration-300">
                   <div>
-                    <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider font-mono">Designated Units</span>
-                    <h3 className="font-display text-3xl font-extrabold text-slate-900 mt-1.5">{departments.length}</h3>
+                    <span className="block text-[9px] font-mono font-black text-slate-400 uppercase tracking-wider leading-none">Subsystem Directory</span>
+                    <span className="text-xs font-bold text-slate-700 font-sans mt-0.5 block">
+                      Live Performance Scorecard & Learning Insights
+                    </span>
                   </div>
-                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded-full self-start mt-4 font-mono">
-                    Business Units
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowDepartmentsSidebar(!showDepartmentsSidebar)}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer select-none border shadow-3xs ${
+                    showDepartmentsSidebar
+                      ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500 hover:border-indigo-500 hover:shadow-indigo-500/10'
+                      : 'bg-white text-slate-700 border-slate-250 hover:bg-slate-50 hover:text-indigo-650 hover:border-indigo-200'
+                  }`}
+                >
+                  <Building className="w-3.5 h-3.5 animate-pulse" />
+                  <span>
+                    {showDepartmentsSidebar ? 'Hide Departments Panel' : 'Show Departments Directory'}
                   </span>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200/90 border-t-4 border-t-purple-600 p-5 shadow-xs flex flex-col justify-between hover:-translate-y-1 hover:shadow-md transition-all duration-300">
-                  <div>
-                    <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider font-mono">Avg Mastery Index</span>
-                    <h3 className="font-display text-3xl font-extrabold text-slate-900 mt-1.5">{systemAverageMastery}%</h3>
-                  </div>
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-                    <div className="bg-purple-650 bg-purple-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${systemAverageMastery}%` }}></div>
-                  </div>
-                </div>
+                  <span className={`ml-1 px-1.5 py-0.2 rounded font-mono font-black text-[9px] border ${
+                    showDepartmentsSidebar
+                      ? 'bg-white/20 text-white border-white/15'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}>
+                    {departments.length}
+                  </span>
+                </button>
               </div>
 
-              {/* Grid Layout: Left Sidebar (compact departments report list with progress bar) & Right Main Area (directory + stats) */}
+              {/* Grid Layout: Left Main Area & Right Sidebar */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 
-                {/* LEFT SIDEBAR: Department-Wise Performance Reports */}
-                <div className="lg:col-span-4 space-y-4">
-                  <div className="bg-slate-50/70 rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-5">
-                    <div>
-                      <h3 className="text-md font-black text-slate-900 flex items-center gap-2.5">
-                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-150 shadow-3xs">
-                          <Building className="w-5 h-5" />
-                        </div>
-                        <span className="font-display text-sm tracking-tight">Departments Directory</span>
-                        <span className="ml-1 font-mono text-[10px] px-2 py-0.5 bg-slate-105 bg-slate-100 text-slate-600 rounded-full border border-slate-200 font-extrabold">{departments.length} Units</span>
-                      </h3>
-                      <p className="text-[11px] text-slate-500 mt-2 leading-relaxed font-sans">
-                        Live department metrics with syllabus progress and skill mastery bars. Click a card to filter the global scorecard standings.
-                      </p>
-                    </div>
-
-                    {/* Active Dept filter badge display if filtering */}
-                    {scorecardDeptFilters.length > 0 && (
-                      <div className="bg-indigo-50/90 border border-indigo-100 p-3 rounded-2xl space-y-2 text-xs shadow-xs backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div className="flex items-center justify-between">
-                          <span className="font-black text-slate-705 text-[10px] uppercase font-mono tracking-wide">
-                            Active Filters ({scorecardDeptFilters.length})
-                          </span>
-                          <button
-                            onClick={() => setScorecardDeptFilters([])}
-                            className="text-indigo-600 hover:text-indigo-800 text-[9px] font-black uppercase tracking-wider transition"
-                          >
-                            Clear All
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {scorecardDeptFilters.map(dept => (
-                            <span key={dept} className="font-mono bg-white px-2 py-0.5 text-[9px] rounded border border-indigo-200 text-indigo-700 uppercase font-black flex items-center gap-1">
-                              {dept}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== dept));
-                                }}
-                                className="text-slate-405 text-slate-400 hover:text-red-550 hover:text-red-500 font-bold ml-1 text-[8.5px]"
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2.5 max-h-[720px] overflow-y-auto pr-1 scrollbar-thin">
-                      {departmentReports.map((deptRep) => {
-                        const isSelected = scorecardDeptFilters.includes(deptRep.name);
-                        const theme = getDeptTheme(deptRep.name);
-                        const ThemeIcon = theme.icon;
-
-                        return (
-                          <div
-                            key={deptRep.name}
-                            onClick={() => {
-                              if (isSelected) {
-                                setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== deptRep.name));
-                              } else {
-                                setScorecardDeptFilters([...scorecardDeptFilters, deptRep.name]);
-                              }
-                            }}
-                            className={`group relative overflow-hidden rounded-xl p-3 border-l-[3.5px] border-y border-r cursor-pointer transition-all duration-205 flex flex-col gap-2.5 hover:-translate-y-[1px] ${
-                              isSelected 
-                                ? theme.selectedBg + ' ' + theme.accent + ' border-l-current border-y-indigo-100/50 border-r-indigo-100/50 shadow-sm'
-                                : 'bg-white hover:bg-slate-50 border-slate-205 border-slate-200/85 ' + theme.accent + ' shadow-3xs'
-                            }`}
-                          >
-                            {/* Inner Header */}
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className={`w-7.5 h-7.5 rounded-lg flex items-center justify-center border transition-all duration-200 shadow-3xs group-hover:scale-105 ${
-                                  isSelected ? 'bg-slate-900 text-white border-slate-805' : theme.bg
-                                }`}>
-                                  <ThemeIcon className="w-4 h-4" />
-                                </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-[11px] font-mono font-black tracking-wide uppercase text-slate-700 truncate max-w-[130px]">
-                                    {deptRep.name}
-                                  </h4>
-                                  <div className="text-[10px] text-slate-404 text-slate-400 font-sans mt-0.5 leading-none">
-                                    {deptRep.headcount} Staff • {deptRep.rolesCount} Roles
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="shrink-0 flex items-center gap-1.55">
-                                {deptRep.pendingCount > 0 && (
-                                  <span className="bg-amber-105 bg-amber-100 text-amber-808 text-amber-800 border border-amber-204 border-amber-200/45 px-1.5 py-0.5 rounded text-[8px] font-mono font-black animate-pulse">
-                                    {deptRep.pendingCount}
-                                  </span>
-                                )}
-                                {isSelected ? (
-                                  <div className="w-4 h-4 rounded-full bg-slate-900 text-white flex items-center justify-center">
-                                    <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                  </div>
-                                ) : (
-                                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 transition-all duration-200" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Progress bars (Syllabus progress & Skill mastery) */}
-                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-105 border-slate-100/85">
-                              <div>
-                                <div className="flex justify-between items-center text-[9px] font-sans font-semibold text-slate-500 mb-1">
-                                  <span className="truncate">Syllabus</span>
-                                  <span className="font-bold text-slate-850 font-mono text-[8px]">{deptRep.avgProgress}%</span>
-                                </div>
-                                <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                                  <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgProgress}%` }}></div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="flex justify-between items-center text-[9px] font-sans font-semibold text-slate-550 mb-1">
-                                  <span className="truncate">Mastery</span>
-                                  <span className="font-bold text-slate-850 font-mono text-[8px]">{deptRep.avgMastery}%</span>
-                                </div>
-                                <div className="h-1 bg-slate-150 bg-slate-100 rounded-full overflow-hidden">
-                                  <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgMastery}%` }}></div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Department Roles List */}
-                            <div className="mt-2.5 pt-2 border-t border-slate-205 border-slate-200 flex flex-col gap-1.5">
-                              <span className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider font-display">
-                                Included Mapped Designations ({deptRep.rolesCount})
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {roles.filter(r => r.department === deptRep.name).map(r => (
-                                  <span 
-                                    key={r.id} 
-                                    className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 text-[9px] font-sans font-extrabold tracking-tight truncate max-w-full"
-                                    title={r.name}
-                                  >
-                                    {r.name}
-                                  </span>
-                                ))}
-                                {roles.filter(r => r.department === deptRep.name).length === 0 && (
-                                  <span className="text-[8.5px] text-slate-400 italic">No roles defined</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* RIGHT COLUMN: MAIN WORKFORCE SCORECARD DIRECTORY & ANALYTICS COCKPIT */}
-                <div className="lg:col-span-8 space-y-6">
+                {/* LEFT COLUMN: MAIN WORKFORCE SCORECARD DIRECTORY & ANALYTICS COCKPIT */}
+                <div className={`${showDepartmentsSidebar ? 'lg:col-span-9' : 'lg:col-span-12'} space-y-6 transition-all duration-350`}>
 
                   {/* Trainee Stands & Scorecard Directory */}
                   <div className="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm space-y-4">
@@ -2509,9 +2993,166 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </>
             )}
             </div>
+            </div>
+            
+            {/* RIGHT SIDEBAR: Collapsible Department-Wise Performance Reports */}
+            {showDepartmentsSidebar && (
+              <div className="lg:col-span-3 space-y-4 animate-in slide-in-from-right-4 duration-300">
+                <div className="bg-slate-50/70 rounded-3xl border border-slate-200/80 p-4.5 shadow-xs space-y-4">
+                  <div>
+                    <h3 className="text-md font-black text-slate-900 flex items-center gap-2">
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-150 shadow-3xs">
+                        <Building className="w-4 h-4" />
+                      </div>
+                      <span className="font-display text-xs tracking-tight">Departments Directory</span>
+                      <span className="ml-1 font-mono text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200 font-black">{departments.length} Units</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed font-sans">
+                      Live metrics with progress and mastery ratings. Click a card to filter scorecard.
+                    </p>
+                  </div>
+
+                  {/* Active Dept filter badge display if filtering */}
+                  {scorecardDeptFilters.length > 0 && (
+                    <div className="bg-indigo-50/90 border border-indigo-100 p-2.5 rounded-2xl space-y-2 text-xs shadow-xs backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-slate-705 text-[8.5px] uppercase font-mono tracking-wide">
+                          Active Filters ({scorecardDeptFilters.length})
+                        </span>
+                        <button
+                          onClick={() => setScorecardDeptFilters([])}
+                          className="text-indigo-600 hover:text-indigo-800 text-[8.5px] font-black uppercase tracking-wider transition"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {scorecardDeptFilters.map(dept => (
+                          <span key={dept} className="font-mono bg-white px-1.5 py-0.5 text-[8.5px] rounded border border-indigo-200 text-indigo-700 uppercase font-black flex items-center gap-0.5">
+                            {dept}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== dept));
+                              }}
+                              className="text-slate-404 text-slate-400 hover:text-red-500 font-bold ml-1 text-[8px]"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 max-h-[660px] overflow-y-auto pr-1 scrollbar-thin">
+                    {departmentReports.map((deptRep) => {
+                      const isSelected = scorecardDeptFilters.includes(deptRep.name);
+                      const theme = getDeptTheme(deptRep.name);
+                      const ThemeIcon = theme.icon;
+
+                      return (
+                        <div
+                          key={deptRep.name}
+                          onClick={() => {
+                            if (isSelected) {
+                              setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== deptRep.name));
+                            } else {
+                              setScorecardDeptFilters([...scorecardDeptFilters, deptRep.name]);
+                            }
+                          }}
+                          className={`group relative overflow-hidden rounded-xl p-2.5 border-l-[3px] border-y border-r cursor-pointer transition-all duration-205 flex flex-col gap-2 hover:-translate-y-[1px] ${
+                            isSelected 
+                              ? theme.selectedBg + ' ' + theme.accent + ' border-l-current border-y-indigo-100/50 border-r-indigo-100/50 shadow-sm'
+                              : 'bg-white hover:bg-slate-50 border-slate-200/85 ' + theme.accent + ' shadow-3xs'
+                          }`}
+                        >
+                          {/* Inner Header */}
+                          <div className="flex justify-between items-start gap-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200 shadow-3xs group-hover:scale-105 ${
+                                isSelected ? 'bg-slate-900 text-white border-slate-805' : theme.bg
+                              }`}>
+                                <ThemeIcon className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-[10px] font-mono font-black tracking-wide uppercase text-slate-700 truncate max-w-[105px]">
+                                  {deptRep.name}
+                                </h4>
+                                <div className="text-[9px] text-slate-400 font-sans mt-0.5 leading-none">
+                                  {deptRep.headcount} Staff • {deptRep.rolesCount} Roles
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-1">
+                              {deptRep.pendingCount > 0 && (
+                                <span className="bg-amber-100 text-amber-808 border border-amber-200/45 px-1.5 py-0.5 rounded text-[7.5px] font-mono font-black animate-pulse">
+                                  {deptRep.pendingCount}
+                                </span>
+                              )}
+                              {isSelected ? (
+                                <div className="w-3.5 h-3.5 rounded-full bg-slate-900 text-white flex items-center justify-center">
+                                  <Check className="w-2 h-2 stroke-[3]" />
+                                </div>
+                              ) : (
+                                <ArrowUpRight className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Progress bars (Syllabus progress & Skill mastery) */}
+                          <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100/85">
+                            <div>
+                              <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-500 mb-0.5">
+                                <span className="truncate">Syllabus</span>
+                                <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgProgress}%</span>
+                              </div>
+                              <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgProgress}%` }}></div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-550 mb-0.5">
+                                <span className="truncate">Mastery</span>
+                                <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgMastery}%</span>
+                              </div>
+                              <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgMastery}%` }}></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Department Roles List */}
+                          <div className="mt-1.5 pt-1.5 border-t border-slate-200 flex flex-col gap-1">
+                            <span className="text-[8.5px] font-extrabold text-slate-600 uppercase tracking-wider font-display">
+                              Designations ({deptRep.rolesCount})
+                            </span>
+                            <div className="flex flex-wrap gap-0.5">
+                              {roles.filter(r => r.department === deptRep.name).map(r => (
+                                <span 
+                                  key={r.id} 
+                                  className="bg-slate-100 text-slate-900 border border-slate-200 rounded px-1.5 py-0.2 text-[8px] font-sans font-extrabold tracking-tight truncate max-w-full"
+                                  title={r.name}
+                                >
+                                  {r.name}
+                                </span>
+                              ))}
+                              {roles.filter(r => r.department === deptRep.name).length === 0 && (
+                                <span className="text-[8px] text-slate-400 italic">No roles</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
       )}
 
 
@@ -5261,11 +5902,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
                       </div>
                       <pre className="text-[10px] font-mono bg-slate-900 text-emerald-400 p-4 rounded-xl overflow-x-auto text-left leading-relaxed border border-slate-950 shadow-inner max-h-48 overflow-y-auto">
-{`Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDescription
-Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
-Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
-Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\tCalculate depreciation using straight-line and WDV methods, update active registers.
-Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`}
+{`Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription
+Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
+Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
+Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.
+Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`}
                       </pre>
                     </div>
                   )}
@@ -8010,6 +8651,168 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </button>
                 </div>
               </div>
+
+              {/* SECTION C: HELPLINE & SOP ESCALATION CONTACTS */}
+              <div className="bg-slate-50 border border-slate-200/85 p-5 rounded-xl space-y-4">
+                <h4 className="text-[11px] font-mono uppercase tracking-wider text-amber-600 font-extrabold flex items-center gap-2">
+                  <span className="p-1 rounded bg-amber-50 text-amber-700">📞</span>
+                  Part 3: Helpline & SOP Escalation Contacts
+                </h4>
+
+                {helplineSavingSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs py-2 px-3 rounded-lg font-bold font-sans">
+                    ✓ {helplineSavingSuccess}
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Configure the designated contacts displayed in the Trainee Helpdesk overlay (such as Chief Curriculum Directors, Platform Admins, and Compliance Leads).
+                </p>
+
+                <div className="space-y-4 pt-1">
+                  {localHelplineContacts.map((contact, index) => {
+                    const currentType = contact.badgeType || (index === 0 ? 'indigo' : index === 1 ? 'rose' : index === 2 ? 'emerald' : 'amber');
+                    return (
+                      <div key={contact.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 shadow-xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 flex-wrap gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                              currentType === 'rose' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                              currentType === 'emerald' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                              currentType === 'amber' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                            }`}>
+                              Contact #{index + 1}
+                            </span>
+                            {contact.roleBadge && (
+                              <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                                currentType === 'rose' ? 'bg-rose-100 text-rose-800' :
+                                currentType === 'emerald' ? 'bg-emerald-100 text-emerald-800' :
+                                currentType === 'amber' ? 'bg-amber-100 text-amber-800' :
+                                'bg-indigo-100 text-indigo-800'
+                              }`}>
+                                Preview: {contact.roleBadge}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[10px] font-mono text-slate-500 font-bold">Badge Color:</label>
+                            <select
+                              value={currentType}
+                              onChange={(e) => {
+                                const updated = [...localHelplineContacts];
+                                updated[index] = { ...contact, badgeType: e.target.value as any };
+                                setLocalHelplineContacts(updated);
+                              }}
+                              className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition"
+                            >
+                              <option value="indigo">Indigo (Blue-Violet)</option>
+                              <option value="rose">Rose (Red-Pink)</option>
+                              <option value="emerald">Emerald (Green)</option>
+                              <option value="amber">Amber (Yellow-Orange)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Officer Full Name</label>
+                          <input
+                            type="text"
+                            value={contact.name}
+                            onChange={(e) => {
+                              const updated = [...localHelplineContacts];
+                              updated[index] = { ...contact, name: e.target.value };
+                              setLocalHelplineContacts(updated);
+                            }}
+                            placeholder="e.g. Madhav Taparia"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Role Badge Name</label>
+                          <input
+                            type="text"
+                            value={contact.roleBadge}
+                            onChange={(e) => {
+                              const updated = [...localHelplineContacts];
+                              updated[index] = { ...contact, roleBadge: e.target.value };
+                              setLocalHelplineContacts(updated);
+                            }}
+                            placeholder="e.g. SOP CONTENT OWNER"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Officer Designation / Title</label>
+                          <input
+                            type="text"
+                            value={contact.designation}
+                            onChange={(e) => {
+                              const updated = [...localHelplineContacts];
+                              updated[index] = { ...contact, designation: e.target.value };
+                              setLocalHelplineContacts(updated);
+                            }}
+                            placeholder="e.g. Principal Auditor & Chief Curriculum Director"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-slate-200/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaults = [
+                        {
+                          id: 'contact_1',
+                          name: 'Madhav Taparia',
+                          designation: 'Principal Auditor & Chief Curriculum Director',
+                          roleBadge: 'SOP Content Owner',
+                          badgeType: 'indigo' as const
+                        },
+                        {
+                          id: 'contact_2',
+                          name: 'Madhav Mantri',
+                          designation: 'LMS Technical System Administrator',
+                          roleBadge: 'Platform Admin',
+                          badgeType: 'rose' as const
+                        },
+                        {
+                          id: 'contact_3',
+                          name: 'Aashish Sahu',
+                          designation: 'Corporate Compliance & HR Legal Lead',
+                          roleBadge: 'HR & Compliance',
+                          badgeType: 'emerald' as const
+                        }
+                      ];
+                      setLocalHelplineContacts(defaults);
+                      if (onUpdateHelplineContacts) {
+                        onUpdateHelplineContacts(defaults);
+                      } else {
+                        saveHelplineContacts(defaults);
+                      }
+                      showToast("✓ Helpline contacts successfully reset to defaults.", "success");
+                    }}
+                    className="bg-slate-150 border border-slate-250 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2 rounded-lg transition"
+                  >
+                    Revert Helpline Defaults
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveHelplineContacts}
+                    className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition"
+                  >
+                    Save Helpline Contacts
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Right side: Realtime Certificate Mockup Preview */}
@@ -8553,6 +9356,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
 
 
+        </div>
+      </div>
     </div>
   );
 }

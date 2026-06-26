@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification } from '../types';
+import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification, HelplineContact } from '../types';
 import { initialRoles, initialUsers, initialChapters, initialUnits, initialProgress, initialDepartments } from './initialRecords';
 import { setCollectionData, setDocumentData, getCollectionData, isFirebasePlaceholder, deleteDocumentsBatch } from './firebase';
 
@@ -20,7 +20,8 @@ const KEYS = {
   COMPANY_BRANDING: 'lms_company_branding_v1',
   QUESTIONS: 'lms_questions_v1',
   EXAM_CONFIG: 'lms_exam_config_v1',
-  NOTIFICATIONS: 'lms_notifications_v1'
+  NOTIFICATIONS: 'lms_notifications_v1',
+  HELPLINE_CONTACTS: 'lms_helpline_contacts_v1'
 };
 
 export const defaultCertificateTemplate: CertificateTemplate = {
@@ -43,6 +44,30 @@ export const defaultCompanyBranding: CompanyBranding = {
   logoType: 'icon',
   logoValue: 'BookOpen'
 };
+
+export const defaultHelplineContacts: HelplineContact[] = [
+  {
+    id: 'contact_1',
+    name: 'Madhav Taparia',
+    designation: 'Principal Auditor & Chief Curriculum Director',
+    roleBadge: 'SOP Content Owner',
+    badgeType: 'indigo'
+  },
+  {
+    id: 'contact_2',
+    name: 'Madhav Mantri',
+    designation: 'LMS Technical System Administrator',
+    roleBadge: 'Platform Admin',
+    badgeType: 'rose'
+  },
+  {
+    id: 'contact_3',
+    name: 'Aashish Sahu',
+    designation: 'Corporate Compliance & HR Legal Lead',
+    roleBadge: 'HR & Compliance',
+    badgeType: 'emerald'
+  }
+];
 
 export const initialQuestions: ExamQuestion[] = [
   {
@@ -326,6 +351,9 @@ export function initializeStorage() {
   if (!localStorage.getItem(KEYS.COMPANY_BRANDING)) {
     localStorage.setItem(KEYS.COMPANY_BRANDING, JSON.stringify(defaultCompanyBranding));
   }
+  if (!localStorage.getItem(KEYS.HELPLINE_CONTACTS)) {
+    localStorage.setItem(KEYS.HELPLINE_CONTACTS, JSON.stringify(defaultHelplineContacts));
+  }
   if (!localStorage.getItem(KEYS.QUESTIONS)) {
     localStorage.setItem(KEYS.QUESTIONS, JSON.stringify(initialQuestions));
   }
@@ -585,6 +613,48 @@ export function saveUsers(data: User[]) {
     deleteDocumentsBatch('users', idsToDelete).catch(err => {
       console.error("Failed to delete removed users in cloud:", err);
     });
+  }
+}
+
+export function updateUserActivity(userId: string) {
+  const users = getUsers();
+  const now = new Date().toISOString();
+  let changed = false;
+  
+  const updated = users.map(u => {
+    if (u.id === userId) {
+      changed = true;
+      return { ...u, lastActive: now };
+    }
+    return u;
+  });
+
+  // Let's make sure at least 3 other users have been active recently (within last 15 mins) for realistic peer listing
+  const activeCount = updated.filter(u => {
+    if (!u.lastActive) return false;
+    const diff = Date.now() - new Date(u.lastActive).getTime();
+    return diff < 15 * 60 * 1000;
+  }).length;
+
+  if (activeCount < 4) {
+    let toActivate = 4 - activeCount;
+    // shuffle or choose users to activate
+    const nonCurrentUsers = updated.filter(u => u.id !== userId);
+    for (const u of nonCurrentUsers) {
+      if (toActivate <= 0) break;
+      // If not active recently, activate them
+      const isAlreadyActive = u.lastActive && (Date.now() - new Date(u.lastActive).getTime() < 15 * 60 * 1000);
+      if (!isAlreadyActive) {
+        const randomPastMinutes = Math.floor(Math.random() * 8) + 2;
+        u.lastActive = new Date(Date.now() - randomPastMinutes * 60 * 1000).toISOString();
+        changed = true;
+        toActivate--;
+      }
+    }
+  }
+
+  if (changed) {
+    saveUsers(updated);
   }
 }
 
@@ -899,6 +969,21 @@ export function saveCompanyBranding(branding: CompanyBranding) {
   setDocumentData('configs', 'branding', branding);
 }
 
+export function getHelplineContacts(): HelplineContact[] {
+  initializeStorage();
+  const data = localStorage.getItem(KEYS.HELPLINE_CONTACTS);
+  try {
+    return data ? JSON.parse(data) : defaultHelplineContacts;
+  } catch (e) {
+    return defaultHelplineContacts;
+  }
+}
+
+export function saveHelplineContacts(contacts: HelplineContact[]) {
+  localStorage.setItem(KEYS.HELPLINE_CONTACTS, JSON.stringify(contacts));
+  setDocumentData('configs', 'helpline_contacts', { list: contacts });
+}
+
 export async function syncAllWithCloud(): Promise<boolean> {
   if (isFirebasePlaceholder) {
     return false;
@@ -1047,11 +1132,19 @@ export async function syncAllWithCloud(): Promise<boolean> {
       } else {
         await setDocumentData('configs', 'exam_config', getExamConfig());
       }
+
+      const helpline = cloudConfigs.find((c: any) => c.id === 'helpline_contacts');
+      if (helpline && helpline.list) {
+        localStorage.setItem(KEYS.HELPLINE_CONTACTS, JSON.stringify(helpline.list));
+      } else {
+        await setDocumentData('configs', 'helpline_contacts', { list: getHelplineContacts() });
+      }
     } else {
       await setDocumentData('configs', 'departments', { list: getDepartments() });
       await setDocumentData('configs', 'branding', getCompanyBranding());
       await setDocumentData('configs', 'cert_template', getCertificateTemplate());
       await setDocumentData('configs', 'exam_config', getExamConfig());
+      await setDocumentData('configs', 'helpline_contacts', { list: getHelplineContacts() });
     }
 
     return true;

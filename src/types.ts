@@ -28,6 +28,7 @@ export interface User {
   password?: string; // Plaintext or secure token for client demonstration
   status?: UserStatus; // 'Active' or 'Deactivated' or 'Left' (Resigned)
   reportsTo?: string; // Referring to parent user's id (Manager/Supervisor)
+  lastActive?: string; // ISO string of last known active timestamp
 }
 
 export interface Chapter {
@@ -130,5 +131,14 @@ export interface GlobalNotification {
   creatorId?: string;    // Admin who performed the action
   creatorName?: string;  // Admin name
 }
+
+export interface HelplineContact {
+  id: string;
+  name: string;
+  designation: string;
+  roleBadge: string;
+  badgeType: 'indigo' | 'rose' | 'emerald' | 'amber';
+}
+
 
 

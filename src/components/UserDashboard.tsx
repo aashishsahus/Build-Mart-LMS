@@ -527,7 +527,11 @@ export default function UserDashboard({
 
   // Centralised PDF Reader Stage
   const renderPdfStage = (isMobile: boolean) => {
-    const cleanPdfUrl = pdfUrl.trim();
+    // If selectedUnit has a pdfUrl, use it. Otherwise, use the global pdfUrl state.
+    const activePdfUrl = (selectedUnit && selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '') 
+      ? selectedUnit.pdfUrl.trim() 
+      : pdfUrl.trim();
+    const cleanPdfUrl = activePdfUrl;
     
     // Resolve Drive or standard URL
     let resolvedUrl = cleanPdfUrl;
@@ -556,7 +560,7 @@ export default function UserDashboard({
                 Corporate Curriculum Architecture
               </span>
               <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[200px] sm:max-w-md md:max-w-xl">
-                My Learning Path PDF Reader
+                📄 Lesson SOP Document (PDF)
               </span>
             </div>
           </div>
@@ -704,51 +708,9 @@ export default function UserDashboard({
           </div>
         </div>
 
-        {/* Tab Switcher if Unit has a PDF */}
-        {selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '' && (
-          <div className="bg-slate-100/60 p-1.5 border-b border-slate-200 flex gap-2 justify-center">
-            <button
-              type="button"
-              onClick={() => setLessonPlayerTab('video')}
-              className={`px-4 py-1.5 text-[10px] font-extrabold uppercase font-mono tracking-wider rounded-lg transition duration-150 flex items-center gap-1.5 cursor-pointer ${
-                lessonPlayerTab === 'video'
-                  ? 'bg-rose-650 bg-rose-600 text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 border border-slate-200'
-              }`}
-            >
-              <Play className="w-3 h-3 shrink-0" />
-              🎥 Video Walkthrough
-            </button>
-            <button
-              type="button"
-              onClick={() => setLessonPlayerTab('pdf')}
-              className={`px-4 py-1.5 text-[10px] font-extrabold uppercase font-mono tracking-wider rounded-lg transition duration-150 flex items-center gap-1.5 cursor-pointer ${
-                lessonPlayerTab === 'pdf'
-                  ? 'bg-indigo-650 bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 border border-slate-200'
-              }`}
-            >
-              <FileText className="w-3 h-3 shrink-0" />
-              📄 Lesson SOP Document (PDF)
-            </button>
-          </div>
-        )}
-
         {/* Video Player Main Canvas */}
         <div className="aspect-video w-full bg-slate-950 relative shadow-inner">
-          {lessonPlayerTab === 'pdf' ? (
-            <iframe
-              src={selectedUnit.pdfUrl?.includes('drive.google.com') 
-                ? (selectedUnit.pdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] 
-                    ? `https://drive.google.com/file/d/${selectedUnit.pdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1]}/preview` 
-                    : selectedUnit.pdfUrl) 
-                : selectedUnit.pdfUrl}
-              title={`${selectedUnit.taskName} SOP PDF`}
-              className="absolute inset-0 w-full h-full border-none bg-slate-800"
-              referrerPolicy="no-referrer"
-              allow="autoplay"
-            ></iframe>
-          ) : type === 'embed' ? (
+          {type === 'embed' ? (
             <iframe
               src={url}
               title={selectedUnit.videoTitle}
