@@ -22,7 +22,8 @@ import {
   Layers,
   Sparkles,
   Printer,
-  Download
+  Download,
+  X
 } from 'lucide-react';
 
 interface HierarchyViewProps {
@@ -1046,36 +1047,34 @@ export default function HierarchyView({
 
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 relative min-h-[500px]">
+    <div className="relative min-h-[500px] w-full">
       
-      {/* LEFT TREE CANVAS CONTAINER */}
-      <div className="flex-1 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col relative min-h-[600px]">
+      {/* FULL TREE CANVAS CONTAINER */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm overflow-hidden flex flex-col relative min-h-[600px] w-full">
         
         {/* HEADER PANEL: Switcher and Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-5 relative z-30">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-2 mb-3 relative z-30">
           <div>
-            <h3 className="font-display text-lg font-black flex items-center gap-2">
-              <GitFork className="w-5 h-5 text-emerald-500 transform rotate-180 animate-pulse-slow" />
-              <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-transparent">
-                ORGANIZATION HIERARCHY MAP
-              </span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Visualize reporting workflows, track career pathways, and edit supervisor associations dynamically.
-            </p>
-            {/* Colorful Directory Metrics */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-750 border border-emerald-150/60 shadow-3xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                <span>{roles.length} Designation Roles</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-indigo-50 text-indigo-750 border border-indigo-150/60 shadow-3xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                <span>{users.length} Active Employees</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-50 text-rose-700 border border-rose-150/60 shadow-3xs">
-                👑 Rathi Group Registry
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-display text-xs sm:text-sm font-black flex items-center gap-1.5">
+                <GitFork className="w-4 h-4 text-emerald-500 transform rotate-180 animate-pulse-slow" />
+                <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-transparent">
+                  ORGANIZATION HIERARCHY MAP
+                </span>
+              </h3>
+              
+              {/* Colorful Directory Metrics */}
+              <div className="flex flex-wrap gap-1">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold bg-emerald-50 text-emerald-750 border border-emerald-150/60 shadow-3xs">
+                  <span>{roles.length} Roles</span>
+                </span>
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold bg-indigo-50 text-indigo-750 border border-indigo-150/60 shadow-3xs">
+                  <span>{users.length} Employees</span>
+                </span>
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[8px] font-extrabold bg-rose-50 text-rose-700 border border-rose-150/60 shadow-3xs">
+                  👑 Rathi Registry
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1329,232 +1328,275 @@ export default function HierarchyView({
         </div>
       </div>
 
-      {/* RIGHT SIDE DETAILS AND EDITOR PANEL */}
-      <div className="w-full lg:w-80 shrink-0 space-y-4">
-        
-        {/* CARD DETAIL PREVIEW */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm text-left">
-          <h4 className="font-display text-sm font-black text-slate-900 border-b pb-3 mb-4 flex items-center gap-2 uppercase tracking-tight">
-            <span>ℹ️</span> Details Inspector
-          </h4>
+      {/* MODERN PREMIUM DETAILS & RELATIONSHIP EDITOR MODAL */}
+      {selectedNodeId && (
+        <div 
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => {
+            setSelectedNodeId(null);
+            setIsEditing(false);
+            setEditError(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-3xl border border-slate-150 shadow-2xl max-w-md w-full relative overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              onClick={() => {
+                setSelectedNodeId(null);
+                setIsEditing(false);
+                setEditError(null);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 hover:bg-slate-100 p-2 rounded-xl transition cursor-pointer z-10"
+              title="Close Panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
 
-          {viewMode === 'roles' && selectedRole ? (
-            <div className="space-y-4 text-xs">
-              <div>
-                <span className="text-[9px] uppercase font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                  {selectedRole.department}
-                </span>
-                <h3 className="font-display text-base font-extrabold text-slate-900 mt-2 leading-tight">
-                  {selectedRole.name}
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-1 italic font-sans">
-                  ID: {selectedRole.id}
-                </p>
-              </div>
+            {/* Accent colored top bar */}
+            <div className="h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600"></div>
 
-              <div className="bg-slate-50 rounded-xl p-3 border font-sans space-y-2">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Description / Focus</h5>
-                <p className="text-slate-650 leading-relaxed text-[11px]">
-                  {selectedRole.description || "No description provided."}
-                </p>
-              </div>
-
-              <div className="space-y-2 font-sans">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Reports To (Supervisor)</h5>
-                {selectedRole.reportsTo ? (
-                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border">
-                    <Briefcase className="w-4 h-4 text-slate-400" />
-                    <span className="font-bold text-slate-700 truncate">
-                      {roles.find(r => r.id === selectedRole.reportsTo)?.name || selectedRole.reportsTo}
+            <div className="p-6 sm:p-7 space-y-5">
+              
+              {!isEditing ? (
+                <>
+                  {/* VIEW DETAILS MODE */}
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                    <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
+                      <Info className="w-4 h-4 text-emerald-600" />
                     </span>
+                    <div>
+                      <h4 className="font-display text-[11px] font-black uppercase text-slate-400 tracking-wider">
+                        Corporate Node Inspector
+                      </h4>
+                      <p className="text-[10px] text-slate-500">Live org hierarchy details & reporting controls.</p>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-slate-405 text-slate-400 italic">Is at the apex (Does not report to any other role).</p>
-                )}
-              </div>
 
-              <div className="space-y-2 font-sans">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Required Skills ({selectedRole.skillRequirements.length})</h5>
-                <div className="flex flex-wrap gap-1">
-                  {selectedRole.skillRequirements.map((skill, idx) => (
-                    <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium border border-slate-200">
-                      {skill}
+                  {viewMode === 'roles' && selectedRole ? (
+                    <div className="space-y-4 text-xs font-sans">
+                      <div>
+                        <span className="text-[8.5px] uppercase font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                          {selectedRole.department}
+                        </span>
+                        <h3 className="font-display text-base font-extrabold text-slate-900 mt-2 leading-tight">
+                          {selectedRole.name}
+                        </h3>
+                        <p className="text-[9.5px] font-mono text-slate-500 mt-1">
+                          ID: {selectedRole.id}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-150 space-y-1.5">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Description / Focus</h5>
+                        <p className="text-slate-650 leading-relaxed text-[11px]">
+                          {selectedRole.description || "No description provided."}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Reports To (Supervisor)</h5>
+                        {selectedRole.reportsTo ? (
+                          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-150">
+                            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-bold text-slate-700 truncate">
+                              {roles.find(r => r.id === selectedRole.reportsTo)?.name || selectedRole.reportsTo}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-slate-400 italic text-[11px]">Is at the apex (Does not report to any other role).</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Required Skills ({selectedRole.skillRequirements.length})</h5>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedRole.skillRequirements.map((skill, idx) => (
+                            <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[9.5px] font-medium border border-slate-200">
+                              {skill}
+                            </span>
+                          ))}
+                          {selectedRole.skillRequirements.length === 0 && (
+                            <span className="text-slate-400 italic text-[11px]">No skill sets defined.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ACTIONS */}
+                      <div className="grid grid-cols-2 gap-2.5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFocusedNodeId(selectedRole.id);
+                            setSelectedNodeId(null);
+                          }}
+                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 rounded-xl border border-indigo-200/60 transition flex items-center justify-center gap-1 cursor-pointer text-[11px] active:scale-95 shadow-3xs"
+                        >
+                          <GitFork className="w-3.5 h-3.5" /> Focus Subtree
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer text-[11px] active:scale-95 shadow-2xs"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Modify Supervisor
+                        </button>
+                      </div>
+                    </div>
+                  ) : viewMode === 'employees' && selectedUser ? (
+                    <div className="space-y-4 text-xs font-sans">
+                      <div className="flex items-center gap-3">
+                        <Avatar 
+                          src={selectedUser.avatarUrl} 
+                          name={selectedUser.name} 
+                          className="w-12 h-12 border border-slate-200 shadow-3xs rounded-full" 
+                        />
+                        <div>
+                          <h3 className="font-display text-sm font-extrabold text-slate-950">
+                            {selectedUser.name}
+                          </h3>
+                          <p className="text-[10px] text-slate-500 truncate">
+                            {selectedUser.email}
+                          </p>
+                          <span className="text-[8px] uppercase font-mono font-black text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.2 rounded mt-1 inline-block">
+                            {selectedUser.department}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Corporate Role Designation</h5>
+                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-150 flex items-center gap-2">
+                          <Award className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-bold text-slate-700 truncate">
+                            {roles.find(r => r.id === selectedUser.roleId)?.name || 'Standard Trainee'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Reports To (Supervisor)</h5>
+                        {selectedUser.reportsTo ? (
+                          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-150">
+                            <Users className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-bold text-slate-700 truncate">
+                              {users.find(u => u.id === selectedUser.reportsTo)?.name || selectedUser.reportsTo}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-slate-400 italic text-[11px]">No assigned supervisor (Apex Director status).</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="font-bold text-[9px] uppercase font-mono text-slate-400 tracking-wider">Office Branch</h5>
+                        <div className="flex items-center gap-1.5 text-slate-650 font-medium">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{selectedUser.focusEntity}</span>
+                        </div>
+                      </div>
+
+                      {/* ACTIONS */}
+                      <div className="grid grid-cols-2 gap-2.5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFocusedNodeId(selectedUser.id);
+                            setSelectedNodeId(null);
+                          }}
+                          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2 rounded-xl border border-indigo-200/60 transition flex items-center justify-center gap-1 cursor-pointer text-[11px] active:scale-95 shadow-3xs"
+                        >
+                          <GitFork className="w-3.5 h-3.5" /> Focus Subtree
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer text-[11px] active:scale-95 shadow-2xs"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Modify Supervisor
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  {/* EDIT INTERFACE MODE */}
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                    <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg border border-amber-100">
+                      <Edit2 className="w-4 h-4 text-amber-600 animate-pulse" />
                     </span>
-                  ))}
-                  {selectedRole.skillRequirements.length === 0 && (
-                    <span className="text-slate-400 italic">No skill sets defined.</span>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <h4 className="font-display text-[11px] font-black uppercase text-amber-800 tracking-wider">
+                        Reporting Relationship Editor
+                      </h4>
+                      <p className="text-[10px] text-slate-500">Alter structural reporting hierarchy connections.</p>
+                    </div>
+                  </div>
 
-              {/* ACTIONS */}
-              {!isEditing && (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setFocusedNodeId(selectedRole.id)}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px] shadow-3xs"
-                  >
-                    <GitFork className="w-3.5 h-3.5" /> Isolate & Focus Subtree
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : viewMode === 'employees' && selectedUser ? (
-            <div className="space-y-4 text-xs font-sans">
-              <div className="flex items-center gap-3">
-                <Avatar 
-                  src={selectedUser.avatarUrl} 
-                  name={selectedUser.name} 
-                  className="w-12 h-12 border-2 border-emerald-50" 
-                />
-                <div>
-                  <h3 className="font-display text-sm font-extrabold text-slate-950">
-                    {selectedUser.name}
-                  </h3>
-                  <p className="text-[10px] text-slate-500 truncate">
-                    {selectedUser.email}
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                    Alter supervisor reporting lines for <span className="font-bold text-slate-900">{viewMode === 'roles' ? selectedRole?.name : selectedUser?.name}</span>.
                   </p>
-                  <span className="text-[8.5px] uppercase font-mono font-black text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.2 rounded mt-1.5 inline-block">
-                    {selectedUser.department}
-                  </span>
-                </div>
-              </div>
 
-              <div className="space-y-2 border-t pt-3">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Corporate Role Designation</h5>
-                <div className="p-2.5 bg-slate-50 rounded-lg border flex items-center gap-2">
-                  <Award className="w-4 h-4 text-slate-400" />
-                  <span className="font-bold text-slate-700">
-                    {roles.find(r => r.id === selectedUser.roleId)?.name || 'Standard Trainee'}
-                  </span>
-                </div>
-              </div>
+                  <form onSubmit={handleSaveRelationship} className="space-y-4 font-sans text-xs">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-400 uppercase font-mono tracking-wider mb-1">
+                        Select Supervisor / Reports To Parent:
+                      </label>
+                      <select
+                        value={newParentId}
+                        onChange={(e) => {
+                          setNewParentId(e.target.value);
+                          setEditError(null);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs font-semibold focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 outline-none cursor-pointer transition-colors"
+                      >
+                        <option value="">[None - Is Apex Root / Director]</option>
+                        
+                        {viewMode === 'roles' 
+                          ? parentRoleOptions.map(r => (
+                              <option key={r.id} value={r.id}>{r.name} ({r.department})</option>
+                            ))
+                          : parentUserOptions.map(u => (
+                              <option key={u.id} value={u.id}>{u.name} - {roles.find(ro => ro.id === u.roleId)?.name || 'Trainee'}</option>
+                            ))
+                        }
+                      </select>
+                    </div>
 
-              <div className="space-y-2">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Reports To (Supervisor)</h5>
-                {selectedUser.reportsTo ? (
-                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border">
-                    <Users className="w-4 h-4 text-slate-400" />
-                    <span className="font-bold text-slate-700 truncate">
-                      {users.find(u => u.id === selectedUser.reportsTo)?.name || selectedUser.reportsTo}
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-slate-400 italic">No assigned supervisor (Apex Director status).</p>
-                )}
-              </div>
+                    {editError && (
+                      <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-[10px] leading-relaxed flex items-start gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <span>{editError}</span>
+                      </div>
+                    )}
 
-              <div className="space-y-2">
-                <h5 className="font-bold text-[10px] uppercase font-mono text-slate-400">Office Branch</h5>
-                <div className="flex items-center gap-1.5 text-slate-650 font-medium">
-                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span>{selectedUser.focusEntity}</span>
-                </div>
-              </div>
-
-              {/* ACTIONS */}
-              {!isEditing && (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setFocusedNodeId(selectedUser.id)}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px] shadow-3xs"
-                  >
-                    <GitFork className="w-3.5 h-3.5" /> Isolate & Focus Subtree
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-[11px]"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Modify Reporting Officer
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-10 space-y-3 font-sans text-slate-400">
-              <GitFork className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
-              <p className="text-xs">No active node selected.</p>
-              <p className="text-[10px] text-slate-405 text-slate-400 leading-relaxed max-w-xs mx-auto">
-                Click on any node/profile in the chart to inspect its department, responsibilities, and to adjust reporting relationships.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* INTERACTIVE RELATIONSHIP EDITOR */}
-        {isEditing && selectedNodeId && (
-          <div className="bg-white rounded-3xl border border-amber-300 p-6 shadow-sm text-left ring-2 ring-amber-100">
-            <h4 className="font-display text-sm font-black text-amber-850 flex items-center gap-2 uppercase tracking-tight text-amber-800">
-              <Edit2 className="w-4 h-4" /> Reporting Editor
-            </h4>
-            <p className="text-[10px] text-slate-500 mt-1 font-sans leading-relaxed">
-              Alter reporting lines for <span className="font-black text-slate-800">{viewMode === 'roles' ? selectedRole?.name : selectedUser?.name}</span>.
-            </p>
-
-            <form onSubmit={handleSaveRelationship} className="space-y-4 mt-4 font-sans text-xs">
-              <div>
-                <label className="block text-[9px] font-bold text-slate-500 uppercase font-mono mb-1">
-                  Select Supervisor / Reports To Parent:
-                </label>
-                <select
-                  value={newParentId}
-                  onChange={(e) => {
-                    setNewParentId(e.target.value);
-                    setEditError(null);
-                  }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-amber-500 outline-none cursor-pointer"
-                >
-                  <option value="">[None - Is Apex Root / Director]</option>
-                  
-                  {viewMode === 'roles' 
-                    ? parentRoleOptions.map(r => (
-                        <option key={r.id} value={r.id}>{r.name} ({r.department})</option>
-                      ))
-                    : parentUserOptions.map(u => (
-                        <option key={u.id} value={u.id}>{u.name} - {roles.find(ro => ro.id === u.roleId)?.name || 'Trainee'}</option>
-                      ))
-                  }
-                </select>
-              </div>
-
-              {editError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 p-2.5 rounded-lg text-[10px] leading-relaxed flex items-start gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span>{editError}</span>
-                </div>
+                    <div className="flex gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditError(null);
+                        }}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-xl border border-slate-200 transition cursor-pointer text-[11px] active:scale-95"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl transition cursor-pointer text-center text-[11px] active:scale-95 shadow-2xs"
+                      >
+                        Save Map Relationship
+                      </button>
+                    </div>
+                  </form>
+                </>
               )}
 
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-emerald-650 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-1.5 rounded-lg transition cursor-pointer text-center text-[11px]"
-                >
-                  Save Map
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditError(null);
-                  }}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg transition cursor-pointer text-[11px]"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
 
       {/* EXPORT NOTIFICATION TOAST */}
       {exportNotification && (

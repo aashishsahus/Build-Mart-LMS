@@ -380,6 +380,16 @@ export default function AdminDashboard({
   // Active admin tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'
   const [adminTab, setAdminTabState] = useState<'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit'>('reports');
 
+  // Table row limits / pagination state
+  const [reportsLimit, setReportsLimit] = useState<number>(10);
+  const [approvalsLimit, setApprovalsLimit] = useState<number>(10);
+  const [usersLimit, setUsersLimit] = useState<number>(10);
+  const [rolesLimit, setRolesLimit] = useState<number>(10);
+  const [departmentsLimit, setDepartmentsLimit] = useState<number>(10);
+  const [auditLimit, setAuditLimit] = useState<number>(10);
+  const [recruitmentLogsLimit, setRecruitmentLogsLimit] = useState<number>(10);
+  const [recruitmentQuestionsLimit, setRecruitmentQuestionsLimit] = useState<number>(10);
+
   // Sidebar and Sub-tab control state
   const [adminSubTab, setAdminSubTab] = useState<string>('reports_overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -791,6 +801,21 @@ export default function AdminDashboard({
     return roles ? roles.map(r => r.id) : [];
   });
   const [userFilterRoleOpen, setUserFilterRoleOpen] = useState(false);
+
+  const matchedUsers = users.filter((item) => {
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      if (!item.name.toLowerCase().includes(q) && !item.email.toLowerCase().includes(q)) return false;
+    }
+    if (userDeptFilter !== 'all' && item.department !== userDeptFilter) return false;
+    if (userStatusFilter !== 'all') {
+      const currentStatus = item.status || 'Active';
+      if (currentStatus !== userStatusFilter) return false;
+    }
+    const ur = Array.from(new Set([item.roleId, ...(item.roleIds || [])])).filter(Boolean);
+    if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
+    return true;
+  });
 
   // ----------------------------------------------------
   // DYNAMIC COMPONENT ACTIONS
@@ -2327,11 +2352,18 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <button
                       type="button"
                       onClick={() => {
-                        setAdminTab(t.id as any);
-                        setExpandedTabs(prev => ({ ...prev, [t.id]: !prev[t.id] }));
-                        if (t.subTabs && t.subTabs.length > 0) {
-                          t.subTabs[0].onClick();
+                        if (isTabActive) {
+                          setExpandedTabs(prev => ({ ...prev, [t.id]: !prev[t.id] }));
+                        } else {
+                          setAdminTab(t.id as any);
+                          setExpandedTabs(prev => ({ ...prev, [t.id]: true }));
+                          if (t.subTabs && t.subTabs.length > 0) {
+                            t.subTabs[0].onClick();
+                          }
                         }
+                      }}
+                      onDoubleClick={() => {
+                        setExpandedTabs(prev => ({ ...prev, [t.id]: false }));
                       }}
                       className={`w-full group relative flex items-center justify-between gap-2.5 p-2 rounded-xl transition-all duration-200 text-left cursor-pointer ${
                         isTabActive 
@@ -2434,7 +2466,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         )}
 
         {/* Existing Content wrapped inside responsive container */}
-        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 animate-in fade-in duration-300 relative">
+        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-3.5 lg:py-4 animate-in fade-in duration-300 relative">
           
           {/* Dynamic Modern Toast Notification Layer */}
           {toast && (
@@ -2466,7 +2498,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </button>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-white via-slate-50 to-emerald-50/10 rounded-2xl p-4 sm:p-5 text-slate-900 relative overflow-hidden shadow-xs mb-5 border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-white via-slate-50 to-emerald-50/10 rounded-xl p-2.5 sm:p-3 text-slate-900 relative overflow-hidden shadow-xs mb-3 border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
               {/* Close Button to hide completely */}
               <button
                 onClick={() => {
@@ -2474,89 +2506,88 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   localStorage.setItem('welcome_banner_dismissed_v2', 'true');
                   showToast("✓ Welcome banner minimized to optimize screen space!", "info");
                 }}
-                className="absolute top-3 right-3 text-slate-400 hover:text-rose-500 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer z-10"
+                className="absolute top-2 right-2 text-slate-400 hover:text-rose-500 hover:bg-slate-100 p-1 rounded-lg transition-colors cursor-pointer z-10"
                 title="Minimize Banner"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
               </button>
 
               {/* Animated soft lighting */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/[0.03] rounded-full blur-2xl pointer-events-none"></div>
-              <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-500/[0.03] rounded-full blur-2xl pointer-events-none"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/[0.02] rounded-full blur-xl pointer-events-none"></div>
+              <div className="absolute bottom-0 left-1/3 w-32 h-32 bg-indigo-500/[0.02] rounded-full blur-xl pointer-events-none"></div>
               
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 pr-6">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 relative z-10 pr-6">
+                <div className="flex items-center gap-2.5">
                   <div className="relative group shrink-0">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-30"></div>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-20"></div>
                     <Avatar
                       src={currentUser.avatarUrl}
                       name={currentUser.name}
-                      className="w-12 h-12 sm:w-14 sm:h-14 border-2 border-emerald-500/20 overflow-hidden relative shadow-2xs"
+                      className="w-8 h-8 border border-emerald-500/20 overflow-hidden relative shadow-2xs"
                     />
                   </div>
                   
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[8px] font-mono tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/50 uppercase font-black">
+                  <div className="space-y-0.5 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[7.5px] font-mono tracking-wider text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/50 uppercase font-black">
                         {isDirectorOrOwner ? 'Executive Scope' : 'Checker Panel'}
                       </span>
+                      <h2 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight leading-none">
+                        Welcome, {currentUser.name}
+                      </h2>
                     </div>
                     
-                    <h2 className="font-display text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-snug">
-                      Welcome back, {currentUser.name}
-                    </h2>
-                    
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500 font-sans">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-500 font-sans leading-none">
                       <span className="font-bold text-slate-600">
                         {isDirectorOrOwner ? 'Director View' : 'Quality Checker & Audit'}
                       </span>
                       <span className="text-slate-300">•</span>
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <Building className="w-3 h-3 text-emerald-600" />
+                      <span className="flex items-center gap-0.5 text-slate-500">
+                        <Building className="w-2.5 h-2.5 text-emerald-600" />
                         {currentUser.department || 'Compliance'}
                       </span>
                       <span className="text-slate-300">•</span>
                       <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600" /> Active Scope
+                        <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Active Scope
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Highly compact, colorful & premium Horizontal stats indicators next to each other */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
+                {/* Highly compact Horizontal stats indicators */}
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   {/* Course Units Badge */}
-                  <div className="flex items-center gap-1.5 bg-sky-50/80 border border-sky-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
-                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-sky-600 font-bold">Units:</span>
-                    <span className="font-mono font-black text-sky-900 text-sm">{units.length}</span>
+                  <div className="flex items-center gap-1 bg-sky-50/80 border border-sky-100/50 py-0.5 px-2 rounded-lg shadow-3xs text-[10px]">
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-sky-600 font-bold">Units:</span>
+                    <span className="font-mono font-black text-sky-900">{units.length}</span>
                   </div>
 
                   {/* Designated Units Badge */}
-                  <div className="flex items-center gap-1.5 bg-emerald-50/80 border border-emerald-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
-                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-emerald-600 font-bold">Designated Units:</span>
-                    <span className="font-mono font-black text-emerald-900 text-sm">{departments.length}</span>
+                  <div className="flex items-center gap-1 bg-emerald-50/80 border border-emerald-100/50 py-0.5 px-2 rounded-lg shadow-3xs text-[10px]">
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-600 font-bold">Designated Units:</span>
+                    <span className="font-mono font-black text-emerald-900">{departments.length}</span>
                   </div>
 
                   {/* Enrolled Trainees Badge */}
-                  <div className="flex items-center gap-1.5 bg-indigo-50/80 border border-indigo-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
-                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-indigo-600 font-bold">Trainees:</span>
-                    <span className="font-mono font-black text-indigo-900 text-sm">{users.length}</span>
+                  <div className="flex items-center gap-1 bg-indigo-50/80 border border-indigo-100/50 py-0.5 px-2 rounded-lg shadow-3xs text-[10px]">
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-indigo-600 font-bold">Trainees:</span>
+                    <span className="font-mono font-black text-indigo-900">{users.length}</span>
                   </div>
 
                   {/* Avg Mastery Index Badge */}
-                  <div className="flex items-center gap-1.5 bg-purple-50/80 border border-purple-100/60 py-1.5 px-3 rounded-xl shadow-3xs text-xs">
-                    <span className="text-[8.5px] font-mono uppercase tracking-wider text-purple-600 font-bold">Avg Mastery:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-black text-purple-900 text-sm">{systemAverageMastery}%</span>
-                      <div className="w-10 bg-purple-200/50 h-1 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                  <div className="flex items-center gap-1 bg-purple-50/80 border border-purple-100/50 py-0.5 px-2 rounded-lg shadow-3xs text-[10px]">
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-purple-600 font-bold">Avg Mastery:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono font-black text-purple-900">{systemAverageMastery}%</span>
+                      <div className="w-8 bg-purple-200/50 h-0.5 rounded-full overflow-hidden shrink-0 hidden sm:block">
                         <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${systemAverageMastery}%` }}></div>
                       </div>
                     </div>
                   </div>
 
                   {/* Live status capsule */}
-                  <div className="flex items-center bg-teal-50 border border-teal-100/70 text-[8px] font-bold px-2 py-1 rounded-xl uppercase gap-1 font-mono text-teal-800 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                  <div className="flex items-center bg-teal-50 border border-teal-100/50 text-[7.5px] font-bold px-1.5 py-0.5 rounded-lg uppercase gap-1 font-mono text-teal-800 shrink-0">
+                    <span className="w-1 h-1 rounded-full bg-teal-500 animate-pulse"></span>
                     Live
                   </div>
                 </div>
@@ -2590,62 +2621,62 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           {adminTab === 'reports' && (
             <div className="space-y-6 animate-in fade-in duration-200">
               
-              {/* Premium Top Action Bar to Toggle Departments Panel */}
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-white p-3.5 px-5 rounded-2xl border border-slate-200/90 shadow-3xs animate-in fade-in duration-200">
-                <div className="flex items-center gap-2.5">
-                  <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/60 shadow-3xs">
-                    <Building className="w-4 h-4 text-emerald-600" />
-                  </span>
-                  <div>
-                    <span className="block text-[9px] font-mono font-black text-slate-400 uppercase tracking-wider leading-none">Subsystem Directory</span>
-                    <span className="text-xs font-bold text-slate-700 font-sans mt-0.5 block">
-                      Live Performance Scorecard & Learning Insights
-                    </span>
-                  </div>
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowDepartmentsSidebar(!showDepartmentsSidebar)}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 cursor-pointer select-none border shadow-3xs ${
-                    showDepartmentsSidebar
-                      ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500 hover:border-indigo-500 hover:shadow-indigo-500/10'
-                      : 'bg-white text-slate-700 border-slate-250 hover:bg-slate-50 hover:text-indigo-650 hover:border-indigo-200'
-                  }`}
-                >
-                  <Building className="w-3.5 h-3.5 animate-pulse" />
-                  <span>
-                    {showDepartmentsSidebar ? 'Hide Departments Panel' : 'Show Departments Directory'}
-                  </span>
-                  <span className={`ml-1 px-1.5 py-0.2 rounded font-mono font-black text-[9px] border ${
-                    showDepartmentsSidebar
-                      ? 'bg-white/20 text-white border-white/15'
-                      : 'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}>
-                    {departments.length}
-                  </span>
-                </button>
-              </div>
-
-              {/* Grid Layout: Left Main Area & Right Sidebar */}
+              {/* Grid Layout: Main Area */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 
-                {/* LEFT COLUMN: MAIN WORKFORCE SCORECARD DIRECTORY & ANALYTICS COCKPIT */}
-                <div className={`${showDepartmentsSidebar ? 'lg:col-span-9' : 'lg:col-span-12'} space-y-6 transition-all duration-350`}>
+                {/* MAIN WORKFORCE SCORECARD DIRECTORY & ANALYTICS COCKPIT */}
+                <div className={`${showDepartmentsSidebar ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-12'} space-y-6 transition-all duration-350`}>
 
                   {/* Trainee Stands & Scorecard Directory */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs space-y-3.5">
+                    
+                    {/* Unified Premium Header: Merging both headers and adding Show/Hide toggle button */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100/60 shadow-3xs shrink-0">
+                          <Users className="w-4 h-4 text-emerald-600" />
+                        </span>
+                        <div className="text-left">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-none">
+                              Live Performance Scorecard & Insights
+                            </h3>
+                            <span className="bg-emerald-100 text-emerald-800 text-[8px] font-mono px-1 rounded font-bold uppercase tracking-wide">Live</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowDepartmentsSidebar(!showDepartmentsSidebar)}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all duration-300 cursor-pointer select-none border shadow-3xs shrink-0 ${
+                          showDepartmentsSidebar
+                            ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500 hover:border-indigo-500 hover:shadow-indigo-500/10'
+                            : 'bg-white text-slate-700 border-slate-250 hover:bg-slate-50 hover:text-indigo-650 hover:border-indigo-200'
+                        }`}
+                      >
+                        <Building className="w-3 h-3 animate-pulse" />
+                        <span>
+                          {showDepartmentsSidebar ? 'Hide Departments' : 'Show Departments'}
+                        </span>
+                        <span className={`ml-0.5 px-1 py-0.2 rounded font-mono font-black text-[9px] border ${
+                          showDepartmentsSidebar
+                            ? 'bg-white/20 text-white border-white/15'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {departments.length}
+                        </span>
+                      </button>
+                    </div>
+
                 {isDirectorOrOwner ? (
                   <>
-                    <h3 className="text-md font-black text-slate-900 flex items-center gap-1.5 border-b border-slate-100 pb-4">
-                      <BarChart2 className="w-5 h-5 text-emerald-600" />
-                      Corporate Workforce Completion & Progress Standings
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed font-sans">
-                      Executive summary of company training completion, active progress distribution stages, and verified skill mastery indexes across the department tiers. Individual employee profiles and scorecards are restricted to Senior Accountants and LMS Administrators for privacy and audit security compliance.
-                    </p>
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-850 flex items-center gap-2 mt-4">
+                      <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Individual employee profiles and scorecards are restricted to Senior Accountants and LMS Administrators for privacy and audit security compliance.</span>
+                    </div>
 
-                    <div className="mt-6 bg-slate-50 rounded-2xl p-6 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="mt-4 bg-slate-50 rounded-2xl p-6 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="flex flex-col justify-center">
                         <h4 className="text-sm font-extrabold text-slate-900 border-b pb-2 mb-3 flex items-center gap-1.5 font-sans">
                           <Shield className="w-4 h-4 text-emerald-600" />
@@ -2704,20 +2735,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </>
               ) : (
                 <>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-100 pb-4">
-                      <div>
-                        <h3 className="text-md font-black text-slate-900 flex items-center gap-1.5">
-                          <Users className="w-5 h-5 text-emerald-600" />
-                          Workforce Standings & Global Scorecard Directory
-                        </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Check live learning milestones, core curriculum completion progress, and exam standings in real-time.
-                        </p>
-                      </div>
-                    </div>
 
                 {/* Filter and search bar */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Search Practitioner Name/Email</label>
                     <input
@@ -2809,21 +2829,43 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
                 </div>
 
+                {/* Show entries control and status bar */}
+                <div className="flex items-center justify-between gap-2 py-1.5">
+                  <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
+                    Showing {Math.min(reportsLimit, scoreFilteredUsers.length)} of {scoreFilteredUsers.length} Staff Members
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                    <span>Show entries:</span>
+                    <select
+                      value={reportsLimit}
+                      onChange={(e) => setReportsLimit(Number(e.target.value))}
+                      className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={500}>500</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Scorecard Table List */}
-                <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-3xs text-[11px] max-w-full">
+                <div className="overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-3xs text-[11px] max-w-full max-h-[300px]">
                   <table className="w-full text-left text-xs text-slate-655 border-collapse min-w-[750px]">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-800 border-b border-slate-250 text-[10px] tracking-wider uppercase font-display font-extrabold">
-                        <th className="p-3.5 pl-5">Staff Member</th>
-                        <th className="p-3.5 text-center">Business Unit</th>
-                        <th className="p-3.5">Curriculum Progress</th>
-                        <th className="p-3.5 text-center">Mastery Index</th>
-                        <th className="p-3.5 text-center">Exams Rating</th>
-                        <th className="p-3.5 pr-5 text-right">Details</th>
+                      <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 border-b border-slate-250 text-[10px] tracking-wider uppercase font-display font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                        <th className="p-2.5 bg-slate-50 pl-5 text-[9.5px] font-black uppercase text-slate-500 tracking-wider">Staff Member</th>
+                        <th className="p-2.5 bg-slate-50 text-center">Business Unit</th>
+                        <th className="p-2.5 bg-slate-50">Curriculum Progress</th>
+                        <th className="p-2.5 bg-slate-50 text-center">Mastery Index</th>
+                        <th className="p-2.5 bg-slate-50 text-center">Exams Rating</th>
+                        <th className="p-2.5 bg-slate-50 pr-5 text-right">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-705">
-                      {scoreFilteredUsers.map((user) => {
+                      {scoreFilteredUsers.slice(0, reportsLimit).map((user) => {
                         const stats = calculateUserProgress(user.id, user.roleId);
                         const roleObj = roles.find(r => r.id === user.roleId);
                         
@@ -2835,58 +2877,56 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                         return (
                           <tr key={user.id} className="hover:bg-slate-50/50 transition">
-                            <td className="p-3.5 pl-5">
+                            <td className="p-2 pl-5">
                               <div className="flex items-center gap-2.5">
                                 <Avatar
                                   src={user.avatarUrl}
                                   name={user.name}
-                                  className="w-9 h-9 border border-slate-200 shadow-3xs"
+                                  className="w-7 h-7 border border-slate-200 shadow-3xs shrink-0"
                                 />
-                                <div>
-                                  <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                                    {user.name}
-                                    {user.roleId === 'role_sr_acc' && (
-                                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] px-1.5 py-0.2 rounded font-mono uppercase font-extrabold tracking-wide">Admin</span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-slate-700 font-sans font-bold tracking-tight flex items-center flex-wrap gap-1.5 mt-1">
-                                    <span className="text-slate-800 font-extrabold">{user.focusEntity || 'Accounts' }</span>
-                                    <span className="text-slate-350 select-none font-extrabold">•</span>
-                                    <span className="bg-zinc-100 text-zinc-800 font-mono font-bold text-[9px] uppercase tracking-wide px-1.5 py-0.2 rounded border border-zinc-200">{roleObj?.name || 'Trainee'}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedRoleDetailUser(user)}
-                                      className="inline-flex items-center gap-1 text-[9.5px] text-indigo-700 hover:text-indigo-900 bg-indigo-50/90 hover:bg-slate-100 border border-indigo-200 rounded-md px-2 py-0.5 font-sans font-extrabold tracking-normal transition cursor-pointer"
-                                      title="Click to view designations mapped and role specifications"
-                                    >
-                                      View Mapped Roles
-                                    </button>
-                                  </div>
+                                <div className="flex items-center gap-x-2 gap-y-1 text-[10px] text-slate-600 font-sans font-bold tracking-tight flex-wrap">
+                                  <span className="font-bold text-slate-900 text-[11px] whitespace-nowrap">{user.name}</span>
+                                  {user.roleId === 'role_sr_acc' && (
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] px-1.5 py-0.2 rounded font-mono uppercase font-black tracking-wide shrink-0">Admin</span>
+                                  )}
+                                  <span className="text-slate-300 select-none font-extrabold">•</span>
+                                  <span className="text-slate-705 font-bold whitespace-nowrap">{user.focusEntity || 'Accounts'}</span>
+                                  <span className="text-slate-300 select-none font-extrabold">•</span>
+                                  <span className="bg-zinc-100 text-zinc-800 font-mono font-bold text-[8.5px] uppercase tracking-wide px-1.5 py-0.2 rounded border border-zinc-200 whitespace-nowrap shrink-0">{roleObj?.name || 'Trainee'}</span>
+                                  <span className="text-slate-300 select-none font-extrabold">•</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedRoleDetailUser(user)}
+                                    className="inline-flex items-center gap-1 text-[8.5px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded px-1.5 py-0.2 font-sans font-black tracking-tight transition cursor-pointer shrink-0"
+                                    title="Click to view designations mapped and role specifications"
+                                  >
+                                    View Mapped Roles
+                                  </button>
                                 </div>
                               </div>
                             </td>
 
-                            <td className="p-3.5 text-center">
-                              <span className="inline-block bg-zinc-100 text-zinc-900 border border-zinc-300 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[140px] text-center leading-tight">
+                            <td className="p-2 text-center">
+                              <span className="inline-block bg-zinc-100 text-zinc-900 border border-zinc-300 px-2 py-0.5 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[140px] text-center leading-tight">
                                 {user.department}
                               </span>
                             </td>
 
-                            <td className="p-3.5">
-                              <div className="space-y-1 max-w-[150px]">
-                                <div className="flex justify-between items-center text-[10.5px] text-slate-700 font-mono font-extrabold">
+                            <td className="p-2">
+                              <div className="space-y-0.5 max-w-[150px]">
+                                <div className="flex justify-between items-center text-[10px] text-slate-700 font-mono font-extrabold">
                                   <span>{stats.completedCount}/{stats.totalUnits} Units</span>
                                   <span className="font-extrabold text-indigo-700">{stats.overallPercent}%</span>
                                 </div>
-                                <div className="h-2 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex shadow-inner">
-                                  <div className="bg-indigo-600 h-2" style={{ width: `${stats.overallPercent}%` }}></div>
+                                <div className="h-1.5 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex shadow-inner">
+                                  <div className="bg-indigo-600 h-1.5" style={{ width: `${stats.overallPercent}%` }}></div>
                                 </div>
                               </div>
                             </td>
 
-                            <td className="p-3.5 text-center">
+                            <td className="p-2 text-center">
                               <div className="inline-block text-center pr-2">
-                                <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-black border ${
+                                <span className={`px-2 py-0.5 rounded-md font-mono text-[10.5px] font-black border ${
                                   stats.masteryPercent >= 80 
                                     ? 'bg-emerald-100 text-emerald-950 border-emerald-300' 
                                     : stats.masteryPercent >= 40 
@@ -2898,30 +2938,30 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               </div>
                             </td>
 
-                            <td className="p-3.5 text-center">
+                            <td className="p-2 text-center">
                               {highestAttempt ? (
                                 <div className="inline-flex flex-col items-center">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black border ${
+                                  <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-black border ${
                                     highestAttempt.passed 
                                       ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold' 
                                       : 'bg-rose-100 border-rose-300 text-rose-950 font-extrabold'
                                   }`}>
                                     {highestAttempt.score}% {highestAttempt.passed ? 'PASSED' : 'FAILED'}
                                   </span>
-                                  <span className="text-[9px] text-slate-500 font-mono font-bold mt-0.5">
+                                  <span className="text-[8.5px] text-slate-500 font-mono font-bold mt-0.5">
                                     {new Date(highestAttempt.date || highestAttempt.timestamp).toLocaleDateString()}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-slate-500 font-sans font-extrabold italic">No Exams</span>
+                                <span className="text-[9.5px] text-slate-500 font-sans font-extrabold italic">No Exams</span>
                               )}
                             </td>
 
-                            <td className="p-3.5 pr-5 text-right">
+                            <td className="p-2 pr-5 text-right">
                               <button
                                 type="button"
                                 onClick={() => setInspectedUser(user)}
-                                className="bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 font-sans font-bold text-[11px] px-2.5 py-1 rounded-lg transition shadow-3xs flex items-center gap-1 inline-flex justify-center"
+                                className="bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 font-sans font-bold text-[10.5px] px-2.5 py-0.5 rounded-lg transition shadow-3xs flex items-center gap-1 inline-flex justify-center"
                               >
                                 View Scoreboard
                               </button>
@@ -2993,24 +3033,34 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </>
             )}
             </div>
-            </div>
-            
+          </div>
+
             {/* RIGHT SIDEBAR: Collapsible Department-Wise Performance Reports */}
             {showDepartmentsSidebar && (
-              <div className="lg:col-span-3 space-y-4 animate-in slide-in-from-right-4 duration-300">
+              <div className="lg:col-span-4 xl:col-span-3 space-y-4 animate-in slide-in-from-right-4 duration-300">
                 <div className="bg-slate-50/70 rounded-3xl border border-slate-200/80 p-4.5 shadow-xs space-y-4">
-                  <div>
+                  <div className="flex items-center justify-between gap-2">
                     <h3 className="text-md font-black text-slate-900 flex items-center gap-2">
                       <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-150 shadow-3xs">
                         <Building className="w-4 h-4" />
                       </div>
-                      <span className="font-display text-xs tracking-tight">Departments Directory</span>
-                      <span className="ml-1 font-mono text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200 font-black">{departments.length} Units</span>
+                      <div>
+                        <span className="font-display text-xs font-bold tracking-tight text-slate-850">Departments</span>
+                        <span className="ml-1.5 font-mono text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200 font-black">{departments.length} Units</span>
+                      </div>
                     </h3>
-                    <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed font-sans">
-                      Live metrics with progress and mastery ratings. Click a card to filter scorecard.
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDepartmentsSidebar(false)}
+                      className="p-1 hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                      title="Hide Sidebar"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-sans">
+                    Live metrics with progress & mastery ratings. Click a card or designation to filter. Auto-hides on click.
+                  </p>
 
                   {/* Active Dept filter badge display if filtering */}
                   {scorecardDeptFilters.length > 0 && (
@@ -3020,8 +3070,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           Active Filters ({scorecardDeptFilters.length})
                         </span>
                         <button
+                          type="button"
                           onClick={() => setScorecardDeptFilters([])}
-                          className="text-indigo-600 hover:text-indigo-800 text-[8.5px] font-black uppercase tracking-wider transition"
+                          className="text-indigo-600 hover:text-indigo-800 text-[8.5px] font-black uppercase tracking-wider transition cursor-pointer"
                         >
                           Clear
                         </button>
@@ -3031,126 +3082,135 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           <span key={dept} className="font-mono bg-white px-1.5 py-0.5 text-[8.5px] rounded border border-indigo-200 text-indigo-700 uppercase font-black flex items-center gap-0.5">
                             {dept}
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== dept));
                               }}
-                              className="text-slate-404 text-slate-400 hover:text-red-500 font-bold ml-1 text-[8px]"
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-[660px] overflow-y-auto pr-1 scrollbar-thin">
-                    {departmentReports.map((deptRep) => {
-                      const isSelected = scorecardDeptFilters.includes(deptRep.name);
-                      const theme = getDeptTheme(deptRep.name);
-                      const ThemeIcon = theme.icon;
-
-                      return (
-                        <div
-                          key={deptRep.name}
-                          onClick={() => {
-                            if (isSelected) {
-                              setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== deptRep.name));
-                            } else {
-                              setScorecardDeptFilters([...scorecardDeptFilters, deptRep.name]);
-                            }
-                          }}
-                          className={`group relative overflow-hidden rounded-xl p-2.5 border-l-[3px] border-y border-r cursor-pointer transition-all duration-205 flex flex-col gap-2 hover:-translate-y-[1px] ${
-                            isSelected 
-                              ? theme.selectedBg + ' ' + theme.accent + ' border-l-current border-y-indigo-100/50 border-r-indigo-100/50 shadow-sm'
-                              : 'bg-white hover:bg-slate-50 border-slate-200/85 ' + theme.accent + ' shadow-3xs'
-                          }`}
-                        >
-                          {/* Inner Header */}
-                          <div className="flex justify-between items-start gap-1.5">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200 shadow-3xs group-hover:scale-105 ${
-                                isSelected ? 'bg-slate-900 text-white border-slate-805' : theme.bg
-                              }`}>
-                                <ThemeIcon className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="min-w-0">
-                                <h4 className="text-[10px] font-mono font-black tracking-wide uppercase text-slate-700 truncate max-w-[105px]">
-                                  {deptRep.name}
-                                </h4>
-                                <div className="text-[9px] text-slate-400 font-sans mt-0.5 leading-none">
-                                  {deptRep.headcount} Staff • {deptRep.rolesCount} Roles
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="shrink-0 flex items-center gap-1">
-                              {deptRep.pendingCount > 0 && (
-                                <span className="bg-amber-100 text-amber-808 border border-amber-200/45 px-1.5 py-0.5 rounded text-[7.5px] font-mono font-black animate-pulse">
-                                  {deptRep.pendingCount}
-                                </span>
-                              )}
-                              {isSelected ? (
-                                <div className="w-3.5 h-3.5 rounded-full bg-slate-900 text-white flex items-center justify-center">
-                                  <Check className="w-2 h-2 stroke-[3]" />
-                                </div>
-                              ) : (
-                                <ArrowUpRight className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200" />
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Progress bars (Syllabus progress & Skill mastery) */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100/85">
-                            <div>
-                              <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-500 mb-0.5">
-                                <span className="truncate">Syllabus</span>
-                                <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgProgress}%</span>
-                              </div>
-                              <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
-                                <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgProgress}%` }}></div>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-550 mb-0.5">
-                                <span className="truncate">Mastery</span>
-                                <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgMastery}%</span>
-                              </div>
-                              <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
-                                <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgMastery}%` }}></div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Department Roles List */}
-                          <div className="mt-1.5 pt-1.5 border-t border-slate-200 flex flex-col gap-1">
-                            <span className="text-[8.5px] font-extrabold text-slate-600 uppercase tracking-wider font-display">
-                              Designations ({deptRep.rolesCount})
-                            </span>
-                            <div className="flex flex-wrap gap-0.5">
-                              {roles.filter(r => r.department === deptRep.name).map(r => (
-                                <span 
-                                  key={r.id} 
-                                  className="bg-slate-100 text-slate-900 border border-slate-200 rounded px-1.5 py-0.2 text-[8px] font-sans font-extrabold tracking-tight truncate max-w-full"
-                                  title={r.name}
-                                >
-                                  {r.name}
-                                </span>
-                              ))}
-                              {roles.filter(r => r.department === deptRep.name).length === 0 && (
-                                <span className="text-[8px] text-slate-400 italic">No roles</span>
-                              )}
-                            </div>
+                              className="text-slate-400 hover:text-red-500 font-bold ml-1 text-[8px] cursor-pointer"
+                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
                           </div>
                         </div>
-                      );
-                    })}
+                      )}
+
+                      <div className="space-y-2.5 max-h-[700px] overflow-y-auto pr-1 scrollbar-thin">
+                        {departmentReports.map((deptRep) => {
+                          const isSelected = scorecardDeptFilters.includes(deptRep.name);
+                          const theme = getDeptTheme(deptRep.name);
+                          const ThemeIcon = theme.icon;
+
+                          return (
+                            <div
+                              key={deptRep.name}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== deptRep.name));
+                                } else {
+                                  setScorecardDeptFilters([...scorecardDeptFilters, deptRep.name]);
+                                }
+                                // AUTO HIDE sidebar on department click!
+                                setShowDepartmentsSidebar(false);
+                              }}
+                              className={`group relative overflow-hidden rounded-xl p-3 border-l-[3px] border-y border-r cursor-pointer transition-all duration-205 flex flex-col gap-2 hover:-translate-y-[1px] ${
+                                isSelected 
+                                  ? theme.selectedBg + ' ' + theme.accent + ' border-l-current border-y-indigo-100/50 border-r-indigo-100/50 shadow-sm'
+                                  : 'bg-white hover:bg-slate-50 border-slate-200/85 ' + theme.accent + ' shadow-3xs'
+                              }`}
+                            >
+                              {/* Inner Header */}
+                              <div className="flex justify-between items-start gap-1.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200 shadow-3xs group-hover:scale-105 ${
+                                    isSelected ? 'bg-slate-900 text-white border-slate-805' : theme.bg
+                                  }`}>
+                                    <ThemeIcon className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-[10px] font-mono font-black tracking-wide uppercase text-slate-700 truncate max-w-[105px]">
+                                      {deptRep.name}
+                                    </h4>
+                                    <div className="text-[9px] text-slate-400 font-sans mt-0.5 leading-none">
+                                      {deptRep.headcount} Staff • {deptRep.rolesCount} Roles
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 flex items-center gap-1">
+                                  {deptRep.pendingCount > 0 && (
+                                    <span className="bg-amber-100 text-amber-808 border border-amber-204 px-1.5 py-0.5 rounded text-[7.5px] font-mono font-black animate-pulse">
+                                      {deptRep.pendingCount}
+                                    </span>
+                                  )}
+                                  {isSelected ? (
+                                    <div className="w-3.5 h-3.5 rounded-full bg-slate-900 text-white flex items-center justify-center">
+                                      <Check className="w-2 h-2 stroke-[3]" />
+                                    </div>
+                                  ) : (
+                                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200" />
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Progress bars (Syllabus progress & Skill mastery) */}
+                              <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100/85">
+                                <div>
+                                  <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-500 mb-0.5">
+                                    <span className="truncate">Syllabus</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgProgress}%</span>
+                                  </div>
+                                  <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgProgress}%` }}></div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex justify-between items-center text-[8.5px] font-sans font-semibold text-slate-550 mb-0.5">
+                                    <span className="truncate">Mastery</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[7.5px]">{deptRep.avgMastery}%</span>
+                                  </div>
+                                  <div className="h-0.75 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className={`bg-gradient-to-r ${theme.color} h-full transition-all duration-550`} style={{ width: `${deptRep.avgMastery}%` }}></div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Department Roles List */}
+                              <div className="mt-1.5 pt-1.5 border-t border-slate-200 flex flex-col gap-1">
+                                <span className="text-[8.5px] font-extrabold text-slate-600 uppercase tracking-wider font-display">
+                                  Designations ({deptRep.rolesCount})
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {roles.filter(r => r.department === deptRep.name).map(r => (
+                                    <span 
+                                      key={r.id} 
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Avoid triggering parent click which sets department filter
+                                        setScorecardRoleFilter(r.id); // Set active role filter
+                                        // AUTO HIDE sidebar on designation click!
+                                        setShowDepartmentsSidebar(false);
+                                      }}
+                                      className="bg-slate-100 hover:bg-indigo-50 text-slate-900 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 rounded px-1.5 py-0.5 text-[8px] font-sans font-extrabold tracking-tight truncate max-w-full cursor-pointer transition-all duration-150"
+                                      title={r.name}
+                                    >
+                                      {r.name}
+                                    </span>
+                                  ))}
+                                  {roles.filter(r => r.department === deptRep.name).length === 0 && (
+                                    <span className="text-[8px] text-slate-400 italic">No roles</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
           </div>
         </div>
       )}
@@ -3176,17 +3236,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 1.5: ENROLLMENT APPROVALS
           ---------------------------------------------------- */}
       {adminTab === 'approvals' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-5 border-b border-indigo-50 pb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3 border-b border-indigo-50 pb-2">
             <div>
-              <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 New Enrollments Pending Approval
               </h3>
-              <p className="text-xs text-slate-500 mt-1">Review self-registered team members, verify their mapped primary job roles, and authorize their training accounts before they can log in.</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200/60 font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[9px] font-mono bg-amber-50 text-amber-800 border border-amber-200/60 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Only Admin / HR Authorized
               </span>
             </div>
@@ -3287,55 +3346,77 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 }
 
                 return (
-                  <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-250 font-display text-[10px] uppercase font-extrabold tracking-wider text-slate-800">
-                          <th className="py-4 px-4 font-extrabold">Trainee Profile</th>
-                          <th className="py-4 px-4 font-extrabold">Focus Entity & BU</th>
-                          <th className="py-4 px-4 font-extrabold">Requested Primary Job Role</th>
-                          <th className="py-4 px-4 text-center font-extrabold">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-xs text-slate-600">
-                        {pendingFiltered.map((u) => {
-                          const mappedRole = roles.find(r => r.id === u.roleId);
-                    return (
-                      <tr key={u.id} className="hover:bg-slate-50/40 transition">
-                        {/* Trainee Profile */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar
-                              src={u.avatarUrl}
-                              name={u.name}
-                              className="w-10 h-10 border border-slate-205 shrink-0"
-                            />
-                            <div>
-                              <p className="font-bold text-slate-900">{u.name}</p>
-                              <p className="text-[10px] text-slate-400 font-mono select-all leading-tight">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
+                  <div className="space-y-2">
+                    {/* Show entries control and status bar */}
+                    <div className="flex items-center justify-between gap-2 py-1">
+                      <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
+                        Showing {Math.min(approvalsLimit, pendingFiltered.length)} of {pendingFiltered.length} Approvals
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                        <span>Show entries:</span>
+                        <select
+                          value={approvalsLimit}
+                          onChange={(e) => setApprovalsLimit(Number(e.target.value))}
+                          className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                    </div>
 
-                        {/* Focus Entity & BU */}
-                        <td className="py-4 px-4 font-sans">
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1">
-                              <Building className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="font-semibold text-slate-800">{u.focusEntity || 'Rathi Buildmart'}</span>
+                    <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[300px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="sticky top-0 z-10 bg-slate-50 border-b border-slate-250 font-display text-[10px] uppercase font-extrabold tracking-wider text-slate-800 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                            <th className="py-2.5 px-3 font-extrabold bg-slate-50">Trainee Profile</th>
+                            <th className="py-2.5 px-3 font-extrabold bg-slate-50">Focus Entity & BU</th>
+                            <th className="py-2.5 px-3 font-extrabold bg-slate-50">Requested Primary Job Role</th>
+                            <th className="py-2.5 px-3 text-center font-extrabold bg-slate-50">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-150 text-xs text-slate-600">
+                          {pendingFiltered.slice(0, approvalsLimit).map((u) => {
+                            const mappedRole = roles.find(r => r.id === u.roleId);
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-50/40 transition">
+                          {/* Trainee Profile */}
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-2">
+                              <Avatar
+                                src={u.avatarUrl}
+                                name={u.name}
+                                className="w-8 h-8 border border-slate-205 shrink-0"
+                              />
+                              <div>
+                                <p className="font-bold text-slate-900 leading-tight">{u.name}</p>
+                                <p className="text-[9.5px] text-slate-400 font-mono select-all leading-tight">{u.email}</p>
+                              </div>
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              Dept: {u.department || 'Account'}
+                          </td>
+  
+                          {/* Focus Entity & BU */}
+                          <td className="py-2 px-3 font-sans">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="font-semibold text-slate-800 text-[11px]">{u.focusEntity || 'Rathi Buildmart'}</span>
+                              </div>
+                              <div className="text-[9.5px] text-slate-500 font-mono leading-none">
+                                Dept: {u.department || 'Account'}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-
-                        {/* Requested Job Role Selection */}
-                        <td className="py-4 px-4">
-                          <div className="space-y-1.5 max-w-[240px]">
-                            <select
-                              value={u.roleId}
-                              onChange={(e) => {
+                          </td>
+  
+                          {/* Requested Job Role Selection */}
+                          <td className="py-2 px-3">
+                            <div className="space-y-1 max-w-[240px]">
+                              <select
+                                value={u.roleId}
+                                onChange={(e) => {
                                 const roleId = e.target.value;
                                 const r = roles.find(rl => rl.id === roleId);
                                 const updatedUsers = users.map(user => 
@@ -3406,8 +3487,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     </tbody>
                   </table>
                 </div>
-                );
-              })()}
+              </div>
+            );
+          })()}
             </div>
           )}
         </div>
@@ -3419,27 +3501,26 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 2: USER DATA MANAGEMENT
           ---------------------------------------------------- */}
       {adminTab === 'users' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-5 border-b border-slate-100 pb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3 border-b border-slate-100 pb-2">
             <div>
-              <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-600" />
+              <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-emerald-600" />
                 Corporate User Registry & Completion Audits
               </h3>
-              <p className="text-xs text-slate-500 mt-1">Manage employee training directories, assign curricula pathways, and audit verification statuses.</p>
             </div>
             
-            <div className="flex flex-wrap gap-2 self-start mt-2 sm:mt-0">
+            <div className="flex flex-wrap gap-1.5 self-start sm:self-center">
               <button
                 onClick={() => {
                   setShowBatchSyncer(!showBatchSyncer);
                   setIsAddingUser(false);
                 }}
                 id="btn-trigger-batch-sync"
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded-lg transition border border-indigo-200/55 flex items-center gap-1.5 cursor-pointer"
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition border border-indigo-200/55 flex items-center gap-1 cursor-pointer"
               >
-                {showBatchSyncer ? <X className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                {showBatchSyncer ? "Close Syncer" : "Batch Share Job Profiles 👥"}
+                {showBatchSyncer ? <X className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                {showBatchSyncer ? "Close Syncer" : "Batch Share Profiles 👥"}
               </button>
 
               <button
@@ -3988,56 +4069,45 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             </div>
 
-            <div className="pt-4 self-end text-[10px] font-mono text-slate-400 font-medium">
-              TRAINEES MATCHED: <strong className="text-slate-700 text-xs">
-                {users.filter((item) => {
-                  if (userSearchQuery.trim()) {
-                    const q = userSearchQuery.toLowerCase();
-                    if (!item.name.toLowerCase().includes(q) && !item.email.toLowerCase().includes(q)) return false;
-                  }
-                  if (userDeptFilter !== 'all' && item.department !== userDeptFilter) return false;
-                  if (userStatusFilter !== 'all') {
-                    const currentStatus = item.status || 'Active';
-                    if (currentStatus !== userStatusFilter) return false;
-                  }
-                  const ur = Array.from(new Set([item.roleId, ...(item.roleIds || [])])).filter(Boolean);
-                  if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
-                  return true;
-                }).length}
-              </strong>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-3 w-full border-t border-slate-100">
+              <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
+                TRAINEES MATCHED: <strong className="text-slate-700 text-xs">{matchedUsers.length}</strong>
+              </div>
+              
+              <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs self-end">
+                <span>Show entries:</span>
+                <select
+                  value={usersLimit}
+                  onChange={(e) => setUsersLimit(Number(e.target.value))}
+                  className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto select-none mt-2">
+          <div className="overflow-x-auto select-none mt-2 border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[300px] overflow-y-auto">
             <table className="w-full text-left font-sans text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b border-slate-200 font-extrabold">
-                  <th className="p-3.5 pl-4">Employee Information</th>
-                  <th className="p-3.5">Assigned Department</th>
-                  <th className="p-3.5">Location/Entity</th>
-                  <th className="p-3.5">Curriculum Assignment</th>
-                  <th className="p-3.5 text-center">Status</th>
-                  <th className="p-3.5 text-center bg-purple-500/5 text-purple-700 font-bold tracking-tight rounded-t-lg">Security Passkey</th>
-                  <th className="p-3.5 text-center">Path Met</th>
-                  <th className="p-3.5 text-center">Mastery Met</th>
-                  <th className="p-3.5 text-center pr-4">Control Fields</th>
+                <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b border-slate-200 font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                  <th className="py-2.5 px-3 pl-4 bg-slate-50">Employee Information</th>
+                  <th className="py-2.5 px-3 bg-slate-50">Assigned Department</th>
+                  <th className="py-2.5 px-3 bg-slate-50">Location/Entity</th>
+                  <th className="py-2.5 px-3 bg-slate-50">Curriculum Assignment</th>
+                  <th className="py-2.5 px-3 text-center bg-slate-50">Status</th>
+                  <th className="py-2.5 px-3 text-center bg-purple-500/5 text-purple-700 font-bold tracking-tight bg-slate-50">Security Passkey</th>
+                  <th className="py-2.5 px-3 text-center bg-slate-50">Path Met</th>
+                  <th className="py-2.5 px-3 text-center bg-slate-50">Mastery Met</th>
+                  <th className="py-2.5 px-3 text-center pr-4 bg-slate-50">Control Fields</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {users.filter((item) => {
-                  if (userSearchQuery.trim()) {
-                    const q = userSearchQuery.toLowerCase();
-                    if (!item.name.toLowerCase().includes(q) && !item.email.toLowerCase().includes(q)) return false;
-                  }
-                  if (userDeptFilter !== 'all' && item.department !== userDeptFilter) return false;
-                  if (userStatusFilter !== 'all') {
-                    const currentStatus = item.status || 'Active';
-                    if (currentStatus !== userStatusFilter) return false;
-                  }
-                  const ur = Array.from(new Set([item.roleId, ...(item.roleIds || [])])).filter(Boolean);
-                  if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
-                  return true;
-                }).map((item) => {
+                {matchedUsers.slice(0, usersLimit).map((item) => {
                   const roleObj = roles.find(r => r.id === item.roleId);
                   const isEditing = editingUserId === item.id;
                   const stats = calculateUserProgress(item.id, item.roleId);
@@ -4726,11 +4796,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
           {/* 2. JOB ROLES LIST TAB VIEW (Existing interactive list!) */}
           {rolesSubTab === 'list' && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-5 border-b border-slate-100 pb-4 text-left">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3 border-b border-slate-100 pb-2 text-left">
                 <div>
-                  <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight">Active Designations</h3>
-                  <p className="text-xs text-slate-500 mt-1">Configure specialized pathways, track staff ratios, and define target professional standards.</p>
+                  <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight">Active Designations</h3>
                 </div>
               </div>
 
@@ -4791,7 +4860,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              <div className="flex flex-col gap-2 w-full">
                 {(() => {
                   const rolesFiltered = roles.filter((r) => {
                     if (roleSearchQuery) {
@@ -4816,8 +4885,32 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     );
                   }
 
-                  return rolesFiltered.map((r) => {
-                    const associatedUsers = users.filter(u => u.roleId === r.id);
+                  return (
+                    <div className="space-y-2 w-full text-left">
+                      {/* Show entries control and status bar */}
+                      <div className="flex items-center justify-between gap-2 py-1">
+                        <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
+                          Showing {Math.min(rolesLimit, rolesFiltered.length)} of {rolesFiltered.length} Designations
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                          <span>Show entries:</span>
+                          <select
+                            value={rolesLimit}
+                            onChange={(e) => setRolesLimit(Number(e.target.value))}
+                            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                          >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 w-full max-h-[300px] overflow-y-auto pr-1">
+                        {rolesFiltered.slice(0, rolesLimit).map((r) => {
+                          const associatedUsers = users.filter(u => u.roleId === r.id);
                   
                   if (editingRoleId === r.id) {
                     return (
@@ -4908,101 +5001,123 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   }
 
                   return (
-                    <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between text-left">
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-2">
-                          <div>
-                            <span className="inline-block text-[9px] uppercase font-mono font-bold tracking-wider text-emerald-700 bg-white border border-slate-200/80 px-2 py-1 rounded-md max-w-full text-center leading-tight">
-                              {r.department}
-                            </span>
-                            <h4 className="font-bold text-slate-800 text-sm mt-1">{r.name}</h4>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {confirmDeleteRoleId === r.id ? (
-                              <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteRoleId(null)}
-                                  className="text-[10px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 bg-slate-100/80 px-2 py-1 rounded transition cursor-pointer border border-slate-200"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteRole(r.id)}
-                                  className="text-[10px] uppercase font-mono font-black text-white hover:bg-rose-600 bg-rose-500 px-2.5 py-1 rounded shadow-xs transition cursor-pointer flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setEditingRoleId(r.id);
-                                    setEditRoleName(r.name);
-                                    setEditRoleDept(r.department);
-                                    setEditRoleDesc(r.description || '');
-                                    setEditRoleSkills(r.skillRequirements.join(', '));
-                                  }}
-                                  className="text-slate-400 hover:text-emerald-400 p-1.5 rounded-lg hover:bg-white/80 border border-transparent hover:border-slate-100 transition cursor-pointer"
-                                  title="Edit Role/Designation"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDuplicateRole(r.id)}
-                                  className="text-slate-400 hover:text-indigo-400 p-1.5 rounded-lg hover:bg-white/80 border border-transparent hover:border-slate-100 transition cursor-pointer"
-                                  title="Duplicate/Copy Designation"
-                                >
-                                  <Copy className="w-3.5 h-3.5 text-indigo-400" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (associatedUsers.length > 0) {
-                                      showToast('Error: This designation is currently assigned to active employees. Resign or re-assign them first.', 'error');
-                                      return;
-                                    }
-                                    setConfirmDeleteRoleId(r.id);
-                                  }}
-                                  className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/80 border text-rose-500 border-transparent hover:border-slate-100 transition cursor-pointer"
-                                  title="Delete Role"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
+                    <div key={r.id} className="border border-slate-200 rounded-xl p-2 px-3 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3 text-left w-full text-[11px]">
+                      {/* Left Part: Dept, Title and Description */}
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 min-w-0 flex-1">
+                        {/* Dept Badge */}
+                        <span className="shrink-0 inline-block text-[8px] uppercase font-mono font-black tracking-wider text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded leading-none w-fit">
+                          {r.department}
+                        </span>
+                        
+                        {/* Title */}
+                        <h4 className="font-bold text-slate-900 text-[11px] shrink-0 whitespace-nowrap">
+                          {r.name}
+                        </h4>
 
-                        <p className="text-xs text-slate-500 font-sans mb-3">{r.description}</p>
-
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {r.skillRequirements.map((sk, skIdx) => (
-                            <span key={skIdx} className="bg-slate-100 border text-slate-650 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full">
-                              {sk}
-                            </span>
-                          ))}
-                        </div>
+                        {/* Separator dots & Description */}
+                        {r.description && (
+                          <>
+                            <span className="hidden sm:inline text-slate-300 font-bold select-none">•</span>
+                            <p className="text-[10px] text-slate-500 truncate max-w-[280px]" title={r.description}>
+                              {r.description}
+                            </p>
+                          </>
+                        )}
                       </div>
 
-                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[10px] font-mono text-slate-400">
-                        <span>Curriculum Active: Yes</span>
-                        <span>Assigned Staffs: <strong className="text-slate-700">{associatedUsers.length}</strong></span>
+                      {/* Middle Part: Skills list - STRICTLY 1 line, small text */}
+                      <div className="flex items-center gap-1.5 min-w-0 max-w-full md:max-w-[45%] overflow-x-auto no-scrollbar scroll-smooth">
+                        {r.skillRequirements.map((sk, skIdx) => (
+                          <span key={skIdx} className="bg-slate-100/90 border border-slate-200/80 text-slate-600 text-[9px] font-mono font-bold px-2 py-0.2 rounded-full whitespace-nowrap shrink-0">
+                            {sk}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Right Part: Stats & Actions */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-slate-150">
+                        <div className="text-[10px] font-mono text-slate-500 flex items-center gap-1.5">
+                          <span>Staff: <strong className="text-slate-700">{associatedUsers.length}</strong></span>
+                        </div>
+
+                        <span className="hidden sm:inline text-slate-300 font-bold select-none">•</span>
+
+                        <div className="flex items-center gap-1">
+                          {confirmDeleteRoleId === r.id ? (
+                            <div className="flex items-center gap-1 animate-in zoom-in-95 duration-100">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteRoleId(null)}
+                                className="text-[9px] uppercase font-mono font-black text-slate-500 hover:text-slate-700 hover:bg-slate-250 bg-slate-100 px-2 py-0.5 rounded transition cursor-pointer border border-slate-200"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRole(r.id)}
+                                className="text-[9px] uppercase font-mono font-black text-white hover:bg-rose-600 bg-rose-500 px-2.5 py-0.5 rounded shadow-xs transition cursor-pointer flex items-center gap-0.5"
+                              >
+                                <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingRoleId(r.id);
+                                  setEditRoleName(r.name);
+                                  setEditRoleDept(r.department);
+                                  setEditRoleDesc(r.description || '');
+                                  setEditRoleSkills(r.skillRequirements.join(', '));
+                                }}
+                                className="text-slate-400 hover:text-emerald-500 p-1 rounded hover:bg-white border border-transparent hover:border-slate-100 transition cursor-pointer"
+                                title="Edit Role/Designation"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicateRole(r.id)}
+                                className="text-slate-400 hover:text-indigo-500 p-1 rounded hover:bg-white border border-transparent hover:border-slate-100 transition cursor-pointer"
+                                title="Duplicate/Copy Designation"
+                              >
+                                <Copy className="w-3 h-3 text-indigo-400" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (associatedUsers.length > 0) {
+                                    showToast('Error: This designation is currently assigned to active employees. Resign or re-assign them first.', 'error');
+                                    return;
+                                  }
+                                  setConfirmDeleteRoleId(r.id);
+                                }}
+                                className="text-slate-400 hover:text-rose-500 p-1 rounded hover:bg-white border text-rose-500 border-transparent hover:border-slate-100 transition cursor-pointer"
+                                title="Delete Role"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
-                })})()}
+                })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
 
           {/* 3. ADD NEW ROLE FORM VIEW */}
           {rolesSubTab === 'add' && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs text-left">
-              <div className="border-b border-slate-100 pb-3.5 mb-5">
-                <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight">Create Professional Designation</h3>
-                <p className="text-xs text-slate-500 mt-1">Add new dynamic roles to map curriculum targets and security clearances instantly.</p>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs text-left">
+              <div className="border-b border-slate-100 pb-2 mb-3">
+                <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight">Create Professional Designation</h3>
               </div>
 
               <form onSubmit={handleAddRole} className="bg-slate-50 border rounded-xl p-5 space-y-4 text-xs font-sans text-left">
@@ -5080,33 +5195,32 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           ---------------------------------------------------- */}
       {adminTab === 'curriculum' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
             
             {/* Headline and filter */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3 border-b border-slate-100 pb-2">
               <div>
-                <h3 className="font-display text-base font-extrabold text-slate-900 uppercase tracking-tight">Corporate Curriculum Architecture</h3>
-                <p className="text-xs text-slate-500 mt-1">Select and configure Chapters and tactical video training lesson units.</p>
+                <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight">Corporate Curriculum Architecture</h3>
               </div>
 
               <div className="relative inline-block text-left">
-                <div className="flex flex-col sm:items-end gap-1">
-                  <label className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">Filter Job Profiles (Multi-Select):</label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex flex-row items-center gap-2">
+                  <label className="text-[9px] text-slate-400 font-mono uppercase tracking-wider font-bold">Filter Job Profiles:</label>
+                  <div className="flex items-center gap-1 flex-wrap">
                     {/* Selected count dropdown trigger */}
                     <button
                       type="button"
                       onClick={() => setIsOpenRoleFilter(!isOpenRoleFilter)}
-                      className="flex items-center justify-between gap-2.5 bg-slate-150 hover:bg-slate-200 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-extrabold cursor-pointer transition min-w-[190px]"
+                      className="flex items-center justify-between gap-1.5 bg-slate-150 hover:bg-slate-200 border border-slate-300 rounded-lg px-2 py-1 text-[11px] text-slate-800 font-extrabold cursor-pointer transition min-w-[150px]"
                     >
                       <span className="truncate">
                         {selectedCurriculumRoleIds.length === 0
                           ? 'None Selected ❌'
                           : selectedCurriculumRoleIds.length === roles.length
-                          ? 'All Profiles Combined 🌐'
-                          : `${selectedCurriculumRoleIds.length} Profiles Selected`}
+                          ? 'All Combined 🌐'
+                          : `${selectedCurriculumRoleIds.length} Selected`}
                       </span>
-                      <span className="text-[9px] text-slate-500 font-bold">▼</span>
+                      <span className="text-[8px] text-slate-500 font-bold">▼</span>
                     </button>
 
                     {/* Quick helper toggles */}
@@ -6165,14 +6279,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           ---------------------------------------------------- */}
       {adminTab === 'analytics' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-md font-bold text-slate-900 mb-2 uppercase flex items-center gap-1.5">
-              <BarChart2 className="w-5 h-5 text-emerald-600" />
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5 uppercase pb-2 border-b border-slate-100 mb-3">
+              <BarChart2 className="w-4 h-4 text-emerald-600" />
               Accounts Division Path Audits Data
             </h3>
-            <p className="text-xs text-slate-500 mb-6 font-sans">
-              Dynamic chart metrics analyzing employee curriculum paths met vs. Verified mastery percentages.
-            </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
@@ -6248,14 +6359,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 6: ASSESSMENT EXAM ADMINISTRATION GATEWAY
           ---------------------------------------------------- */}
       {adminTab === 'recruitment' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in duration-200 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-in fade-in duration-200 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
             <div>
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <FolderOpen className="w-5.5 h-5.5 text-[#059669]" />
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <FolderOpen className="w-4 h-4 text-[#059669]" />
                 Compliance Exams Coordinator
               </h3>
-              <p className="text-xs text-slate-500">Configure gating exams, build multiple-choice or open text questions, and audit taker submissions logs.</p>
             </div>
           </div>
             
@@ -6395,26 +6505,47 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider">
-                    <th className="py-4 px-4 font-bold">Candidate / Staff</th>
-                    <th className="py-4 px-4 font-bold">Applied / Current Role</th>
-                    <th className="py-4 px-4 font-bold">Date of Attempt</th>
-                    <th className="py-4 px-4 font-mono font-bold text-center">Score Percentage</th>
-                    <th className="py-4 px-4 font-bold text-center">Outcome</th>
-                    <th className="py-4 px-4 font-bold text-center">Audit Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredAttempts.map((att: any) => {
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 py-1">
+                <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
+                  Showing {Math.min(recruitmentLogsLimit, filteredAttempts.length)} of {filteredAttempts.length} Attempt Logs
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                  <span>Show entries:</span>
+                  <select
+                    value={recruitmentLogsLimit}
+                    onChange={(e) => setRecruitmentLogsLimit(Number(e.target.value))}
+                    className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left border-collapse text-xs min-w-[700px]">
+                  <thead>
+                    <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                      <th className="py-2.5 px-3 font-bold bg-slate-50">Candidate / Staff</th>
+                      <th className="py-2.5 px-3 font-bold bg-slate-50">Applied / Current Role</th>
+                      <th className="py-2.5 px-3 font-bold bg-slate-50">Date of Attempt</th>
+                      <th className="py-2.5 px-3 font-mono font-bold text-center bg-slate-50">Score Percentage</th>
+                      <th className="py-2.5 px-3 font-bold text-center bg-slate-50">Outcome</th>
+                      <th className="py-2.5 px-3 font-bold text-center bg-slate-50">Audit Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredAttempts.slice(0, recruitmentLogsLimit).map((att: any) => {
                     const isExpanded = expandedAttemptId === att.id;
 
                     return (
                       <React.Fragment key={att.id}>
                         <tr className="hover:bg-slate-50/25 transition">
-                          <td className="py-4.5 px-4">
+                          <td className="py-2 px-3">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] uppercase border border-slate-800">
                                 {att.userName.substring(0, 2)}
@@ -6425,16 +6556,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               </div>
                             </div>
                           </td>
-                          <td className="py-4.5 px-4">
+                          <td className="py-2 px-3">
                             <div>
                               <span className="font-bold text-slate-800">{att.userRoleName}</span>
                               <p className="text-[9px] font-mono font-semibold text-slate-400 uppercase mt-0.5">{att.userRoleId}</p>
                             </div>
                           </td>
-                          <td className="py-4.5 px-4 text-slate-500 font-mono">
+                          <td className="py-2 px-3 text-slate-500 font-mono">
                             {new Date(att.date).toLocaleDateString()} at {new Date(att.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </td>
-                          <td className="py-4.5 px-4 text-center font-mono font-black text-sm">
+                          <td className="py-2 px-3 text-center font-mono font-black text-sm">
                             <span className={att.score >= 60 ? 'text-emerald-600' : 'text-rose-600'}>
                               {att.score}%
                             </span>
@@ -6442,14 +6573,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               ({att.correctCount}/{att.totalQuestions} Correct)
                             </span>
                           </td>
-                          <td className="py-4.5 px-4 text-center">
+                          <td className="py-2 px-3 text-center">
                             <span className={`px-2.5 py-1 rounded-full text-[9px] font-mono font-bold uppercase border ${
                               att.passed ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
                             }`}>
                               {att.passed ? 'PASSED (60%+)' : 'FAILED'}
                             </span>
                           </td>
-                          <td className="py-4.5 px-4 text-center">
+                          <td className="py-2 px-3 text-center">
                             <button
                               onClick={() => setExpandedAttemptId(isExpanded ? null : att.id)}
                               className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] rounded transition cursor-pointer active:scale-95 shadow-sm"
@@ -6515,6 +6646,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </tbody>
               </table>
             </div>
+          </div>
           )}
 
           {/* Conversational AI Screening & Recruiter Summary Logs */}
@@ -7004,36 +7136,54 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
               </div>
 
-              <div className="space-y-4 max-h-[720px] overflow-y-auto pr-1">
-                {(() => {
-                  const filteredQuestions = questionsBank.filter(q => {
-                    if (questionSearchQuery) {
-                      const query = questionSearchQuery.toLowerCase().trim();
-                      const matchesQuestion = (q.question || '').toLowerCase().includes(query);
-                      const matchesTopic = (q.topic || '').toLowerCase().includes(query);
-                      if (!matchesQuestion && !matchesTopic) return false;
-                    }
-                    if (questionChapterFilter !== 'all') {
-                      if (q.chapterId !== questionChapterFilter) return false;
-                    }
-                    return true;
-                  });
-
-                  if (filteredQuestions.length === 0) {
-                    return (
-                      <div className="text-center py-16 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 font-sans">
-                        <p className="text-xs font-bold text-slate-700 text-center">No matching questions found</p>
-                        <p className="text-[11px] mt-1 max-w-sm mx-auto leading-normal text-slate-400 text-center font-sans">
-                          Try relaxing your search keywords or choosing "All Mapped Chapters" to see full question lists.
-                        </p>
-                      </div>
-                    );
+              {(() => {
+                const filteredQuestions = questionsBank.filter(q => {
+                  if (questionSearchQuery) {
+                    const query = questionSearchQuery.toLowerCase().trim();
+                    const matchesQuestion = (q.question || '').toLowerCase().includes(query);
+                    const matchesTopic = (q.topic || '').toLowerCase().includes(query);
+                    if (!matchesQuestion && !matchesTopic) return false;
                   }
+                  if (questionChapterFilter !== 'all') {
+                    if (q.chapterId !== questionChapterFilter) return false;
+                  }
+                  return true;
+                });
 
-                  return filteredQuestions.map((q, qIdx) => {
-                    const associatedChap = chapters.find(c => c.id === q.chapterId);
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 py-1">
+                      <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
+                        Showing {Math.min(recruitmentQuestionsLimit, filteredQuestions.length)} of {filteredQuestions.length} Questions
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                        <span>Show entries:</span>
+                        <select
+                          value={recruitmentQuestionsLimit}
+                          onChange={(e) => setRecruitmentQuestionsLimit(Number(e.target.value))}
+                          className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                    </div>
 
-                    return (
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                      {filteredQuestions.length === 0 ? (
+                        <div className="text-center py-16 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 font-sans">
+                          <p className="text-xs font-bold text-slate-700 text-center">No matching questions found</p>
+                          <p className="text-[11px] mt-1 max-w-sm mx-auto leading-normal text-slate-400 text-center font-sans">
+                            Try relaxing your search keywords or choosing "All Mapped Chapters" to see full question lists.
+                          </p>
+                        </div>
+                      ) : (
+                        filteredQuestions.slice(0, recruitmentQuestionsLimit).map((q, qIdx) => {
+                          const associatedChap = chapters.find(c => c.id === q.chapterId);
+                          return (
                       <div key={q.id} className="p-5 bg-gradient-to-br from-white via-white to-indigo-50/15 border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-4 transition-all duration-200 group shadow-xs hover:shadow-md relative animate-in fade-in duration-150 text-left border-l-4 border-l-indigo-600">
                         
                         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -7177,11 +7327,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                       </div>
                     );
-                  })})()}
+                  }))}
+                    </div>
+                  </div>
+                );
+              })()}
               </div>
             </div>
-
-          </div>
         )}
 
         {/* SUBTAB 3: EXAM GLOBAL GATING */}
@@ -7274,15 +7426,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 7: DYNAMIC DEPARTMENTS DIRECTORY MANAGER
           ---------------------------------------------------- */}
       {adminTab === 'departments' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in duration-200 space-y-6">
-          <div className="border-b border-slate-100 pb-5">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <Building className="w-5.5 h-5.5 text-emerald-600" />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-in fade-in duration-200 space-y-4">
+          <div className="border-b border-slate-100 pb-2">
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+              <Building className="w-4 h-4 text-emerald-600" />
               Build Mart Departments Directory
             </h3>
-            <p className="text-xs text-slate-500">
-              Configure, add, edit, or delete corporate department lines across Build Mart. Updates instantly cascade and automatically update associated trainee profiles and job roles structure.
-            </p>
           </div>
 
           {/* Add department form */}
@@ -7370,43 +7519,67 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </div>
 
-          {/* Departments Directory List Table */}
-          <div className="overflow-x-auto border border-slate-250/60 rounded-xl bg-white shadow-xs max-w-full">
-            <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[650px]">
-              <thead>
-                <tr className="bg-slate-50 text-slate-800 border-b border-slate-200 text-[10px] tracking-wider uppercase font-display font-extrabold">
-                  <th className="p-3.5 pl-5">S.No.</th>
-                  <th className="p-3.5">Department Name</th>
-                  <th className="p-3.5 text-center">Associated Users</th>
-                  <th className="p-3.5 text-center">Associated Job Roles</th>
-                  <th className="p-3.5 pr-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-705">
-                {departments
-                  .map((dept, idx) => ({ dept, originalIdx: idx }))
-                  .filter(({ dept }) => {
-                    const associatedUsers = users.filter(u => u.department === dept);
-                    const associatedRoles = roles.filter(r => r.department === dept);
+          {(() => {
+            const filteredDepts = departments
+              .map((dept, idx) => ({ dept, originalIdx: idx }))
+              .filter(({ dept }) => {
+                const associatedUsers = users.filter(u => u.department === dept);
+                const associatedRoles = roles.filter(r => r.department === dept);
 
-                    if (deptSearchQuery) {
-                      const query = deptSearchQuery.toLowerCase().trim();
-                      if (!dept.toLowerCase().includes(query)) return false;
-                    }
+                if (deptSearchQuery) {
+                  const query = deptSearchQuery.toLowerCase().trim();
+                  if (!dept.toLowerCase().includes(query)) return false;
+                }
 
-                    if (deptFilterType === 'has-staff') {
-                      if (associatedUsers.length === 0) return false;
-                    } else if (deptFilterType === 'has-roles') {
-                      if (associatedRoles.length === 0) return false;
-                    } else if (deptFilterType === 'no-staff') {
-                      if (associatedUsers.length > 0) return false;
-                    } else if (deptFilterType === 'empty') {
-                      if (associatedUsers.length > 0 || associatedRoles.length > 0) return false;
-                    }
+                if (deptFilterType === 'has-staff') {
+                  if (associatedUsers.length === 0) return false;
+                } else if (deptFilterType === 'has-roles') {
+                  if (associatedRoles.length === 0) return false;
+                } else if (deptFilterType === 'no-staff') {
+                  if (associatedUsers.length > 0) return false;
+                } else if (deptFilterType === 'empty') {
+                  if (associatedUsers.length > 0 || associatedRoles.length > 0) return false;
+                }
 
-                    return true;
-                  })
-                  .map(({ dept, originalIdx }, filteredIdx) => {
+                return true;
+              });
+
+            return (
+              <div className="space-y-2.5 text-left">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1 w-full">
+                  <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
+                    DEPARTMENTS MATCHED: <strong className="text-slate-700 text-xs">{filteredDepts.length}</strong>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs self-end">
+                    <span>Show entries:</span>
+                    <select
+                      value={departmentsLimit}
+                      onChange={(e) => setDepartmentsLimit(Number(e.target.value))}
+                      className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-250/60 rounded-xl bg-white shadow-xs max-w-full max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 border-b border-slate-200 text-[10px] tracking-wider uppercase font-display font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                        <th className="py-2.5 px-3 pl-5 bg-slate-50">S.No.</th>
+                        <th className="py-2.5 px-3 bg-slate-50">Department Name</th>
+                        <th className="py-2.5 px-3 text-center bg-slate-50">Associated Users</th>
+                        <th className="py-2.5 px-3 text-center bg-slate-50">Associated Job Roles</th>
+                        <th className="py-2.5 px-3 pr-5 text-right bg-slate-50">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-755">
+                      {filteredDepts.slice(0, departmentsLimit).map(({ dept, originalIdx }, filteredIdx) => {
                     const associatedUsers = users.filter(u => u.department === dept);
                     const associatedRoles = roles.filter(r => r.department === dept);
                     const isEditing = editingDeptIndex === originalIdx;
@@ -7518,22 +7691,22 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </table>
           </div>
         </div>
+          );
+        })()}
+        </div>
       )}
 
       {/* ----------------------------------------------------
           TAB 9: COMPLIANCE AUDIT TRAIL
           ---------------------------------------------------- */}
       {adminTab === 'audit' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in duration-200 space-y-6 text-slate-900">
-          <div className="border-b border-slate-100 pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-in fade-in duration-200 space-y-4 text-slate-900">
+          <div className="border-b border-slate-100 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="text-xl">🛡️</span>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <span className="text-sm">🛡️</span>
                 Compliance Audit Trail & Verification Logbook
               </h3>
-              <p className="text-xs text-slate-500 font-sans">
-                Central corporate ledger for real-time tracking of employee syllabus progress, compliance logs, verifications, and notes.
-              </p>
             </div>
             {/* View Mode Selector */}
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold font-sans self-start">
@@ -7775,53 +7948,70 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               })();
 
               return (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1">
                     <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider">
-                      Showing {auditRows.length} Mapped Syllabus Tasks
+                      Showing {Math.min(auditLimit, auditRows.length)} of {auditRows.length} Mapped Syllabus Tasks
                     </span>
-                    {/* Excel Export */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const worksheetData = auditRows.map(r => ({
-                          'Employee': r.user.name,
-                          'Email': r.user.email,
-                          'Department': r.user.department,
-                          'Role ID': r.user.roleId,
-                          'Chapter': r.chapter.name,
-                          'Unit Code': r.unit.code,
-                          'Task Name': r.unit.taskName,
-                          'Status': r.log?.status || 'Not Started',
-                          'Watch %': r.log?.watchPercent || 0,
-                          'Last Updated': r.log?.lastUpdated ? new Date(r.log.lastUpdated).toLocaleDateString() : 'N/A'
-                        }));
-                        const ws = XLSX.utils.json_to_sheet(worksheetData);
-                        const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "Compliance Ledger");
-                        XLSX.writeFile(wb, "Rathi_Compliance_Audit_Ledger.xlsx");
-                        showToast('📥 Spreadsheet exported successfully as Excel!', 'success');
-                      }}
-                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-emerald-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Export Excel Ledger</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                        <span>Show entries:</span>
+                        <select
+                          value={auditLimit}
+                          onChange={(e) => setAuditLimit(Number(e.target.value))}
+                          className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+
+                      {/* Excel Export */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const worksheetData = auditRows.map(r => ({
+                            'Employee': r.user.name,
+                            'Email': r.user.email,
+                            'Department': r.user.department,
+                            'Role ID': r.user.roleId,
+                            'Chapter': r.chapter.name,
+                            'Unit Code': r.unit.code,
+                            'Task Name': r.unit.taskName,
+                            'Status': r.log?.status || 'Not Started',
+                            'Watch %': r.log?.watchPercent || 0,
+                            'Last Updated': r.log?.lastUpdated ? new Date(r.log.lastUpdated).toLocaleDateString() : 'N/A'
+                          }));
+                          const ws = XLSX.utils.json_to_sheet(worksheetData);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Compliance Ledger");
+                          XLSX.writeFile(wb, "Rathi_Compliance_Audit_Ledger.xlsx");
+                          showToast('📥 Spreadsheet exported successfully as Excel!', 'success');
+                        }}
+                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-emerald-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Excel Ledger</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-3xs">
-                    <table className="w-full text-left border-collapse bg-white">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-3xs max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse bg-white min-w-[800px]">
                       <thead>
-                        <tr className="bg-slate-50 border-b border-slate-150">
-                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Trainee</th>
-                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Syllabus Task</th>
-                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4 text-center">Status</th>
-                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4">Log Notes</th>
-                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-3.5 px-4 text-right">Actions</th>
+                        <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-2 px-3 bg-slate-50">Trainee</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-2 px-3 bg-slate-50">Syllabus Task</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-2 px-3 text-center bg-slate-50">Status</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-2 px-3 bg-slate-50">Log Notes</th>
+                          <th className="text-[10px] font-black uppercase text-slate-500 font-mono tracking-wider py-2 px-3 text-right bg-slate-50">Actions</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {auditRows.map((r) => {
+                      <tbody className="divide-y divide-slate-100">
+                        {auditRows.slice(0, auditLimit).map((r) => {
                           const isExpanded = selectedAuditRowId === r.id;
                           const currentStatus = r.log?.status || 'Not Started';
                           
@@ -8084,43 +8274,60 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               })();
 
               return (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1">
                     <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider">
-                      Showing {timelineEvents.length} Historical Chronological Events
+                      Showing {Math.min(auditLimit, timelineEvents.length)} of {timelineEvents.length} Historical Chronological Events
                     </span>
-                    {/* Excel export */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const worksheetData = timelineEvents.map(e => ({
-                          'Timestamp': new Date(e.timestamp).toLocaleString(),
-                          'Actor': e.changedBy,
-                          'Trainee Name': e.user.name,
-                          'Trainee Email': e.user.email,
-                          'Department': e.user.department,
-                          'Task SKU': e.unit.code,
-                          'Task Description': e.unit.taskName,
-                          'New Status State': e.status,
-                          'Captured Remarks': e.notes || ''
-                        }));
-                        const ws = XLSX.utils.json_to_sheet(worksheetData);
-                        const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "Compliance History Log");
-                        XLSX.writeFile(wb, "Rathi_Compliance_Audit_Timeline_History.xlsx");
-                        showToast('📥 Timeline log history exported as Excel successfully!', 'success');
-                      }}
-                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-indigo-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Export Excel Timeline</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
+                        <span>Show entries:</span>
+                        <select
+                          value={auditLimit}
+                          onChange={(e) => setAuditLimit(Number(e.target.value))}
+                          className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+
+                      {/* Excel export */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const worksheetData = timelineEvents.map(e => ({
+                            'Timestamp': new Date(e.timestamp).toLocaleString(),
+                            'Actor': e.changedBy,
+                            'Trainee Name': e.user.name,
+                            'Trainee Email': e.user.email,
+                            'Department': e.user.department,
+                            'Task SKU': e.unit.code,
+                            'Task Description': e.unit.taskName,
+                            'New Status State': e.status,
+                            'Captured Remarks': e.notes || ''
+                          }));
+                          const ws = XLSX.utils.json_to_sheet(worksheetData);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Compliance History Log");
+                          XLSX.writeFile(wb, "Rathi_Compliance_Audit_Timeline_History.xlsx");
+                          showToast('📥 Timeline log history exported as Excel successfully!', 'success');
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-2.5 rounded-lg border border-indigo-200 transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Excel Timeline</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="relative border border-slate-200 rounded-xl bg-white p-6 shadow-3xs max-h-[650px] overflow-y-auto">
+                  <div className="relative border border-slate-200 rounded-xl bg-white p-6 shadow-3xs max-h-[300px] overflow-y-auto">
                     {timelineEvents.length > 0 ? (
                       <div className="border-l border-slate-200 pl-6 space-y-6">
-                        {timelineEvents.map((e) => {
+                        {timelineEvents.slice(0, auditLimit).map((e) => {
                           const isVerifyAction = e.status === 'Verified & Mastered';
                           const isCompleteAction = e.status === 'Completed (Pending Review)';
                           
@@ -8195,15 +8402,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 8: BRAND LOGO & CERTIFICATE CONFIGURATOR
           ---------------------------------------------------- */}
       {adminTab === 'certificate' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in fade-in duration-200 space-y-6">
-          <div className="border-b border-slate-100 pb-5">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <span className="text-xl">🏢</span>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-in fade-in duration-200 space-y-4">
+          <div className="border-b border-slate-100 pb-2">
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+              <span className="text-sm">🏢</span>
               Corporate Identity & Certificate Configurator
             </h3>
-            <p className="text-xs text-slate-500">
-              Configure your group's brand name, header logo (icons, emojis, or custom base64 image uploads), other visual identity markers, and certificate templates. Changes propagate across all trainee dashboards and verification panels instantly!
-            </p>
           </div>
 
           {/* BRAND CONFIG PERSISTENCE NOTIFICATION */}
