@@ -344,17 +344,17 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 text-slate-700 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(15,23,42,0.03)] transition-all duration-300">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-300 text-slate-700 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(15,23,42,0.03)] transition-all duration-300">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 lg:h-16 items-center">
             {/* Brand Logo & Name */}
-            <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               <div className="bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 p-2 sm:p-2.5 rounded-xl shadow-md shadow-emerald-500/10 flex items-center justify-center transition-all duration-300 shrink-0">
                 {renderLogo()}
               </div>
-              <div className="min-w-0">
+              <div className="shrink-0">
                 <h1 className="font-display text-xs sm:text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                  <span className="truncate bg-gradient-to-r from-slate-900 to-slate-750 bg-clip-text text-transparent">{branding?.companyName || 'Build Mart'}</span>
+                  <span className="whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-800 bg-clip-text text-transparent">{branding?.companyName || 'Build Mart'}</span>
                   <span className="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-extrabold px-1.5 py-0.5 rounded border border-emerald-200/60 tracking-widest shrink-0 shadow-3xs uppercase">
                     {branding?.companyAbbreviation || 'LMS'}
                   </span>
@@ -695,6 +695,7 @@ export default function Header({
                           type="button"
                           onClick={() => {
                             setShowAvatarModal(true);
+                            setCustomAvatarUrl(currentUser.avatarUrl || '');
                             setDropdownOpen(false);
                           }}
                           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded-lg text-slate-700 hover:text-emerald-700 text-left transition font-semibold"
@@ -872,15 +873,20 @@ export default function Header({
                     type="button"
                     onClick={() => {
                       setAvatarError('');
-                      if (!customAvatarUrl) {
+                      let url = customAvatarUrl.trim();
+                      if (!url) {
                         setAvatarError("Please provide a valid image URL first.");
                         return;
                       }
-                      if (!customAvatarUrl.startsWith('http://') && !customAvatarUrl.startsWith('https://') && !customAvatarUrl.startsWith('data:image/')) {
-                        setAvatarError("URL must start with http:// or https:// to render correctly.");
-                        return;
+                      if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image/')) {
+                        if (url.includes('.') && !url.includes(' ')) {
+                          url = 'https://' + url;
+                        } else {
+                          setAvatarError("URL must start with http:// or https:// to render correctly.");
+                          return;
+                        }
                       }
-                      onUpdateUserAvatar?.(currentUser.id, customAvatarUrl);
+                      onUpdateUserAvatar?.(currentUser.id, url);
                       showHeaderToast("✓ Custom profile photo URL configured!", "success");
                       setShowAvatarModal(false);
                     }}

@@ -42,6 +42,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AssessmentCenter from './components/AssessmentCenter';
 import ScreeningTest from './components/ScreeningTest';
 import CertificateGenerator from './components/CertificateGenerator';
+import { Avatar } from './components/Avatar';
 import { Activity, BookOpen, Layers, Database, HelpCircle, ShieldCheck, Keyboard, LifeBuoy, AlertTriangle, CheckCircle, RefreshCw, Users, Server } from 'lucide-react';
 import { isFirebasePlaceholder } from './data/firebase';
 
@@ -546,17 +547,19 @@ export default function App() {
                   Security Matrix Compliant
                 </span>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalTab('online');
-                    setShowHelpModal(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-full border border-sky-100/80 text-[9px] font-mono tracking-wider font-bold shadow-3xs cursor-pointer transition"
-                >
-                  <Users className="w-3.5 h-3.5 text-sky-500" />
-                  <span>Active Online: {activeOnlineUsers.length} Trainees 🟢</span>
-                </button>
+                {activeOnlineUsers.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalTab('online');
+                      setShowHelpModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-full border border-sky-100/80 text-[9px] font-mono tracking-wider font-bold shadow-3xs cursor-pointer transition"
+                  >
+                    <Users className="w-3.5 h-3.5 text-sky-500" />
+                    <span>Active Online: {activeOnlineUsers.length} Trainees 🟢</span>
+                  </button>
+                )}
               </div>
               
               {/* Central Title & Interactive Help Button */}
@@ -697,31 +700,25 @@ export default function App() {
                           }
 
                           return (
-                            <div key={u.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100/80 flex items-center justify-between hover:bg-slate-100/40 transition">
-                              <div className="flex items-center gap-3">
+                            <div key={u.id} className="p-2 px-3 bg-slate-50/60 rounded-xl border border-slate-200/60 flex items-center justify-between hover:bg-slate-100/40 transition">
+                              <div className="flex items-center gap-2.5">
                                 <div className="relative">
-                                  {u.avatarUrl ? (
-                                    <img src={u.avatarUrl} alt={u.name} className="w-9 h-9 rounded-full object-cover border border-slate-200" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs font-bold border border-indigo-100">
-                                      {u.name.charAt(0)}
-                                    </div>
-                                  )}
-                                  <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
+                                  <Avatar src={u.avatarUrl} name={u.name} className="w-8 h-8" />
+                                  <span className="absolute bottom-0 right-0 block h-1.5 w-1.5 rounded-full bg-emerald-500 ring-1 ring-white animate-pulse" />
                                 </div>
                                 <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-extrabold text-slate-800">{u.name}</span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11.5px] font-extrabold text-slate-800">{u.name}</span>
                                     {isSelf && (
-                                      <span className="px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-black tracking-wider uppercase rounded">
+                                      <span className="px-1 py-0.2 bg-indigo-600 text-white text-[7.5px] font-black tracking-wider uppercase rounded">
                                         You
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-slate-500 font-mono">{u.department} • {u.focusEntity}</p>
+                                  <p className="text-[9px] text-slate-500 font-medium font-sans">{u.department} • {u.focusEntity}</p>
                                 </div>
                               </div>
-                              <span className="text-[9px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                              <span className="text-[8.5px] font-mono text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                                 {activeText}
                               </span>
                             </div>
