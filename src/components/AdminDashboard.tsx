@@ -526,6 +526,9 @@ export default function AdminDashboard({
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
   const [currSearchQuery, setCurrSearchQuery] = useState('');
   const [currSortMode, setCurrSortMode] = useState<'standard' | 'code-asc' | 'code-desc' | 'title-asc' | 'level-asc'>('standard');
+  const [collapsedChapterIds, setCollapsedChapterIds] = useState<Record<string, boolean>>({});
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [showCreateChapterForm, setShowCreateChapterForm] = useState<boolean>(false);
 
   // Interactive Analytics Reports & Scorecard States
   const [scorecardSearch, setScorecardSearch] = useState('');
@@ -762,6 +765,29 @@ export default function AdminDashboard({
     return getInitialMatrixState(roles);
   });
 
+  // Helper to check if simulated or active currentUser's role has a specific permission key enabled
+  const hasPermission = (permId: string): boolean => {
+    const roleId = currentUser.roleId;
+    if (!roleId) return true; // Default fallback if no role ID
+    
+    // Always grant full bypass if bypassAuth is on, or if they are super admin (Senior Accountant/Admin)
+    if (bypassAuth || currentUser.roleId === 'role_sr_acc') return true;
+
+    if (permissionsMatrix[permId] && permissionsMatrix[permId][roleId] !== undefined) {
+      return permissionsMatrix[permId][roleId];
+    }
+    
+    // Fallback: search if it's a parent row
+    const foundPerm = ALL_PERMISSIONS.find(p => p.id === permId);
+    if (foundPerm?.isParent) {
+      // Parents default to true unless disabled
+      return true;
+    }
+    
+    // Standard default
+    return true;
+  };
+
   // Batch Job Profile Syncing/Sharing Console State
   const [showBatchSyncer, setShowBatchSyncer] = useState(false);
   const [syncSourceUserId, setSyncSourceUserId] = useState('');
@@ -816,6 +842,14 @@ export default function AdminDashboard({
     if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
     return true;
   });
+
+  const activeChaptersList = (chapters || [])
+    .filter(c => selectedCurriculumRoleIds.includes(c.roleId))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const currentSelectedChapterId = selectedChapterId && activeChaptersList.some(c => c.id === selectedChapterId)
+    ? selectedChapterId
+    : (activeChaptersList[0]?.id || null);
 
   // ----------------------------------------------------
   // DYNAMIC COMPONENT ACTIONS
@@ -956,6 +990,10 @@ export default function AdminDashboard({
 
   // Saving edited user
   const handleSaveUser = (userId: string) => {
+    if (!hasPermission('perm_user_edt')) {
+      showToast("🔒 Permission Denied: Your designation has not been granted 'Edit Trainee Profile' permission in the Permissions Matrix!", "error");
+      return;
+    }
     const updated = users.map(u => {
       if (u.id === userId) {
         const extraRolesFiltered = editUserRoles.filter(rId => rId !== editUserRole);
@@ -981,6 +1019,10 @@ export default function AdminDashboard({
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('perm_user_add')) {
+      showToast("🔒 Permission Denied: Your designation has not been granted 'Register New Trainee' permission in the Permissions Matrix!", "error");
+      return;
+    }
     if (!newUserName.trim() || !newUserEmail.trim()) {
       showToast('Please fill in Name and Email fields.', 'error');
       return;
@@ -1024,6 +1066,10 @@ export default function AdminDashboard({
   };
 
   const handleDeleteUser = (userId: string, userName: string) => {
+    if (!hasPermission('perm_user_del')) {
+      showToast("🔒 Permission Denied: Your designation has not been granted 'Offboard/Delete User' permission in the Permissions Matrix!", "error");
+      return;
+    }
     if (userId === currentUser.id) {
       showToast("Error: You cannot delete your own logged-in administrator account!", 'error');
       return;
@@ -1878,7 +1924,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         <aside 
           id="admin-sidebar"
           className={`bg-white/95 border-r-2 border-slate-300 transition-all duration-350 z-40 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
-            sidebarCollapsed ? 'w-16' : 'w-56'
+            sidebarCollapsed ? 'w-16' : 'w-[265px]'
           } ${
             sidebarLocked ? 'sticky top-0 h-screen' : 'fixed top-0 left-0 h-screen shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-50'
           }`}
@@ -2341,10 +2387,22 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 }
               };
 
+              const tabPermissionMap: Record<string, string> = {
+                approvals: 'perm_verif_view',
+                users: 'perm_user_db',
+                roles: 'perm_sec_group',
+                curriculum: 'perm_curr_builder',
+                analytics: 'perm_perf_view',
+                recruitment: 'perm_verif_ctr',
+                audit: 'perm_sec_ledger_adt',
+              };
+
               return sidebarTabs.map((t) => {
                 const isTabActive = adminTab === t.id;
                 const Icon = t.icon;
                 const theme = colorThemes[t.id] || colorThemes.reports;
+                const requiredPerm = tabPermissionMap[t.id];
+                const isLocked = requiredPerm && !hasPermission(requiredPerm);
                 
                 return (
                   <div key={t.id} className="space-y-1 font-sans">
@@ -2352,6 +2410,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <button
                       type="button"
                       onClick={() => {
+                        if (isLocked) {
+                          showToast(`🔒 Access Denied: Your designation (${currentUser.role?.name || 'Quality Checker'}) has not been granted the required permission in the Permissions Matrix!`, 'error');
+                          return;
+                        }
                         if (isTabActive) {
                           setExpandedTabs(prev => ({ [t.id]: !prev[t.id] }));
                         } else {
@@ -2363,32 +2425,47 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         }
                       }}
                       onDoubleClick={() => {
+                        if (isLocked) return;
                         setExpandedTabs(() => ({ [t.id]: false }));
                       }}
                       className={`w-full group relative flex items-center justify-between gap-1.5 p-1.5 rounded-lg transition-all duration-200 text-left cursor-pointer ${
-                        isTabActive 
-                          ? theme.activeBg + ' font-semibold scale-[1.01]' 
-                          : theme.inactiveHover
+                        isLocked 
+                          ? 'opacity-65 hover:opacity-85 border border-transparent hover:bg-slate-50'
+                          : isTabActive 
+                            ? theme.activeBg + ' font-semibold scale-[1.01]' 
+                            : theme.inactiveHover
                       }`}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <div className={`p-1 rounded-lg shrink-0 transition-colors duration-200 ${
-                          isTabActive ? theme.activeIcon : theme.inactiveIcon
+                        <div className={`p-1 rounded-lg shrink-0 transition-colors duration-200 relative ${
+                          isLocked 
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200' 
+                            : isTabActive ? theme.activeIcon : theme.inactiveIcon
                         }`}>
                           <Icon className="w-3.5 h-3.5" />
+                          {isLocked && (
+                            <div className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 border border-white shadow-2xs">
+                              <Lock className="w-1.5 h-1.5" />
+                            </div>
+                          )}
                         </div>
                         
                         {!sidebarCollapsed && (
-                          <span className="text-[10.5px] font-extrabold font-sans tracking-wide truncate">
+                          <span className="text-[10.5px] font-extrabold font-sans tracking-wide truncate flex items-center gap-1">
                             {t.label}
+                            {isLocked && (
+                              <Lock className="w-2.5 h-2.5 text-rose-500 shrink-0" title="Locked by Matrix" />
+                            )}
                           </span>
                         )}
                       </div>
-
+ 
                       {/* Right metadata badge/count */}
                       {!sidebarCollapsed && (
                         <div className="flex items-center gap-1 shrink-0">
-                          {t.countLabel ? (
+                          {isLocked ? (
+                            <span className="text-[7.5px] font-mono font-black uppercase text-rose-500 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded">LOCKED</span>
+                          ) : t.countLabel ? (
                             <span className={`px-1.5 py-0.5 rounded shrink-0 uppercase border font-mono font-black ${
                               isTabActive ? theme.activeBadge : theme.inactiveBadge
                             }`}>
@@ -2404,9 +2481,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
                       )}
                     </button>
-
+ 
                     {/* Expandable nested sub-tabs */}
-                    {!sidebarCollapsed && t.subTabs && expandedTabs[t.id] && (
+                    {!sidebarCollapsed && !isLocked && t.subTabs && expandedTabs[t.id] && (
                       <div className="pl-3 py-1 border-l border-slate-300 ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
                         {t.subTabs.map((st) => (
                           <button
@@ -2484,18 +2561,36 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           
           {/* Highly Compact & Toggleable Workspace Cockpit Welcomer */}
           {welcomeBannerDismissed ? (
-            <div className="mb-4 flex justify-end animate-in fade-in duration-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setWelcomeBannerDismissed(false);
-                  localStorage.removeItem('welcome_banner_dismissed_v2');
-                  showToast("✓ Welcome banner restored!", "success");
-                }}
-                className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 bg-white hover:bg-slate-100 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 cursor-pointer border border-slate-200/80 shadow-3xs"
-              >
-                <span>👁️ Show Welcome Banner</span>
-              </button>
+            <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-xl p-2.5 px-3.5 border border-slate-200/80 shadow-3xs animate-in fade-in duration-200 gap-2">
+              <div className="flex items-center gap-1.5 pl-1 text-[11px] font-semibold text-slate-500">
+                <span className="flex h-1.5 w-1.5 relative shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                <span>Active Console Scope</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {adminTab !== 'reports' && (
+                  <button 
+                    type="button"
+                    onClick={() => setAdminTab('reports')}
+                    className="bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-3xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>📊 Back to AI Cockpit Home</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWelcomeBannerDismissed(false);
+                    localStorage.removeItem('welcome_banner_dismissed_v2');
+                    showToast("✓ Welcome banner restored!", "success");
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 bg-white hover:bg-slate-100 px-3 py-1 rounded-full transition-all flex items-center gap-1 cursor-pointer border border-slate-200/80 shadow-3xs"
+                >
+                  <span>👁️ Show Welcome Banner</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="bg-gradient-to-r from-white via-slate-50 to-emerald-50/10 rounded-xl p-2.5 sm:p-3 text-slate-900 relative overflow-hidden shadow-xs mb-3 border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
@@ -2517,45 +2612,59 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <div className="absolute bottom-0 left-1/3 w-32 h-32 bg-indigo-500/[0.02] rounded-full blur-xl pointer-events-none"></div>
               
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 relative z-10 pr-6">
-                <div className="flex items-center gap-2.5">
-                  <div className="relative group shrink-0">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-20"></div>
-                    <Avatar
-                      src={currentUser.avatarUrl}
-                      name={currentUser.name}
-                      className="w-8 h-8 border border-emerald-500/20 overflow-hidden relative shadow-2xs"
-                    />
-                  </div>
-                  
-                  <div className="space-y-0.5 text-left">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[7.5px] font-mono tracking-wider text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/50 uppercase font-black">
-                        {isDirectorOrOwner ? 'Executive Scope' : 'Checker Panel'}
-                      </span>
-                      <h2 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight leading-none">
-                        Welcome, {currentUser.name}
-                      </h2>
+                <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
+                  {/* User Profile Info */}
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative group shrink-0">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-20"></div>
+                      <Avatar
+                        src={currentUser.avatarUrl}
+                        name={currentUser.name}
+                        className="w-8 h-8 border border-emerald-500/20 overflow-hidden relative shadow-2xs"
+                      />
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-500 font-sans leading-none">
-                      <span className="font-bold text-slate-600">
-                        {isDirectorOrOwner ? 'Director View' : 'Quality Checker & Audit'}
-                      </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="flex items-center gap-0.5 text-slate-500">
-                        <Building className="w-2.5 h-2.5 text-emerald-600" />
-                        {currentUser.department || 'Compliance'}
-                      </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
-                        <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Active Scope
-                      </span>
+                    <div className="space-y-0.5 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[7.5px] font-mono tracking-wider text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/50 uppercase font-black">
+                          {isDirectorOrOwner ? 'Executive Scope' : 'Checker Panel'}
+                        </span>
+                        <h2 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight leading-none">
+                          Welcome, {currentUser.name}
+                        </h2>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-500 font-sans leading-none">
+                        <span className="font-bold text-slate-600">
+                          {isDirectorOrOwner ? 'Director View' : 'Quality Checker & Audit'}
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="flex items-center gap-0.5 text-slate-500">
+                          <Building className="w-2.5 h-2.5 text-emerald-600" />
+                          {currentUser.department || 'Compliance'}
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
+                          <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Active Scope
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Highly compact Horizontal stats indicators */}
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  {/* Back to AI Cockpit Home Button right next to indicators */}
+                  {adminTab !== 'reports' && (
+                    <button 
+                      type="button"
+                      onClick={() => setAdminTab('reports')}
+                      className="bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-3xs transition flex items-center gap-1.5 cursor-pointer mr-1.5 hover:scale-[1.02]"
+                    >
+                      <span>📊 Back to AI Cockpit Home</span>
+                    </button>
+                  )}
+
                   {/* Course Units Badge */}
                   <div className="flex items-center gap-1 bg-sky-50/80 border border-sky-100/50 py-0.5 px-2 rounded-lg shadow-3xs text-[10px]">
                     <span className="text-[8px] font-mono uppercase tracking-wider text-sky-600 font-bold">Units:</span>
@@ -2595,22 +2704,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           )}
 
-          {/* Ribbon Control for Non-Reports View */}
-          {adminTab !== 'reports' && (
-            <div className="mb-6 flex justify-between items-center bg-emerald-50/65 border border-emerald-200/50 p-4 rounded-2xl shadow-xs animate-in slide-in-from-top-4 duration-200 text-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-600">⚡</span>
-                <span className="text-xs font-semibold text-slate-650">Currently administering the <strong className="text-emerald-800 capitalize font-extrabold">{adminTab}</strong> subsystem console</span>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setAdminTab('reports')}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-              >
-                📊 Back to AI Cockpit Home
-              </button>
-            </div>
-          )}
+
 
       <div className="space-y-6">
         
@@ -5198,9 +5292,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
             
             {/* Headline and filter */}
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-              <div>
-                <h3 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight">Corporate Curriculum Architecture</h3>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-indigo-50 text-indigo-650 rounded-lg shrink-0">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight leading-tight">Corporate Curriculum Architecture</h3>
+                  <p className="text-[9.5px] text-slate-400 font-medium mt-0.5 font-sans">Assemble curriculum chapters, map lessons, and build operational pathways</p>
+                </div>
               </div>
 
               <div className="relative inline-block text-left">
@@ -5343,32 +5443,54 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             {curriculumMode === 'manual' ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Left Column: Chapters Assembly */}
-                <div className="lg:col-span-1 border-r border-slate-150 pr-4">
-                  <h4 className="text-xs font-bold uppercase text-slate-400 font-mono tracking-wider mb-3">
-                    I. Assemble Chapters
-                  </h4>
                   
-                  {/* Chapters list under current role */}
-                  <div className="space-y-2 mb-4">
-                    {chapters
-                      .filter(c => selectedCurriculumRoleIds.includes(c.roleId))
-                      .sort((a, b) => (a.order || 0) - (b.order || 0))
-                      .map((chap, idx, arr) => {
+                  {/* Left Column: Chapters Assembly */}
+                  <div className="lg:col-span-1 border-r border-slate-150 pr-4 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">1</span>
+                      <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">Assemble Chapters</h4>
+                    </div>
+                    
+                    {/* Chapters list under current role */}
+                    <div className="space-y-1.5 mb-4 max-h-[260px] overflow-y-auto pr-1">
+                      {activeChaptersList.map((chap, idx, arr) => {
                         const roleName = roles.find(r => r.id === chap.roleId)?.name || 'Unknown Profile';
+                        const isSelected = chap.id === currentSelectedChapterId;
                         return (
-                          <div key={chap.id} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-150 text-xs text-slate-755 font-medium text-left">
-                            <div className="truncate pr-2 max-w-[130px] sm:max-w-[160px]">
-                              <span className="text-[8.5px] font-bold text-indigo-700 uppercase font-mono block mb-0.5">{roleName}</span>
-                              <span className="font-extrabold text-slate-800 tracking-tight">{chap.name}</span>
+                          <div 
+                            key={chap.id} 
+                            onClick={() => {
+                              setSelectedChapterId(chap.id);
+                              // Auto-expand the clicked chapter on the left
+                              setCollapsedChapterIds(prev => {
+                                const next = { ...prev };
+                                delete next[chap.id];
+                                return next;
+                              });
+                              // Smooth scroll to the corresponding chapter card on the right
+                              setTimeout(() => {
+                                const el = document.getElementById(`chapter-card-${chap.id}`);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                              }, 100);
+                            }}
+                            className={`flex items-center justify-between p-1.5 rounded text-[11px] font-medium text-left transition duration-150 cursor-pointer ${
+                              isSelected 
+                                ? 'bg-indigo-50/90 border border-indigo-400 ring-1 ring-indigo-400/20 shadow-xs' 
+                                : 'bg-slate-50 border border-slate-150 hover:bg-slate-100 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="truncate pr-1.5 max-w-[130px] sm:max-w-[160px]">
+                              <span className="text-[8px] font-bold text-indigo-700 uppercase font-mono block mb-0.5 leading-none">{roleName}</span>
+                              <span className={`font-bold tracking-tight text-[11px] leading-tight block ${isSelected ? 'text-indigo-950 font-black' : 'text-slate-800'}`}>{chap.name}</span>
                             </div>
-                            <div className="flex items-center gap-0.5 shrink-0">
+                            <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
                                 onClick={() => handleMoveChapter(chap.id, 'up')}
                                 disabled={idx === 0}
-                                className={`w-6 h-6 flex items-center justify-center rounded text-[10px] transition cursor-pointer font-bold ${
+                                className={`w-5 h-5 flex items-center justify-center rounded text-[9px] transition cursor-pointer font-bold ${
                                   idx === 0 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
                                 }`}
                                 title="Move Chapter Up"
@@ -5379,7 +5501,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 type="button"
                                 onClick={() => handleMoveChapter(chap.id, 'down')}
                                 disabled={idx === arr.length - 1}
-                                className={`w-6 h-6 flex items-center justify-center rounded text-[10px] transition cursor-pointer font-bold ${
+                                className={`w-5 h-5 flex items-center justify-center rounded text-[9px] transition cursor-pointer font-bold ${
                                   idx === arr.length - 1 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
                                 }`}
                                 title="Move Chapter Down"
@@ -5389,67 +5511,81 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               <button
                                 type="button"
                                 onClick={() => handleDeleteChapter(chap.id)}
-                                className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition cursor-pointer"
+                                className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition cursor-pointer"
                                 title="Delete Chapter"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
                         );
                       })}
-                    {chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).length === 0 && (
-                      <p className="p-3 bg-slate-50 text-xs italic text-center text-slate-400 rounded">No chapters matching selected profiles.</p>
-                    )}
-                  </div>
+                      {activeChaptersList.length === 0 && (
+                        <p className="p-3 bg-slate-50 text-[10.5px] italic text-center text-slate-400 rounded">No chapters matching selected profiles.</p>
+                      )}
+                    </div>
 
-                  {/* Add chapter trigger */}
-                  <div className="bg-indigo-50/20 p-3.5 rounded-xl border border-indigo-150 space-y-2.5 text-left">
-                    <span className="block text-[10px] uppercase font-black text-indigo-700 font-mono tracking-wider">
-                      ➕ Create New Chapter
-                    </span>
-
-                    <div>
-                      <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Target Profile</label>
-                      <select
-                        value={addChapterRoleId}
-                        onChange={(e) => setAddChapterRoleId(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-bold text-slate-800 focus:border-indigo-500 outline-none"
+                    {/* Add chapter trigger - Collapsible */}
+                    <div className="bg-indigo-50/20 rounded-xl border border-indigo-150 text-left overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateChapterForm(!showCreateChapterForm)}
+                        className="w-full flex items-center justify-between p-2.5 text-[10.5px] uppercase font-black text-indigo-700 font-mono tracking-wider hover:bg-indigo-50 transition cursor-pointer"
                       >
-                        {roles.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                        <span className="flex items-center gap-1.5">
+                          <span>➕ Create New Chapter</span>
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-indigo-600 transition-transform duration-150 ${showCreateChapterForm ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {showCreateChapterForm && (
+                        <div className="p-3 border-t border-indigo-100 space-y-2.5 bg-white/50">
+                          <div>
+                            <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Target Profile</label>
+                            <select
+                              value={addChapterRoleId}
+                              onChange={(e) => setAddChapterRoleId(e.target.value)}
+                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-bold text-slate-800 focus:border-indigo-500 outline-none"
+                            >
+                              {roles.map(r => (
+                                <option key={r.id} value={r.id}>{r.name}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                    <div>
-                      <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Chapter Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Closing adjusting ledgers"
-                        value={newChapterName}
-                        onChange={(e) => setNewChapterName(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs outline-none focus:border-indigo-500"
-                      />
+                          <div>
+                            <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Chapter Name</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Closing adjusting ledgers"
+                              value={newChapterName}
+                              onChange={(e) => setNewChapterName(e.target.value)}
+                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          
+                          <button
+                            onClick={handleAddChapter}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-1.5 rounded-lg transition cursor-pointer"
+                          >
+                            + Setup Chapter File
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    
-                    <button
-                      onClick={handleAddChapter}
-                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      + Setup Chapter File
-                    </button>
                   </div>
-                </div>
 
                 {/* Right Column: Units Creation Matrix */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
                   
                   {/* Action box to create new unit */}
-                  <div className="bg-linear-to-r from-indigo-50/50 via-teal-50/30 to-indigo-50/50 rounded-2xl border border-indigo-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-3xs">
+                  <div className="bg-gradient-to-r from-indigo-50/40 via-teal-50/20 to-indigo-50/40 rounded-2xl border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-3xs">
                     <div>
-                      <h5 className="text-xs font-extrabold uppercase text-indigo-900 font-mono tracking-wider">⚡ Mapped Operational Lessons</h5>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Need to deploy procedural learning walkthrough checklists to chapters?</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-amber-500 text-xs shrink-0">⚡</span>
+                        <h5 className="text-[11.5px] font-extrabold text-indigo-950 tracking-tight">Mapped Operational Lessons</h5>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">Need to deploy procedural learning walkthrough checklists to chapters?</p>
                     </div>
                     <button
                       type="button"
@@ -5661,14 +5797,46 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <div>
                     <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-slate-100 pb-3">
                       <div>
-                        <h4 className="text-xs font-bold uppercase text-slate-800 font-mono tracking-wider">
-                          II. Active Chapter Units ({units.filter(u => selectedCurriculumRoleIds.includes((chapters.find(c => c.id === u.chapterId))?.roleId || '')).length} total)
-                        </h4>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Use arrow buttons to adjust sequence order (Up / Down).</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex items-center justify-center w-5 h-5 bg-slate-100 border border-slate-250 text-slate-755 text-[10.5px] font-black rounded-md shrink-0">2</span>
+                          <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">
+                            Active Chapter Units
+                            <span className="ml-1.5 text-[9.5px] font-semibold text-slate-400 px-1.5 py-0.5 bg-slate-50 rounded-full border border-slate-150 shrink-0">
+                              {units.filter(u => selectedCurriculumRoleIds.includes((chapters.find(c => c.id === u.chapterId))?.roleId || '')).length} total
+                            </span>
+                          </h4>
+                        </div>
+                        <p className="text-[9.5px] text-slate-400 mt-0.5 font-sans">Use arrow buttons to adjust sequence order (Up / Down).</p>
                       </div>
 
                       {/* Sort + Search options with dynamic filters */}
                       <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {/* Collapse / Expand All Toggles */}
+                        <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 p-0.5 rounded-lg text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cols: Record<string, boolean> = {};
+                              chapters.filter(c => selectedCurriculumRoleIds.includes(c.roleId)).forEach(chap => {
+                                cols[chap.id] = true;
+                              });
+                              setCollapsedChapterIds(cols);
+                            }}
+                            className="px-2 py-1 hover:bg-white hover:text-indigo-750 rounded font-bold text-slate-600 transition cursor-pointer"
+                            title="Collapse all chapters"
+                          >
+                            Collapse All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedChapterIds({})}
+                            className="px-2 py-1 hover:bg-white hover:text-indigo-750 rounded font-bold text-slate-600 transition cursor-pointer"
+                            title="Expand all chapters"
+                          >
+                            Expand All
+                          </button>
+                        </div>
+
                         {/* SORT SELECT DROPDOWN */}
                         <div className="relative flex-shrink-0">
                           <select
@@ -5780,12 +5948,36 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             sortedChapUnits.sort((a, b) => (levelMap[a.skillRequired] ?? 0) - (levelMap[b.skillRequired] ?? 0));
                           }
 
+                          const isCollapsed = currSearchQuery ? false : (collapsedChapterIds[chap.id] ?? false);
+                          const toggleCollapse = () => {
+                            setCollapsedChapterIds(prev => ({
+                              ...prev,
+                              [chap.id]: !isCollapsed
+                            }));
+                          };
+
+                          const isSelectedOnLeft = chap.id === currentSelectedChapterId;
+
                           return (
-                            <div key={chap.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-3xs hover:shadow-2xs transition">
-                              <h5 className="font-bold text-xs text-slate-800 mb-2 border-b pb-1.5 flex justify-between items-center flex-wrap gap-1.5">
+                            <div 
+                              key={chap.id} 
+                              id={`chapter-card-${chap.id}`}
+                              className={`border rounded-lg p-3 transition duration-150 ${
+                                isSelectedOnLeft 
+                                  ? 'border-indigo-500 bg-indigo-50/5 ring-1 ring-indigo-500/20 shadow-xs' 
+                                  : 'border-slate-200 bg-white shadow-3xs hover:shadow-2xs'
+                              }`}
+                            >
+                              <h5 
+                                onClick={toggleCollapse}
+                                className="font-bold text-xs text-slate-800 mb-1 border-b pb-1.5 flex justify-between items-center flex-wrap gap-1.5 cursor-pointer hover:text-indigo-600 transition select-none"
+                              >
                                 <span className="font-extrabold text-slate-900 flex items-center gap-2">
+                                  {/* Chevron toggle indicating expand/collapse */}
+                                  <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-150 ${isCollapsed ? '-rotate-90' : ''}`} />
+                                  
                                   {/* Chapter Reorder Buttons inside Chapter cards */}
-                                  <span className="inline-flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                                  <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
                                     <button
                                       type="button"
                                       onClick={() => handleMoveChapter(chap.id, 'up')}
@@ -5813,89 +6005,94 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                       ▼
                                     </button>
                                   </span>
-                                  <span>Chapter: {chap.name}</span>
+                                  <span className="text-[11px] font-extrabold text-slate-900">Chapter: {chap.name}</span>
+                                  <span className="text-[9.5px] font-normal text-slate-400">({chapUnits.length} units)</span>
                                 </span>
-                                {chapRole && (
-                                  <span className="text-[9px] bg-indigo-50 border border-indigo-100 font-mono text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">
-                                    {chapRole.name}
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                  {chapRole && (
+                                    <span className="text-[9px] bg-indigo-50 border border-indigo-100 font-mono text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">
+                                      {chapRole.name}
+                                    </span>
+                                  )}
+                                </div>
                               </h5>
 
-                              <div className="divide-y divide-slate-100">
-                                {sortedChapUnits.map(unit => {
-                                  const rawIdx = rawUnits.findIndex(u => u.id === unit.id);
-                                  const isFirstUnit = rawIdx === 0;
-                                  const isLastUnit = rawIdx === rawUnits.length - 1;
+                              {!isCollapsed && (
+                                <div className="divide-y divide-slate-100 animate-in fade-in duration-100">
+                                  {sortedChapUnits.map(unit => {
+                                    const rawIdx = rawUnits.findIndex(u => u.id === unit.id);
+                                    const isFirstUnit = rawIdx === 0;
+                                    const isLastUnit = rawIdx === rawUnits.length - 1;
 
-                                  return (
-                                    <div key={unit.id} className="py-2.5 flex items-center justify-between gap-4 text-xs font-sans text-slate-705">
-                                      <div className="text-left">
-                                        <span className="font-mono text-emerald-600 block text-[10px] font-bold">[{unit.code}] {unit.frequency} • <span className="text-slate-500 font-sans font-medium">{unit.skillRequired}</span></span>
-                                        <span className="font-semibold text-slate-800 text-[11px]">{unit.taskName}</span>
-                                        {unit.description && (
-                                          <p className="text-[10px] text-slate-405 text-slate-500 mt-0.5 line-clamp-2 max-w-lg">{unit.description}</p>
-                                        )}
-                                        {unit.videoTitle && (
-                                          <p className="text-[9.5px] text-indigo-600 font-mono mt-0.5">📺 {unit.videoTitle}</p>
-                                        )}
-                                      </div>
-                                      <div className="flex gap-1.5 items-center shrink-0">
-                                        {/* Unit Reordering Controllers */}
-                                        <div className="flex items-center border border-slate-200 bg-slate-50 rounded-lg p-0.5 shadow-2xs">
+                                    return (
+                                      <div key={unit.id} className="py-2 flex items-center justify-between gap-4 text-xs font-sans text-slate-705">
+                                        <div className="text-left">
+                                          <span className="font-mono text-emerald-600 block text-[9.5px] font-bold">[{unit.code}] {unit.frequency} • <span className="text-slate-500 font-sans font-medium">{unit.skillRequired}</span></span>
+                                          <span className="font-semibold text-slate-800 text-[10.5px]">{unit.taskName}</span>
+                                          {unit.description && (
+                                            <p className="text-[9.5px] text-slate-500 mt-0.5 line-clamp-2 max-w-lg leading-normal">{unit.description}</p>
+                                          )}
+                                          {unit.videoTitle && (
+                                            <p className="text-[9px] text-indigo-600 font-mono mt-0.5">📺 {unit.videoTitle}</p>
+                                          )}
+                                        </div>
+                                        <div className="flex gap-1.5 items-center shrink-0">
+                                          {/* Unit Reordering Controllers */}
+                                          <div className="flex items-center border border-slate-200 bg-slate-50 rounded-lg p-0.5 shadow-2xs">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleMoveUnit(unit.id, 'up')}
+                                              disabled={isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                              className={`w-5.5 h-5.5 flex items-center justify-center rounded text-[9px] font-bold cursor-pointer transition ${
+                                                isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'
+                                                  ? 'text-slate-300 pointer-events-none'
+                                                  : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
+                                              }`}
+                                              title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Up'}
+                                            >
+                                              ▲
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleMoveUnit(unit.id, 'down')}
+                                              disabled={isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
+                                              className={`w-5.5 h-5.5 flex items-center justify-center rounded text-[9px] font-bold cursor-pointer transition ${
+                                                isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'
+                                                  ? 'text-slate-300 pointer-events-none'
+                                                  : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
+                                              }`}
+                                              title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Down'}
+                                            >
+                                              ▼
+                                            </button>
+                                          </div>
                                           <button
                                             type="button"
-                                            onClick={() => handleMoveUnit(unit.id, 'up')}
-                                            disabled={isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
-                                            className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold cursor-pointer transition ${
-                                              isFirstUnit || currSearchQuery !== '' || currSortMode !== 'standard'
-                                                ? 'text-slate-300 pointer-events-none'
-                                                : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
-                                            }`}
-                                            title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Up'}
+                                            onClick={() => startEditUnit(unit)}
+                                            className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
+                                            title="Edit Unit"
                                           >
-                                            ▲
+                                            <Edit3 className="w-3 h-3" />
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleMoveUnit(unit.id, 'down')}
-                                            disabled={isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'}
-                                            className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold cursor-pointer transition ${
-                                              isLastUnit || currSearchQuery !== '' || currSortMode !== 'standard'
-                                                ? 'text-slate-300 pointer-events-none'
-                                                : 'text-slate-655 hover:text-indigo-900 hover:bg-white'
-                                            }`}
-                                            title={currSearchQuery ? 'Clear search to reorder' : currSortMode !== 'standard' ? 'Switch sort to Sequence to reorder' : 'Move Unit Down'}
+                                            onClick={() => handleDeleteUnit(unit.id)}
+                                            className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
+                                            title="Delete Unit"
                                           >
-                                            ▼
+                                            <Trash2 className="w-3 h-3" />
                                           </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => startEditUnit(unit)}
-                                          className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
-                                          title="Edit Unit"
-                                        >
-                                          <Edit3 className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteUnit(unit.id)}
-                                          className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
-                                          title="Delete Unit"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                                {chapUnits.length === 0 && (
-                                  <p className="text-[11px] text-slate-400 italic py-2 text-center">
-                                    {rawUnits.length > 0 ? 'No matching units for active search query.' : 'No units deployed inside this chapter.'}
-                                  </p>
-                                )}
-                              </div>
+                                    );
+                                  })}
+                                  {chapUnits.length === 0 && (
+                                    <p className="text-[10.5px] text-slate-400 italic py-2 text-center">
+                                      {rawUnits.length > 0 ? 'No matching units for active search query.' : 'No units deployed inside this chapter.'}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         });
@@ -5905,16 +6102,18 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                 </div>
               </div>
-            ) : (
+              ) : (
               /* Excel/CSV Bulk dynamic setup views */
               <div className="space-y-6">
                 {/* Bulk Import Info Alert & Document Guide */}
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 text-left">
                   <div className="flex items-center justify-between mb-4 flex-wrap gap-2 border-b border-slate-200/60 pb-3">
-                    <h4 className="font-display font-black text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                      <Info className="w-4 h-4 text-emerald-600 animate-pulse" />
-                      I. BULK LOADING DOCUMENTATION & SPECIFICATION RULES
-                    </h4>
+                    <div className="flex items-center gap-1.5">
+                      <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">1</span>
+                      <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">
+                        Bulk Loading Documentation & Rules
+                      </h4>
+                    </div>
                     <div className="flex bg-white rounded-lg p-0.5 text-[10px] border">
                       <button
                         type="button"
@@ -6030,11 +6229,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-4 text-left">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
-                      <h4 className="font-display font-black text-xs text-slate-800 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                        <Upload className="w-4 h-4 text-emerald-600" />
-                        II. UPLOAD EXCEL / CSV OR COPY-PASTE SHEET
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Apna Excel (.xlsx, .xls) ya standard CSV file drop kijiye ya copy-paste karke dynamic load kijiye.</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">2</span>
+                        <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">
+                          Upload Excel / CSV or Copy-Paste Sheet
+                        </h4>
+                      </div>
+                      <p className="text-[9.5px] text-slate-400 mt-1 font-sans">Apna Excel (.xlsx, .xls) ya standard CSV file drop kijiye ya copy-paste karke dynamic load kijiye.</p>
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
@@ -6168,10 +6369,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <div className="bg-white rounded-xl border border-slate-150 p-4 space-y-3 shadow-3xs text-left">
                     <div className="flex justify-between items-center border-b border-slate-100 pb-2.5">
                       <div>
-                        <h5 className="font-display font-black text-xs text-slate-800 uppercase tracking-widest font-mono">
-                          III. REALTIME IMPORT INTEGRITY COMPLIANCE PREVIEW
-                        </h5>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">3</span>
+                          <h5 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">
+                            Realtime Import Integrity Compliance Preview
+                          </h5>
+                        </div>
+                        <p className="text-[9.5px] text-slate-400 mt-1 font-sans">
                           Review how the engine mapped your cell inputs. Red rows will be skipped.
                         </p>
                       </div>
