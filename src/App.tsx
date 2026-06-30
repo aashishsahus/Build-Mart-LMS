@@ -75,25 +75,46 @@ export default function App() {
 
   // Dynamic Real-time Active Trainees Sync
   useEffect(() => {
-    if (!currentUserId) return;
+    const activeId = simulatedUserId || currentUserId;
+    if (!activeId) return;
 
     // Immediately record activity on load/change
-    updateUserActivity(currentUserId);
+    updateUserActivity(activeId);
     setUsers(getUsers());
 
     // Set interval to keep updating activity and fetching latest users list
     const interval = setInterval(() => {
-      updateUserActivity(currentUserId);
-      setUsers(getUsers());
+      const currentActiveId = simulatedUserId || currentUserId;
+      if (currentActiveId) {
+        updateUserActivity(currentActiveId);
+        setUsers(getUsers());
+      }
     }, 15000); // every 15 seconds
 
     return () => clearInterval(interval);
-  }, [currentUserId]);
+  }, [currentUserId, simulatedUserId]);
 
   const activeOnlineUsers = users.filter(u => {
     if (!u.lastActive) return false;
     const diff = Date.now() - new Date(u.lastActive).getTime();
     return diff < 15 * 60 * 1000;
+  });
+
+  const sortedUsersWithStatus = [...users].sort((a, b) => {
+    const aActive = a.lastActive ? (Date.now() - new Date(a.lastActive).getTime() < 15 * 60 * 1000) : false;
+    const bActive = b.lastActive ? (Date.now() - new Date(b.lastActive).getTime() < 15 * 60 * 1000) : false;
+
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+
+    if (a.lastActive && b.lastActive) {
+      return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
+    }
+
+    if (a.lastActive && !b.lastActive) return -1;
+    if (!a.lastActive && b.lastActive) return 1;
+
+    return a.name.localeCompare(b.name);
   });
 
   // Load state on mount
@@ -120,8 +141,13 @@ export default function App() {
     setHelplineContacts(getHelplineContacts());
     setGlobalNotifications(getGlobalNotifications());
     
-    // Auto-login on mount/refresh is not required; keep it clean and let users sign in manually.
-    setUserId(null);
+    // Support persistent session across refreshes and hot-reloads
+    const savedUserId = getCurrentUserId();
+    if (savedUserId) {
+      setUserId(savedUserId);
+    } else {
+      setUserId(null);
+    }
     setSimulatedUserId(null);
   };
 
@@ -137,6 +163,7 @@ export default function App() {
     // If not logged in originally, this handles the main login
     if (!currentUserId) {
       setUserId(userId);
+      setCurrentUserId(userId); // Persist session to prevent status deletion
       setSimulatedUserId(null);
       const user = getUsers().find(u => u.id === userId);
       const userRole = user?.roleId;
@@ -170,6 +197,7 @@ export default function App() {
       } else {
         // Not admin/director originally; shouldn't be simulating, but if login is called, allow re-login
         setUserId(userId);
+        setCurrentUserId(userId); // Persist session to prevent status deletion
         setSimulatedUserId(null);
         const user = getUsers().find(u => u.id === userId);
         const userRole = user?.roleId;
@@ -358,8 +386,8 @@ export default function App() {
  
   const handleLogout = () => {
     setUserId(null);
+    setCurrentUserId(null);
     setSimulatedUserId(null);
-    localStorage.removeItem('lms_current_user_id_v1');
   };
 
   const handleResetToDefaults = () => {
@@ -547,7 +575,7 @@ export default function App() {
                   Security Matrix Compliant
                 </span>
 
-                {activeOnlineUsers.length > 1 && (
+                {activeOnlineUsers.length >= 1 && (
                   <button
                     type="button"
                     onClick={() => {
@@ -557,7 +585,7 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-full border border-sky-100/80 text-[9px] font-mono tracking-wider font-bold shadow-3xs cursor-pointer transition"
                   >
                     <Users className="w-3.5 h-3.5 text-sky-500" />
-                    <span>Active Online: {activeOnlineUsers.length} Trainees 🟢</span>
+                    <span>Active Online: {activeOnlineUsers.length} {activeOnlineUsers.length === 1 ? 'Trainee' : 'Trainees'} 🟢</span>
                   </button>
                 )}
               </div>
@@ -684,41 +712,73 @@ export default function App() {
                   {modalTab === 'online' && (
                     <div className="space-y-4 animate-in fade-in duration-150">
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        The following Rathi Build Mart trainees are currently logged in or have completed standard execution training tasks in the last 15 minutes:
+                        Trainee status and activity directory. Currently active trainees are marked in green, while others are offline or have not logged in yet:
                       </p>
 
                       <div className="space-y-3">
-                        {activeOnlineUsers.map((u) => {
+                        {sortedUsersWithStatus.map((u) => {
                           const isSelf = u.id === currentUserId;
-                          let activeText = "Active now";
+                          
+                          let activeText = "Never logged in";
+                          let isActive = false;
+                          let isNever = true;
+
                           if (u.lastActive) {
+                            isNever = false;
                             const diffMs = Date.now() - new Date(u.lastActive).getTime();
                             const diffMins = Math.floor(diffMs / 60000);
-                            if (diffMins > 0) {
-                              activeText = `Active ${diffMins}m ago`;
+                            
+                            if (diffMins < 15) {
+                              isActive = true;
+                              if (diffMins > 0) {
+                                activeText = `Active ${diffMins}m ago`;
+                              } else {
+                                activeText = "Active now";
+                              }
+                            } else {
+                              const diffHours = Math.floor(diffMins / 60);
+                              const diffDays = Math.floor(diffHours / 24);
+                              
+                              if (diffDays > 0) {
+                                activeText = `Offline (Active ${diffDays}d ago)`;
+                              } else if (diffHours > 0) {
+                                activeText = `Offline (Active ${diffHours}h ago)`;
+                              } else {
+                                activeText = `Offline (Active ${diffMins}m ago)`;
+                              }
                             }
                           }
 
                           return (
-                            <div key={u.id} className="p-2 px-3 bg-slate-50/60 rounded-xl border border-slate-200/60 flex items-center justify-between hover:bg-slate-100/40 transition">
+                            <div key={u.id} className={`p-2 px-3 rounded-xl border flex items-center justify-between hover:bg-slate-100/40 transition ${
+                              isActive ? 'bg-slate-50/60 border-slate-200/60' : 'bg-slate-50/30 border-slate-100/40'
+                            }`}>
                               <div className="flex items-center gap-2.5">
                                 <div className="relative">
-                                  <Avatar src={u.avatarUrl} name={u.name} className="w-8 h-8" />
-                                  <span className="absolute bottom-0 right-0 block h-1.5 w-1.5 rounded-full bg-emerald-500 ring-1 ring-white animate-pulse" />
+                                  <Avatar src={u.avatarUrl} name={u.name} className={`w-8 h-8 ${!isActive ? 'opacity-70' : ''}`} />
+                                  <span className={`absolute bottom-0 right-0 block h-1.5 w-1.5 rounded-full ring-1 ring-white ${
+                                    isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                                  }`} />
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-1">
-                                    <span className="text-[11.5px] font-extrabold text-slate-800">{u.name}</span>
+                                    <span className={`text-[11.5px] font-extrabold ${isActive ? 'text-slate-800' : 'text-slate-600'}`}>{u.name}</span>
                                     {isSelf && (
                                       <span className="px-1 py-0.2 bg-indigo-600 text-white text-[7.5px] font-black tracking-wider uppercase rounded">
                                         You
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[9px] text-slate-500 font-medium font-sans">{u.department} • {u.focusEntity}</p>
+                                  <p className="text-[9px] text-slate-500 font-medium font-sans">{u.department} • {u.focusEntity || 'Trainee'}</p>
                                 </div>
                               </div>
-                              <span className="text-[8.5px] font-mono text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                              <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                isActive 
+                                  ? 'text-emerald-700 bg-emerald-50 border-emerald-100' 
+                                  : isNever 
+                                    ? 'text-slate-400 bg-slate-50 border-slate-100 italic' 
+                                    : 'text-slate-500 bg-slate-100/50 border-slate-200'
+                              }`}>
                                 {activeText}
                               </span>
                             </div>

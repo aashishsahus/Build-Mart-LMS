@@ -274,13 +274,20 @@ export function initializeStorage() {
   if (existingUsersStr) {
     try {
       const existingUsers = JSON.parse(existingUsersStr) as User[];
+      const loggedInId = localStorage.getItem(KEYS.CURRENT_USER_ID);
       let usersChanged = false;
       const cleanedUsers = existingUsers.map(u => {
+        let updatedUser = { ...u };
         if (u.roleId === 'role_ap_ar') {
           usersChanged = true;
-          return { ...u, roleId: 'role_billing_mgr' };
+          updatedUser.roleId = 'role_billing_mgr';
         }
-        return u;
+        // Remove simulated/fake lastActive timestamps for any user that is not the logged-in user
+        if (u.lastActive && u.id !== loggedInId) {
+          usersChanged = true;
+          delete updatedUser.lastActive;
+        }
+        return updatedUser;
       });
       if (usersChanged) {
         localStorage.setItem(KEYS.USERS, JSON.stringify(cleanedUsers));
@@ -623,35 +630,13 @@ export function updateUserActivity(userId: string) {
   
   const updated = users.map(u => {
     if (u.id === userId) {
-      changed = true;
-      return { ...u, lastActive: now };
+      if (u.lastActive !== now) {
+        changed = true;
+        return { ...u, lastActive: now };
+      }
     }
     return u;
   });
-
-  // Let's make sure at least 3 other users have been active recently (within last 15 mins) for realistic peer listing
-  const activeCount = updated.filter(u => {
-    if (!u.lastActive) return false;
-    const diff = Date.now() - new Date(u.lastActive).getTime();
-    return diff < 15 * 60 * 1000;
-  }).length;
-
-  if (activeCount < 4) {
-    let toActivate = 4 - activeCount;
-    // shuffle or choose users to activate
-    const nonCurrentUsers = updated.filter(u => u.id !== userId);
-    for (const u of nonCurrentUsers) {
-      if (toActivate <= 0) break;
-      // If not active recently, activate them
-      const isAlreadyActive = u.lastActive && (Date.now() - new Date(u.lastActive).getTime() < 15 * 60 * 1000);
-      if (!isAlreadyActive) {
-        const randomPastMinutes = Math.floor(Math.random() * 8) + 2;
-        u.lastActive = new Date(Date.now() - randomPastMinutes * 60 * 1000).toISOString();
-        changed = true;
-        toActivate--;
-      }
-    }
-  }
 
   if (changed) {
     saveUsers(updated);
