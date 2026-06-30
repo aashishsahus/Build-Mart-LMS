@@ -6,6 +6,27 @@ interface AvatarProps {
   className?: string; // e.g. "w-9 h-9"
 }
 
+export function resolveGoogleDriveUrl(url: string): string {
+  if (!url) return url;
+  
+  // Clean up whitespace or extra quotes
+  const cleanUrl = url.trim().replace(/^["']|["']$/g, '');
+
+  // 1. Matches /file/d/[ID]
+  const fileDMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${fileDMatch[1]}`;
+  }
+  
+  // 2. Matches ?id=[ID] or &id=[ID]
+  const idMatch = cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
+  }
+
+  return cleanUrl;
+}
+
 export const Avatar: React.FC<AvatarProps> = ({ src, name = 'User', className = 'w-9 h-9' }) => {
   const [imgFailed, setImgFailed] = useState(false);
 
@@ -43,10 +64,12 @@ export const Avatar: React.FC<AvatarProps> = ({ src, name = 'User', className = 
   }
   const colorClass = colors[sum % colors.length];
 
-  if (src && !imgFailed) {
+  const resolvedSrc = src ? resolveGoogleDriveUrl(src) : src;
+
+  if (resolvedSrc && !imgFailed) {
     return (
       <img
-        src={src}
+        src={resolvedSrc}
         alt={name}
         onError={() => setImgFailed(true)}
         referrerPolicy="no-referrer"

@@ -46,6 +46,33 @@ import { Avatar } from './components/Avatar';
 import { Activity, BookOpen, Layers, Database, HelpCircle, ShieldCheck, Keyboard, LifeBuoy, AlertTriangle, CheckCircle, RefreshCw, Users, Server } from 'lucide-react';
 import { isFirebasePlaceholder } from './data/firebase';
 
+function checkIsAdminUser(role?: string, dept?: string): boolean {
+  if (!role) return false;
+  const r = role.toLowerCase();
+  const d = (dept || '').toLowerCase();
+  const isHR = r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
+  const isDirectorOrOwner = r === 'role_md' || r === 'role_ceo' || r === 'role_coo' || d === 'director';
+  if (r === 'role_sr_acc' || isDirectorOrOwner || isHR) {
+    return true;
+  }
+
+  // Dynamic authorization check from the persisted permissions matrix
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('lms_permissions_matrix_v1');
+    if (saved) {
+      try {
+        const matrix = JSON.parse(saved);
+        // If this role has any permission set to true in the matrix, grant cockpit/admin dashboard access
+        return Object.keys(matrix).some(permId => matrix[permId]?.[role] === true);
+      } catch (e) {
+        console.error("Error reading permissions matrix in App.tsx:", e);
+      }
+    }
+  }
+
+  return false;
+}
+
 export default function App() {
   // Application Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -131,7 +158,8 @@ export default function App() {
   }, []);
 
   const reloadStoreData = () => {
-    setUsers(getUsers());
+    const currentUsers = getUsers();
+    setUsers(currentUsers);
     setRoles(getRoles());
     setChapters(getChapters());
     setUnits(getUnits());
@@ -145,6 +173,14 @@ export default function App() {
     const savedUserId = getCurrentUserId();
     if (savedUserId) {
       setUserId(savedUserId);
+      const user = currentUsers.find(u => u.id === savedUserId);
+      if (user) {
+        if (checkIsAdminUser(user.roleId, user.department)) {
+          setActiveTab('admin-reports');
+        } else {
+          setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
+        }
+      }
     } else {
       setUserId(null);
     }
@@ -153,46 +189,31 @@ export default function App() {
 
   // Switch/Simulate users
   const handleSwitchUser = (userId: string) => {
-    const isHRRole = (role?: string, dept?: string) => {
-      if (!role) return false;
-      const r = role.toLowerCase();
-      const d = (dept || '').toLowerCase();
-      return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
-    };
-
     // If not logged in originally, this handles the main login
     if (!currentUserId) {
       setUserId(userId);
       setCurrentUserId(userId); // Persist session to prevent status deletion
       setSimulatedUserId(null);
       const user = getUsers().find(u => u.id === userId);
-      const userRole = user?.roleId;
-      const isDirectorOrOwner = userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director';
-      const isAuthorizedAdmin = userRole === 'role_sr_acc' || isDirectorOrOwner || isHRRole(userRole, user?.department);
-      if (isAuthorizedAdmin) {
+      if (user && checkIsAdminUser(user.roleId, user.department)) {
         setActiveTab('admin-reports');
-      } else {
-        setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
+      } else if (user) {
+        setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
       }
     } else {
       // Already logged in!
       // Check if original logged-in user is privileged (Sr Accountant or Director/CEO/COO/MD or HR)
       const principalUser = getUsers().find(u => u.id === currentUserId);
-      const principalRole = principalUser?.roleId;
-      const isPrincipalAdmin = principalRole === 'role_sr_acc' || principalRole === 'role_md' || principalRole === 'role_ceo' || principalRole === 'role_coo' || principalUser?.department === 'Director' || isHRRole(principalRole, principalUser?.department);
+      const isPrincipalAdmin = principalUser && checkIsAdminUser(principalUser.roleId, principalUser.department);
       
       if (isPrincipalAdmin) {
         // Simulating the user!
         setSimulatedUserId(userId);
         const targetUser = getUsers().find(u => u.id === userId);
-        const targetRole = targetUser?.roleId;
-        const isTargetDirectorOrOwner = targetRole === 'role_md' || targetRole === 'role_ceo' || targetRole === 'role_coo' || targetUser?.department === 'Director';
-        const isTargetAdmin = targetRole === 'role_sr_acc' || isTargetDirectorOrOwner || isHRRole(targetRole, targetUser?.department);
-        
-        if (isTargetAdmin) {
+        if (targetUser && checkIsAdminUser(targetUser.roleId, targetUser.department)) {
           setActiveTab('admin-reports');
-        } else {
-          setActiveTab(targetRole === 'role_candidate' ? 'testing' : 'learning');
+        } else if (targetUser) {
+          setActiveTab(targetUser.roleId === 'role_candidate' ? 'testing' : 'learning');
         }
       } else {
         // Not admin/director originally; shouldn't be simulating, but if login is called, allow re-login
@@ -200,12 +221,10 @@ export default function App() {
         setCurrentUserId(userId); // Persist session to prevent status deletion
         setSimulatedUserId(null);
         const user = getUsers().find(u => u.id === userId);
-        const userRole = user?.roleId;
-        const isUserAdmin = userRole === 'role_sr_acc' || userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director' || isHRRole(userRole, user?.department);
-        if (isUserAdmin) {
+        if (user && checkIsAdminUser(user.roleId, user.department)) {
           setActiveTab('admin-reports');
-        } else {
-          setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
+        } else if (user) {
+          setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
         }
       }
     }
@@ -214,19 +233,10 @@ export default function App() {
   const handleExitSimulation = () => {
     setSimulatedUserId(null);
     const user = getUsers().find(u => u.id === currentUserId);
-    const userRole = user?.roleId;
-    const isDirectorOrOwner = userRole === 'role_md' || userRole === 'role_ceo' || userRole === 'role_coo' || user?.department === 'Director';
-    const isHRRole = (role?: string, dept?: string) => {
-      if (!role) return false;
-      const r = role.toLowerCase();
-      const d = (dept || '').toLowerCase();
-      return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
-    };
-    const isUserAdmin = userRole === 'role_sr_acc' || isDirectorOrOwner || isHRRole(userRole, user?.department);
-    if (isUserAdmin) {
+    if (user && checkIsAdminUser(user.roleId, user.department)) {
       setActiveTab('admin-reports');
-    } else {
-      setActiveTab(userRole === 'role_candidate' ? 'testing' : 'learning');
+    } else if (user) {
+      setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
     }
   };
 

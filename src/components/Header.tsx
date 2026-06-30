@@ -106,12 +106,29 @@ export default function Header({
     return rId === 'role_hr_mgr' || rId === 'role_ta_exec' || rId === 'role_training_mgr' || dName.includes('hr') || dName.includes('talent');
   };
 
+  const hasDynamicMatrixPermission = () => {
+    if (!currentUser?.roleId) return false;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lms_permissions_matrix_v1');
+      if (saved) {
+        try {
+          const matrix = JSON.parse(saved);
+          return Object.keys(matrix).some(permId => matrix[permId]?.[currentUser.roleId] === true);
+        } catch (e) {
+          console.error("Error parsing permissions matrix in Header.tsx:", e);
+        }
+      }
+    }
+    return false;
+  };
+
   const isAdmin = currentUser.roleId === 'role_sr_acc' || 
                   currentUser.roleId === 'role_md' || 
                   currentUser.roleId === 'role_ceo' || 
                   currentUser.roleId === 'role_coo' || 
                   currentUser.department === 'Director' ||
-                  isHRUser(currentUser.roleId, currentUser.department);
+                  isHRUser(currentUser.roleId, currentUser.department) ||
+                  hasDynamicMatrixPermission();
 
   const assignedRoleIds = Array.from(new Set([
     currentUser.roleId,

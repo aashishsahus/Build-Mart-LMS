@@ -51,6 +51,7 @@ import {
   TrendingUp,
   ArrowUpRight,
   ChevronDown,
+  ChevronUp,
   Search,
   Database,
   Calendar,
@@ -130,10 +131,16 @@ const ALL_PERMISSIONS: PermissionDefinition[] = [
   { id: 'perm_perf_view', name: 'View Performance Reports', group: 'Performance Records' },
   { id: 'perm_perf_chart', name: 'View Interactive Charts', group: 'Performance Records' },
   { id: 'perm_perf_export', name: 'Export Matrix Data', group: 'Performance Records' },
+
+  // System Administration & Control Hub Module
+  { id: 'perm_sys_settings', name: 'Control Hub Settings', isParent: true, group: 'System Settings' },
+  { id: 'perm_hierarchy_view', name: 'Hierarchy Matrix View', group: 'System Settings' },
+  { id: 'perm_departments_view', name: 'Departments Matrix View', group: 'System Settings' },
+  { id: 'perm_cert_config', name: 'Certificate Settings Config', group: 'System Settings' },
 ];
 
-function getInitialMatrixState(currentRoles: Role[]): Record<string, Record<string, boolean>> {
-  if (typeof window !== 'undefined') {
+function getInitialMatrixState(currentRoles: Role[], bypassSaved: boolean = false): Record<string, Record<string, boolean>> {
+  if (!bypassSaved && typeof window !== 'undefined') {
     const saved = localStorage.getItem('lms_permissions_matrix_v1');
     if (saved) {
       try {
@@ -151,41 +158,21 @@ function getInitialMatrixState(currentRoles: Role[]): Record<string, Record<stri
       const roleNameLower = r.name.toLowerCase();
       
       const isDirectorOrSuper = 
-        roleIdLower.includes('sr_acc') || 
-        roleIdLower.includes('md') || 
-        roleIdLower.includes('ceo') || 
-        roleIdLower.includes('coo') || 
-        roleIdLower.includes('vp') || 
+        roleIdLower === 'role_md' || 
+        roleIdLower === 'role_ceo' || 
+        roleIdLower === 'role_coo' || 
+        roleIdLower === 'role_vp' || 
+        roleIdLower === 'role_sys_admin' ||
         roleIdLower.includes('super') ||
-        roleNameLower.includes('manager') || 
-        roleNameLower.includes('senior') ||
-        r.department === 'Director' ||
-        r.department === 'Management';
+        roleIdLower.includes('admin') ||
+        roleNameLower.includes('admin') ||
+        r.department === 'Director';
 
-      const isJunior = 
-        roleIdLower.includes('jr_acc') || 
-        roleNameLower.includes('junior') || 
-        roleNameLower.includes('apprentice') ||
-        roleNameLower.includes('associate');
-
+      // Strictly set only Director/Super/Admin roles to true, and everyone else to false
       if (isDirectorOrSuper) {
         defaultMatrix[perm.id][r.id] = true;
-      } else if (isJunior) {
-        if (perm.id.endsWith('_viw') || perm.id.endsWith('_vdt') || perm.id === 'perm_sec_group_acc' || perm.id === 'perm_verif_view' || perm.id === 'perm_perf_view' || perm.id === 'perm_pref_chart') {
-          defaultMatrix[perm.id][r.id] = true;
-        } else if (perm.id === 'perm_acc_group_add' || perm.id === 'perm_acc_group_edt' || perm.id === 'perm_curr_unit_add') {
-          defaultMatrix[perm.id][r.id] = true;
-        } else if (perm.isParent) {
-          defaultMatrix[perm.id][r.id] = true;
-        } else {
-          defaultMatrix[perm.id][r.id] = false;
-        }
       } else {
-        if (perm.isParent || perm.id.endsWith('_viw') || perm.id.endsWith('_vdt') || perm.id === 'perm_verif_view' || perm.id === 'perm_perf_view') {
-          defaultMatrix[perm.id][r.id] = true;
-        } else {
-          defaultMatrix[perm.id][r.id] = false;
-        }
+        defaultMatrix[perm.id][r.id] = false;
       }
     });
   });
@@ -361,11 +348,22 @@ export default function AdminDashboard({
     }
   };
   
+  // State for permissions matrix (Moved up to enable dynamic hasAccess calculation)
+  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, Record<string, boolean>>>(() => {
+    return getInitialMatrixState(roles);
+  });
+
   // Checking admin and group directorship/ownership authorization
   const isAdmin = currentUser.roleId === 'role_sr_acc';
   const isDirectorOrOwner = currentUser.roleId === 'role_md' || currentUser.roleId === 'role_ceo' || currentUser.roleId === 'role_coo' || currentUser.department === 'Director' || currentUser.role?.name?.toLowerCase().includes('director') || currentUser.role?.name?.toLowerCase().includes('owner');
   const isHR = currentUser.roleId === 'role_hr_mgr' || currentUser.roleId === 'role_ta_exec' || currentUser.roleId === 'role_training_mgr' || currentUser.department?.toLowerCase().includes('hr') || currentUser.department?.toLowerCase().includes('talent') || currentUser.role?.name?.toLowerCase().includes('hr');
-  const hasAccess = isAdmin || isDirectorOrOwner || isHR;
+  
+  // Dynamic authorization: true if user is Admin/Director/HR OR has any active permission in the matrix
+  const hasAnyMatrixPermission = currentUser.roleId 
+    ? Object.keys(permissionsMatrix).some(permId => permissionsMatrix[permId]?.[currentUser.roleId] === true)
+    : false;
+  const hasAccess = isAdmin || isDirectorOrOwner || isHR || hasAnyMatrixPermission;
+  
   const [bypassAuth, setBypassAuth] = useState(false);
 
   // Custom non-blocking Toast System
@@ -384,6 +382,7 @@ export default function AdminDashboard({
   const [reportsLimit, setReportsLimit] = useState<number>(10);
   const [approvalsLimit, setApprovalsLimit] = useState<number>(10);
   const [usersLimit, setUsersLimit] = useState<number>(10);
+  const [usersPage, setUsersPage] = useState<number>(1);
   const [rolesLimit, setRolesLimit] = useState<number>(10);
   const [departmentsLimit, setDepartmentsLimit] = useState<number>(10);
   const [auditLimit, setAuditLimit] = useState<number>(10);
@@ -761,17 +760,13 @@ export default function AdminDashboard({
     return roles ? roles.map(r => r.id) : [];
   });
   const [showRoleSelectionDropdown, setShowRoleSelectionDropdown] = useState<boolean>(false);
-  const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, Record<string, boolean>>>(() => {
-    return getInitialMatrixState(roles);
-  });
-
   // Helper to check if simulated or active currentUser's role has a specific permission key enabled
   const hasPermission = (permId: string): boolean => {
     const roleId = currentUser.roleId;
     if (!roleId) return true; // Default fallback if no role ID
     
-    // Always grant full bypass if bypassAuth is on, or if they are super admin (Senior Accountant/Admin)
-    if (bypassAuth || currentUser.roleId === 'role_sr_acc') return true;
+    // Always grant full bypass if they are super admin (Senior Accountant/Admin)
+    if (currentUser.roleId === 'role_sr_acc') return true;
 
     if (permissionsMatrix[permId] && permissionsMatrix[permId][roleId] !== undefined) {
       return permissionsMatrix[permId][roleId];
@@ -801,9 +796,17 @@ export default function AdminDashboard({
   });
   const [addChapterRoleId, setAddChapterRoleId] = useState<string>(roles[0]?.id || '');
   const [isOpenRoleFilter, setIsOpenRoleFilter] = useState(false);
+  const [isOpenSidebarRoleFilter, setIsOpenSidebarRoleFilter] = useState(false);
   const [newChapterName, setNewChapterName] = useState('');
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+  
+  // Chapter Editor & Filtering state
+  const [isEditChapterModalOpen, setIsEditChapterModalOpen] = useState(false);
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+  const [editingChapterName, setEditingChapterName] = useState('');
+  const [editingChapterRoleId, setEditingChapterRoleId] = useState('');
+  const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   
   // Unit Form State
   const [unitChapterId, setUnitChapterId] = useState('');
@@ -828,6 +831,13 @@ export default function AdminDashboard({
   });
   const [userFilterRoleOpen, setUserFilterRoleOpen] = useState(false);
 
+  // Sync selected role IDs if roles prop updates (e.g. from Cloud sync or admin action)
+  useEffect(() => {
+    if (roles) {
+      setUserSelectedRoleIds(roles.map(r => r.id));
+    }
+  }, [roles]);
+
   const matchedUsers = users.filter((item) => {
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.toLowerCase();
@@ -838,13 +848,79 @@ export default function AdminDashboard({
       const currentStatus = item.status || 'Active';
       if (currentStatus !== userStatusFilter) return false;
     }
-    const ur = Array.from(new Set([item.roleId, ...(item.roleIds || [])])).filter(Boolean);
-    if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
+    
+    // Check if we have an active role filter. 
+    // If the user has selected all available roles, we show all users (including those with custom, unlisted or empty roles).
+    const allRolesSelected = roles.length > 0 && roles.every(r => userSelectedRoleIds.includes(r.id));
+    if (!allRolesSelected) {
+      if (userSelectedRoleIds.length === 0) return false; // nothing is checked, so no user matches
+      const ur = Array.from(new Set([item.roleId, ...(item.roleIds || [])])).filter(Boolean);
+      if (!ur.some(id => userSelectedRoleIds.includes(id))) return false;
+    }
     return true;
   });
 
+  // Reset page to 1 when filters or table limit change
+  useEffect(() => {
+    setUsersPage(1);
+  }, [userSearchQuery, userDeptFilter, userStatusFilter, userSelectedRoleIds, usersLimit]);
+
+  const handleExportUsersToCSV = () => {
+    // Column headers
+    const headers = [
+      "Employee Name",
+      "Email Address",
+      "Department",
+      "Location/Entity",
+      "Designation (Role)",
+      "Status",
+      "Security Passkey",
+      "Path Met %",
+      "Mastery Met %"
+    ];
+
+    // Map each matched user to a row
+    const rows = matchedUsers.map(user => {
+      const roleObj = roles.find(r => r.id === user.roleId);
+      const stats = calculateUserProgress(user.id, user.roleId);
+      
+      return [
+        `"${(user.name || '').replace(/"/g, '""')}"`,
+        `"${(user.email || '').replace(/"/g, '""')}"`,
+        `"${(user.department || 'Unassigned').replace(/"/g, '""')}"`,
+        `"${(user.focusEntity || 'Rathi Buildmart Head Office').replace(/"/g, '""')}"`,
+        `"${(roleObj?.name || 'Unassigned').replace(/"/g, '""')}"`,
+        `"${(user.status || 'Active').replace(/"/g, '""')}"`,
+        `"${(user.password || 'rathi123').replace(/"/g, '""')}"`,
+        `"${stats.overallPercent}%"`,
+        `"${stats.masteryPercent}%"`
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+    // Download file safely
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `trainee_directory_export_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("✓ Trainee directory exported to CSV successfully!", "success");
+  };
+
   const activeChaptersList = (chapters || [])
     .filter(c => selectedCurriculumRoleIds.includes(c.roleId))
+    .filter(c => {
+      if (!chapterSearchQuery.trim()) return true;
+      const roleName = roles.find(r => r.id === c.roleId)?.name || '';
+      return c.name.toLowerCase().includes(chapterSearchQuery.toLowerCase()) ||
+             roleName.toLowerCase().includes(chapterSearchQuery.toLowerCase());
+    })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const currentSelectedChapterId = selectedChapterId && activeChaptersList.some(c => c.id === selectedChapterId)
@@ -1145,6 +1221,10 @@ export default function AdminDashboard({
 
   // Adding chapter
   const handleAddChapter = () => {
+    if (!hasPermission('perm_curr_chap_add')) {
+      showToast('🔒 Access Denied: You do not have permission to add chapters.', 'error');
+      return;
+    }
     const targetRoleId = addChapterRoleId || roles[0]?.id;
     if (!newChapterName.trim() || !targetRoleId) {
       showToast('Chapter name and Job Profile are required.', 'error');
@@ -1163,15 +1243,58 @@ export default function AdminDashboard({
 
   // Remove chapter
   const handleDeleteChapter = (chapId: string) => {
+    if (!hasPermission('perm_curr_chap_del')) {
+      showToast('🔒 Access Denied: You do not have permission to delete chapters.', 'error');
+      return;
+    }
     onUpdateChapters(chapters.filter(c => c.id !== chapId));
     onUpdateUnits(units.filter(u => u.chapterId !== chapId));
     showToast('✓ Chapter deleted successfully along with all nested units.', 'success');
     setConfirmDeleteChapterId(null);
   };
 
+  // Save edited chapter
+  const handleSaveChapterEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hasPermission('perm_curr_chap_edt')) {
+      showToast('🔒 Access Denied: You do not have permission to edit chapters.', 'error');
+      return;
+    }
+    if (!editingChapterId || !editingChapterName.trim() || !editingChapterRoleId) {
+      showToast('Chapter name and Job Profile are required.', 'error');
+      return;
+    }
+    const updatedChapters = chapters.map(c => {
+      if (c.id === editingChapterId) {
+        return {
+          ...c,
+          name: editingChapterName.trim(),
+          roleId: editingChapterRoleId
+        };
+      }
+      return c;
+    });
+    onUpdateChapters(updatedChapters);
+    setIsEditChapterModalOpen(false);
+    setEditingChapterId(null);
+    showToast('✓ Chapter updated successfully!', 'success');
+  };
+
   // Adding or editing unit
   const handleSaveUnit = (e: React.FormEvent) => {
     e.preventDefault();
+    const isEdit = !!editingUnitId;
+    if (isEdit) {
+      if (!hasPermission('perm_curr_unit_edt')) {
+        showToast('🔒 Access Denied: You do not have permission to edit learning units.', 'error');
+        return;
+      }
+    } else {
+      if (!hasPermission('perm_curr_unit_add')) {
+        showToast('🔒 Access Denied: You do not have permission to add learning units.', 'error');
+        return;
+      }
+    }
     if (!unitCode.trim() || !unitTaskName.trim() || !unitChapterId) {
       showToast('Missing required fields for unit creation.', 'error');
       return;
@@ -1245,6 +1368,10 @@ export default function AdminDashboard({
 
   // Delete Unit
   const handleDeleteUnit = (unitId: string) => {
+    if (!hasPermission('perm_curr_unit_del')) {
+      showToast('🔒 Access Denied: You do not have permission to delete checklist units.', 'error');
+      return;
+    }
     onUpdateUnits(units.filter(u => u.id !== unitId));
     onUpdateProgress(progress.filter(p => p.unitId !== unitId));
     showToast('✓ Checklist learning unit deleted successfully.', 'success');
@@ -2395,16 +2522,25 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 analytics: 'perm_perf_view',
                 recruitment: 'perm_verif_ctr',
                 audit: 'perm_sec_ledger_adt',
+                hierarchy: 'perm_hierarchy_view',
+                departments: 'perm_departments_view',
+                certificate: 'perm_cert_config',
               };
 
-              return sidebarTabs.map((t) => {
-                const isTabActive = adminTab === t.id;
-                const Icon = t.icon;
-                const theme = colorThemes[t.id] || colorThemes.reports;
-                const requiredPerm = tabPermissionMap[t.id];
-                const isLocked = requiredPerm && !hasPermission(requiredPerm);
-                
-                return (
+              return sidebarTabs
+                .filter((t) => {
+                  const requiredPerm = tabPermissionMap[t.id];
+                  const isLocked = requiredPerm && !hasPermission(requiredPerm);
+                  return !isLocked;
+                })
+                .map((t) => {
+                  const isTabActive = adminTab === t.id;
+                  const Icon = t.icon;
+                  const theme = colorThemes[t.id] || colorThemes.reports;
+                  const requiredPerm = tabPermissionMap[t.id];
+                  const isLocked = requiredPerm && !hasPermission(requiredPerm);
+                  
+                  return (
                   <div key={t.id} className="space-y-1 font-sans">
                     {/* Main Sidebar Tab button */}
                     <button
@@ -2485,7 +2621,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     {/* Expandable nested sub-tabs */}
                     {!sidebarCollapsed && !isLocked && t.subTabs && expandedTabs[t.id] && (
                       <div className="pl-3 py-1 border-l border-slate-300 ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                        {t.subTabs.map((st) => (
+                        {t.subTabs
+                          .filter((st) => {
+                            if (st.id === 'user_add') return hasPermission('perm_user_add');
+                            if (st.id === 'user_sync') return hasPermission('perm_user_edt');
+                            return true;
+                          })
+                          .map((st) => (
                           <button
                             key={st.id}
                             type="button"
@@ -3606,28 +3748,41 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             
             <div className="flex flex-wrap gap-1.5 self-start sm:self-center">
               <button
-                onClick={() => {
-                  setShowBatchSyncer(!showBatchSyncer);
-                  setIsAddingUser(false);
-                }}
-                id="btn-trigger-batch-sync"
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition border border-indigo-200/55 flex items-center gap-1 cursor-pointer"
+                onClick={handleExportUsersToCSV}
+                title="Export Matched Trainees to CSV file"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition border border-emerald-250 flex items-center gap-1 cursor-pointer"
               >
-                {showBatchSyncer ? <X className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-                {showBatchSyncer ? "Close Syncer" : "Batch Share Profiles 👥"}
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV 📥</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setIsAddingUser(!isAddingUser);
-                  setShowBatchSyncer(false);
-                }}
-                id="btn-trigger-add-user"
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
-              >
-                {isAddingUser ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {isAddingUser ? "Close Form" : "Add New Trainee"}
-              </button>
+              {hasPermission('perm_user_edt') && (
+                <button
+                  onClick={() => {
+                    setShowBatchSyncer(!showBatchSyncer);
+                    setIsAddingUser(false);
+                  }}
+                  id="btn-trigger-batch-sync"
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition border border-indigo-200/55 flex items-center gap-1 cursor-pointer"
+                >
+                  {showBatchSyncer ? <X className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                  {showBatchSyncer ? "Close Syncer" : "Batch Share Profiles 👥"}
+                </button>
+              )}
+
+              {hasPermission('perm_user_add') && (
+                <button
+                  onClick={() => {
+                    setIsAddingUser(!isAddingUser);
+                    setShowBatchSyncer(false);
+                  }}
+                  id="btn-trigger-add-user"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isAddingUser ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {isAddingUser ? "Close Form" : "Add New Trainee"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -4033,31 +4188,31 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           )}
 
           {/* USER REGISTRY INTERACTIVE SEARCH & FILTERS BAR */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-3 flex flex-wrap items-center justify-between gap-3 text-xs font-sans text-left shadow-3xs">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               
               {/* Search Bar */}
-              <div className="relative">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Trainee Directory</label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Search:</span>
                 <div className="relative">
                   <input
                     type="text"
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
                     placeholder="Search name, email..."
-                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-emerald-500 outline-none text-xs w-60 text-slate-800"
+                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-emerald-500 outline-none text-xs w-48 text-slate-800 font-semibold"
                   />
-                  <span className="absolute left-2.5 top-2 text-slate-400">🔍</span>
+                  <span className="absolute left-2.5 top-1.5 text-slate-400 text-[11px]">🔍</span>
                 </div>
               </div>
 
               {/* Department Filter */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter Department</label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Dept:</span>
                 <select
                   value={userDeptFilter}
                   onChange={(e) => setUserDeptFilter(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer"
+                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer font-bold"
                 >
                   <option value="all">-- All Departments --</option>
                   {departments.map(dept => (
@@ -4067,8 +4222,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               {/* Status Filter */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter Status</label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Status:</span>
                 <select
                   value={userStatusFilter}
                   onChange={(e) => setUserStatusFilter(e.target.value as any)}
@@ -4082,37 +4237,37 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               {/* Job Profile Multi-Select Dropdown Filter */}
-              <div className="relative">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter Designation (Multi-Select)</label>
+              <div className="relative flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Designation:</span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setUserFilterRoleOpen(!userFilterRoleOpen)}
                     id="btn-trigger-user-role-filters"
-                    className="bg-white hover:bg-slate-100/90 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 shadow-3xs transition duration-150 flex items-center justify-between gap-2.5 cursor-pointer min-w-[200px]"
+                    className="bg-white hover:bg-slate-100/90 text-slate-700 text-xs font-bold px-2 py-1.5 rounded-lg border border-slate-300 shadow-3xs transition duration-150 flex items-center justify-between gap-1.5 cursor-pointer max-w-[160px]"
                   >
                     <span className="truncate">
                       {userSelectedRoleIds.length === 0
                         ? 'None Match ❌'
                         : userSelectedRoleIds.length === roles.length
-                        ? 'All Designations (Total)'
-                        : `${userSelectedRoleIds.length} Designations selected`}
+                        ? 'All Designations'
+                        : `${userSelectedRoleIds.length} selected`}
                     </span>
                     <span className="text-[9px] text-slate-500 font-bold">▼</span>
                   </button>
 
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => setUserSelectedRoleIds(roles.map(r => r.id))}
-                      className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-150 px-2 py-1 rounded cursor-pointer"
+                      className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-150 px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap"
                     >
                       All
                     </button>
                     <button
                       type="button"
                       onClick={() => setUserSelectedRoleIds([])}
-                      className="text-[9px] font-extrabold text-slate-650 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded cursor-pointer"
+                      className="text-[9px] font-extrabold text-slate-650 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap"
                     >
                       Clear
                     </button>
@@ -4122,7 +4277,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 {userFilterRoleOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserFilterRoleOpen(false)} />
-                    <div className="absolute left-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 space-y-2.5 z-50 text-left animate-in slide-in-from-top-1 duration-150">
+                    <div className="absolute left-0 mt-8 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 space-y-2.5 z-50 text-left animate-in slide-in-from-top-1 duration-150">
                       <div className="flex justify-between items-center border-b pb-1.5">
                         <span className="text-[10px] font-mono font-black text-indigo-700 uppercase">Designations Checklist</span>
                         <button
@@ -4163,17 +4318,17 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-3 w-full border-t border-slate-100">
-              <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
-                TRAINEES MATCHED: <strong className="text-slate-700 text-xs">{matchedUsers.length}</strong>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider bg-slate-100/50 border border-slate-200/50 rounded-lg px-2 py-1">
+                TRAINEES MATCHED: <strong className="text-emerald-700 text-xs">{matchedUsers.length}</strong>
               </div>
               
-              <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs self-end">
-                <span>Show entries:</span>
+              <div className="flex items-center gap-1 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-1 shadow-3xs">
+                <span>Entries:</span>
                 <select
                   value={usersLimit}
                   onChange={(e) => setUsersLimit(Number(e.target.value))}
-                  className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                  className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
                 >
                   <option value={5}>5</option>
                   <option value={10}>10</option>
@@ -4185,7 +4340,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </div>
 
-          <div className="overflow-x-auto select-none mt-2 border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[300px] overflow-y-auto">
+          <div className="overflow-x-auto select-none mt-2 border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[850px] overflow-y-auto">
             <table className="w-full text-left font-sans text-xs border-collapse">
               <thead>
                 <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b border-slate-200 font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
@@ -4201,7 +4356,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {matchedUsers.slice(0, usersLimit).map((item) => {
+                {matchedUsers.slice((usersPage - 1) * usersLimit, usersPage * usersLimit).map((item) => {
                   const roleObj = roles.find(r => r.id === item.roleId);
                   const isEditing = editingUserId === item.id;
                   const stats = calculateUserProgress(item.id, item.roleId);
@@ -4392,34 +4547,32 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition duration-100">
-                      <td className="p-3.5 pl-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2 px-3 pl-4">
+                        <div className="flex items-center gap-2">
                           <div className="relative group shrink-0">
                             <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-10 group-hover:opacity-35 transition"></div>
                             <Avatar 
                               src={item.avatarUrl}
                               name={item.name}
-                              className="w-10 h-10 border border-slate-200/80 relative shadow-sm" 
+                              className="w-7 h-7 border border-slate-200/80 relative shadow-xs" 
                             />
                           </div>
-                          <div>
-                            <p className="font-extrabold text-slate-850 text-sm tracking-tight">{item.name}</p>
-                            <div className="mt-1">
-                              <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" />
-                            </div>
-                            <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.email}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-slate-850 text-xs tracking-tight whitespace-nowrap">{item.name}</span>
+                            <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" className="scale-90 origin-left" />
+                            <span className="text-[10px] font-mono text-slate-400 select-all whitespace-nowrap">({item.email})</span>
                           </div>
                         </div>
                       </td>
-                      <td className="p-3.5">
+                      <td className="py-2 px-3">
                         <span className="font-semibold text-slate-600 bg-slate-100 border border-slate-200/40 px-2 py-0.5 rounded text-[10px] font-sans">
                           {item.department}
                         </span>
                       </td>
-                      <td className="p-3.5 text-slate-550 font-medium font-sans">{item.focusEntity}</td>
-                      <td className="p-3.5">
-                        <div className="flex flex-col gap-1 min-w-[200px] max-w-[320px] whitespace-normal">
-                          <span className="bg-emerald-605 bg-emerald-50 text-emerald-800 font-extrabold px-2.5 py-1 rounded border border-emerald-500/20 font-sans text-[10px] block leading-normal">
+                      <td className="py-2 px-3 text-slate-550 font-medium font-sans text-[11px]">{item.focusEntity}</td>
+                      <td className="py-2 px-3">
+                        <div className="flex flex-col gap-0.5 min-w-[150px] max-w-[280px] whitespace-normal">
+                          <span className="bg-emerald-605 bg-emerald-50 text-emerald-800 font-extrabold px-2 py-0.5 rounded border border-emerald-500/20 font-sans text-[9px] block leading-normal">
                             ★ Primary: {roleObj?.name || 'Unassigned'}
                           </span>
                           {/* Render other assigned roles */}
@@ -4427,43 +4580,43 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             const otherRole = roles.find(r => r.id === rId);
                             if (!otherRole) return null;
                             return (
-                              <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded border border-indigo-200/40 font-sans text-[9px] block leading-normal">
+                              <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200/40 font-sans text-[8.5px] block leading-normal">
                                 ✙ {otherRole.name}
                               </span>
                             );
                           })}
                         </div>
                       </td>
-                      <td className="p-3.5 text-center">
+                      <td className="py-2 px-3 text-center">
                         {(!item.status || item.status === 'Active') ? (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded border border-emerald-500/20 text-[10px] uppercase font-mono shadow-3xs">
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded border border-emerald-500/20 text-[9px] uppercase font-mono shadow-3xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             Active
                           </span>
                         ) : item.status === 'Deactivated' ? (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-extrabold px-2 py-0.5 rounded border border-amber-500/20 text-[10px] uppercase font-mono shadow-3xs">
+                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-extrabold px-1.5 py-0.5 rounded border border-amber-500/20 text-[9px] uppercase font-mono shadow-3xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                             Deact
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded border border-slate-300 text-[10px] uppercase font-mono shadow-3xs">
+                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 font-extrabold px-1.5 py-0.5 rounded border border-slate-300 text-[9px] uppercase font-mono shadow-3xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                             Left
                           </span>
                         )}
                       </td>
-                      <td className="p-3.5 text-center bg-purple-500/5">
-                        <span className="font-mono text-purple-705 bg-purple-50 border border-purple-200/40 px-3 py-1 rounded-md text-xs font-black tracking-wide">
+                      <td className="py-2 px-3 text-center bg-purple-500/5">
+                        <span className="font-mono text-purple-705 bg-purple-50 border border-purple-200/40 px-2 py-0.5 rounded-md text-[11px] font-black tracking-wide">
                           {item.password || 'rathi123'}
                         </span>
                       </td>
-                      <td className="p-3.5 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span className="font-mono text-indigo-600 font-black text-xs">{stats.overallPercent}%</span>
                       </td>
-                      <td className="p-3.5 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span className="font-mono text-emerald-650 font-black text-xs">{stats.masteryPercent}%</span>
                       </td>
-                      <td className="p-3.5 text-center pr-4">
+                      <td className="py-2 px-3 text-center pr-4">
                         <div className="flex items-center justify-center gap-1.5">
                           {confirmDeleteUserId === item.id ? (
                             <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
@@ -4501,40 +4654,49 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingUserId(item.id);
-                                  setEditUserName(item.name);
-                                  setEditUserEmail(item.email);
-                                  setEditUserAvatar(item.avatarUrl || '');
-                                  setEditUserRole(item.roleId);
-                                  setEditUserRoles(item.roleIds || []);
-                                  setEditUserDept(item.department);
-                                  setEditUserFocus(item.focusEntity);
-                                  setEditUserPassword(item.password || 'rathi123');
-                                  setEditUserStatus(item.status || 'Active');
-                                }}
-                                title="Edit Employee Detail"
-                                className="bg-white border border-slate-200 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 transition cursor-pointer p-2 rounded-lg"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmResetUserId(item.id)}
-                                title="Reset Trainee Progress & Mastery Status"
-                                className="bg-white border border-slate-200 hover:border-amber-400 text-slate-500 hover:text-amber-600 transition cursor-pointer p-1.5 px-2 rounded-lg flex items-center gap-1 font-mono text-[9px] font-bold shadow-3xs hover:bg-amber-50"
-                              >
-                                <RefreshCw className="w-2.5 h-2.5 text-amber-500" />
-                                <span>Reset</span>
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteUserId(item.id)}
-                                title="Offboard/Delete Employee"
-                                className="bg-white border border-slate-200 hover:border-red-300 text-slate-500 hover:text-red-650 transition cursor-pointer p-2 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {hasPermission('perm_user_edt') && (
+                                <button
+                                  onClick={() => {
+                                    setEditingUserId(item.id);
+                                    setEditUserName(item.name);
+                                    setEditUserEmail(item.email);
+                                    setEditUserAvatar(item.avatarUrl || '');
+                                    setEditUserRole(item.roleId);
+                                    setEditUserRoles(item.roleIds || []);
+                                    setEditUserDept(item.department);
+                                    setEditUserFocus(item.focusEntity);
+                                    setEditUserPassword(item.password || 'rathi123');
+                                    setEditUserStatus(item.status || 'Active');
+                                  }}
+                                  title="Edit Employee Detail"
+                                  className="bg-white border border-slate-200 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 transition cursor-pointer p-2 rounded-lg"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {hasPermission('perm_user_edt') && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmResetUserId(item.id)}
+                                  title="Reset Trainee Progress & Mastery Status"
+                                  className="bg-white border border-slate-200 hover:border-amber-400 text-slate-500 hover:text-amber-600 transition cursor-pointer p-1.5 px-2 rounded-lg flex items-center gap-1 font-mono text-[9px] font-bold shadow-3xs hover:bg-amber-50"
+                                >
+                                  <RefreshCw className="w-2.5 h-2.5 text-amber-500" />
+                                  <span>Reset</span>
+                                </button>
+                              )}
+                              {hasPermission('perm_user_del') && (
+                                <button
+                                  onClick={() => setConfirmDeleteUserId(item.id)}
+                                  title="Offboard/Delete Employee"
+                                  className="bg-white border border-slate-200 hover:border-red-300 text-slate-500 hover:text-red-650 transition cursor-pointer p-2 rounded-lg"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {!hasPermission('perm_user_edt') && !hasPermission('perm_user_del') && (
+                                <span className="text-[10px] text-slate-400 italic">No Actions Available</span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -4545,6 +4707,68 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {matchedUsers.length > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 px-4 py-3 bg-slate-50 rounded-xl border border-slate-250/60 text-xs font-sans select-none shadow-3xs">
+              <div className="text-slate-500 font-bold">
+                Showing <span className="text-slate-800">{(usersPage - 1) * usersLimit + 1}</span> to <span className="text-slate-800">{Math.min(usersPage * usersLimit, matchedUsers.length)}</span> of <span className="text-slate-800">{matchedUsers.length}</span> entries
+              </div>
+              
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={usersPage === 1}
+                  onClick={() => setUsersPage(prev => Math.max(prev - 1, 1))}
+                  className={`px-3 py-1.5 rounded-lg border text-[11px] font-extrabold transition flex items-center gap-1 cursor-pointer ${
+                    usersPage === 1
+                      ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                  }`}
+                >
+                  ◀ Prev
+                </button>
+
+                {Array.from({ length: Math.ceil(matchedUsers.length / usersLimit) || 1 }).map((_, idx) => {
+                  const pageNum = idx + 1;
+                  const totalP = Math.ceil(matchedUsers.length / usersLimit) || 1;
+                  if (totalP > 5 && Math.abs(pageNum - usersPage) > 2 && pageNum !== 1 && pageNum !== totalP) {
+                    if (pageNum === 2 || pageNum === totalP - 1) {
+                      return <span key={pageNum} className="text-slate-400 px-1 font-extrabold">...</span>;
+                    }
+                    return null;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setUsersPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-[11px] font-extrabold transition cursor-pointer flex items-center justify-center ${
+                        usersPage === pageNum
+                          ? 'bg-emerald-600 text-white border border-emerald-605 shadow-sm font-black'
+                          : 'bg-white border border-slate-200 text-slate-705 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  disabled={usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)}
+                  onClick={() => setUsersPage(prev => Math.min(prev + 1, Math.ceil(matchedUsers.length / usersLimit) || 1))}
+                  className={`px-3 py-1.5 rounded-lg border text-[11px] font-extrabold transition flex items-center gap-1 cursor-pointer ${
+                    usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)
+                      ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                  }`}
+                >
+                  Next ▶
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4865,8 +5089,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <button
                     type="button"
                     onClick={() => {
-                      setPermissionsMatrix(getInitialMatrixState(roles));
-                      showToast("Permissions restored to strict system default configurations.", "info");
+                      setPermissionsMatrix(getInitialMatrixState(roles, true));
+                      showToast("Permissions restored to strict system default configurations. Remember to click Save to persist!", "info");
                     }}
                     className="bg-slate-150 hover:bg-slate-200 text-slate-705 font-extrabold text-[11px] px-4 py-2 border border-slate-300 rounded hover:shadow-2xs cursor-pointer transition uppercase tracking-wider"
                   >
@@ -5445,14 +5669,132 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   
                   {/* Left Column: Chapters Assembly */}
-                  <div className="lg:col-span-1 border-r border-slate-150 pr-4 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">1</span>
-                      <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">Assemble Chapters</h4>
+                  <div className="lg:col-span-1 border-r border-slate-150 pr-4 flex flex-col max-h-[620px]">
+                    <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-700 text-[10.5px] font-black rounded-md shrink-0">1</span>
+                        <h4 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">Assemble Chapters</h4>
+                      </div>
+                      {selectedCurriculumRoleIds.length !== roles.length && (
+                        <span className="bg-amber-50 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-200 shrink-0">
+                          Filtered
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Modern Premium Search & Filter Toolbar */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 mb-3.5 space-y-2 shrink-0">
+                      {/* Search Bar */}
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                          <Search className="w-3.5 h-3.5" />
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search chapters or roles..."
+                          value={chapterSearchQuery}
+                          onChange={(e) => setChapterSearchQuery(e.target.value)}
+                          className="w-full bg-white border border-slate-200/80 rounded-xl pl-9 pr-8 py-1.5 text-[11px] placeholder-slate-400 font-medium text-slate-800 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100/30 transition duration-150"
+                        />
+                        {chapterSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setChapterSearchQuery('')}
+                            className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Dropdown Toggle Button for Filtering Profiles */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsOpenSidebarRoleFilter(!isOpenSidebarRoleFilter)}
+                          className="w-full flex items-center justify-between gap-1.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-[11px] text-slate-705 font-bold cursor-pointer transition"
+                        >
+                          <span className="flex items-center gap-1.5 text-slate-600">
+                            <ListFilter className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">
+                              {selectedCurriculumRoleIds.length === 0
+                                ? 'No profiles selected ❌'
+                                : selectedCurriculumRoleIds.length === roles.length
+                                ? 'All Job Profiles Active 🌐'
+                                : `${selectedCurriculumRoleIds.length} Profiles Filtered`}
+                            </span>
+                          </span>
+                          <span className="text-[8px] text-slate-400 font-bold">
+                            {isOpenSidebarRoleFilter ? '▲' : '▼'}
+                          </span>
+                        </button>
+
+                        {/* Collapsible Dropdown for Profiles selection (Highly premium, secure within layout) */}
+                        {isOpenSidebarRoleFilter && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsOpenSidebarRoleFilter(false)} />
+                            <div className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 space-y-2 z-50 text-left max-h-48 overflow-y-auto scrollbar-thin">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1">
+                                <span className="text-[8.5px] font-mono font-black text-indigo-600 uppercase tracking-widest">
+                                  Filter Job Profiles
+                                </span>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCurriculumRoleIds(roles.map(r => r.id))}
+                                    className="text-[8px] font-bold text-indigo-650 hover:underline cursor-pointer"
+                                  >
+                                    All
+                                  </button>
+                                  <span className="text-slate-300 text-[8px]">•</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCurriculumRoleIds([])}
+                                    className="text-[8px] font-bold text-slate-500 hover:underline cursor-pointer"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                {roles.map(r => {
+                                  const isSelected = selectedCurriculumRoleIds.includes(r.id);
+                                  return (
+                                    <label
+                                      key={r.id}
+                                      className={`flex items-center gap-2 p-1 rounded-lg cursor-pointer text-[10.5px] transition ${
+                                        isSelected ? 'bg-indigo-50/40 text-indigo-900' : 'hover:bg-slate-50 text-slate-600'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => {
+                                          let newSet;
+                                          if (isSelected) {
+                                            newSet = selectedCurriculumRoleIds.filter(id => id !== r.id);
+                                          } else {
+                                            newSet = [...selectedCurriculumRoleIds, r.id];
+                                          }
+                                          setSelectedCurriculumRoleIds(newSet);
+                                        }}
+                                        className="rounded text-indigo-650 focus:ring-indigo-500 border-slate-300 w-3 h-3 cursor-pointer"
+                                      />
+                                      <div className="leading-none flex-1 truncate">
+                                        <span className="font-semibold block truncate">{r.name}</span>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                     
                     {/* Chapters list under current role */}
-                    <div className="space-y-1.5 mb-4 max-h-[260px] overflow-y-auto pr-1">
+                    <div className="space-y-2 mb-4 overflow-y-auto pr-1 scrollbar-thin flex-1 min-h-[180px] max-h-[300px]">
                       {activeChaptersList.map((chap, idx, arr) => {
                         const roleName = roles.find(r => r.id === chap.roleId)?.name || 'Unknown Profile';
                         const isSelected = chap.id === currentSelectedChapterId;
@@ -5475,47 +5817,72 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 }
                               }, 100);
                             }}
-                            className={`flex items-center justify-between p-1.5 rounded text-[11px] font-medium text-left transition duration-150 cursor-pointer ${
+                            className={`flex items-start justify-between p-3 rounded-xl text-[11px] font-medium text-left transition-all duration-200 cursor-pointer border hover:shadow-xs ${
                               isSelected 
-                                ? 'bg-indigo-50/90 border border-indigo-400 ring-1 ring-indigo-400/20 shadow-xs' 
-                                : 'bg-slate-50 border border-slate-150 hover:bg-slate-100 hover:border-slate-300'
+                                ? 'bg-indigo-50/80 border-indigo-400 ring-2 ring-indigo-400/10 shadow-xs border-l-4 border-l-indigo-600' 
+                                : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 shadow-3xs'
                             }`}
                           >
-                            <div className="truncate pr-1.5 max-w-[130px] sm:max-w-[160px]">
-                              <span className="text-[8px] font-bold text-indigo-700 uppercase font-mono block mb-0.5 leading-none">{roleName}</span>
-                              <span className={`font-bold tracking-tight text-[11px] leading-tight block ${isSelected ? 'text-indigo-950 font-black' : 'text-slate-800'}`}>{chap.name}</span>
+                            <div className="flex-1 min-w-0 pr-3 text-left">
+                              <span className="inline-block text-[8.5px] font-extrabold text-indigo-700 bg-indigo-50/80 border border-indigo-150/50 px-1.5 py-0.5 rounded-md mb-1.5 leading-tight uppercase font-mono break-words whitespace-normal">
+                                {roleName}
+                              </span>
+                              <span className={`font-bold tracking-tight text-[11px] leading-snug block whitespace-normal ${isSelected ? 'text-indigo-950 font-black' : 'text-slate-800'}`}>
+                                {chap.name}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 shrink-0 self-center" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
                                 onClick={() => handleMoveChapter(chap.id, 'up')}
                                 disabled={idx === 0}
-                                className={`w-5 h-5 flex items-center justify-center rounded text-[9px] transition cursor-pointer font-bold ${
-                                  idx === 0 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
+                                className={`w-5 h-5 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                                  idx === 0 
+                                    ? 'text-slate-300 pointer-events-none opacity-30' 
+                                    : 'text-slate-550 hover:text-indigo-650 hover:bg-indigo-50/80 hover:scale-105 active:scale-95'
                                 }`}
                                 title="Move Chapter Up"
                               >
-                                ▲
+                                <ChevronUp className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleMoveChapter(chap.id, 'down')}
                                 disabled={idx === arr.length - 1}
-                                className={`w-5 h-5 flex items-center justify-center rounded text-[9px] transition cursor-pointer font-bold ${
-                                  idx === arr.length - 1 ? 'text-slate-300 pointer-events-none' : 'text-slate-650 hover:text-slate-900 hover:bg-slate-200/60'
+                                className={`w-5 h-5 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                                  idx === arr.length - 1 
+                                    ? 'text-slate-300 pointer-events-none opacity-30' 
+                                    : 'text-slate-550 hover:text-indigo-650 hover:bg-indigo-50/80 hover:scale-105 active:scale-95'
                                 }`}
                                 title="Move Chapter Down"
                               >
-                                ▼
+                                <ChevronDown className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteChapter(chap.id)}
-                                className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition cursor-pointer"
-                                title="Delete Chapter"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                              {hasPermission('perm_curr_chap_edt') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingChapterId(chap.id);
+                                    setEditingChapterName(chap.name);
+                                    setEditingChapterRoleId(chap.roleId);
+                                    setIsEditChapterModalOpen(true);
+                                  }}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-450 hover:text-indigo-600 rounded-lg hover:bg-indigo-50/80 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                  title="Edit Chapter"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {hasPermission('perm_curr_chap_del') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteChapter(chap.id)}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-450 hover:text-rose-650 rounded-lg hover:bg-rose-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                  title="Delete Chapter"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -5526,86 +5893,182 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     </div>
 
                     {/* Add chapter trigger - Collapsible */}
-                    <div className="bg-indigo-50/20 rounded-xl border border-indigo-150 text-left overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setShowCreateChapterForm(!showCreateChapterForm)}
-                        className="w-full flex items-center justify-between p-2.5 text-[10.5px] uppercase font-black text-indigo-700 font-mono tracking-wider hover:bg-indigo-50 transition cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <span>➕ Create New Chapter</span>
-                        </span>
-                        <ChevronDown className={`w-3.5 h-3.5 text-indigo-600 transition-transform duration-150 ${showCreateChapterForm ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {showCreateChapterForm && (
-                        <div className="p-3 border-t border-indigo-100 space-y-2.5 bg-white/50">
-                          <div>
-                            <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Target Profile</label>
-                            <select
-                              value={addChapterRoleId}
-                              onChange={(e) => setAddChapterRoleId(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-bold text-slate-800 focus:border-indigo-500 outline-none"
-                            >
-                              {roles.map(r => (
-                                <option key={r.id} value={r.id}>{r.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                    {hasPermission('perm_curr_chap_add') && (
+                      <div className="bg-indigo-50/20 rounded-xl border border-indigo-150 text-left overflow-hidden shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateChapterForm(!showCreateChapterForm)}
+                          className="w-full flex items-center justify-between p-2.5 text-[10.5px] uppercase font-black text-indigo-700 font-mono tracking-wider hover:bg-indigo-50 transition cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>➕ Create New Chapter</span>
+                          </span>
+                          <ChevronDown className={`w-3.5 h-3.5 text-indigo-600 transition-transform duration-150 ${showCreateChapterForm ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showCreateChapterForm && (
+                          <div className="p-3.5 border-t border-indigo-100/70 space-y-3.5 bg-gradient-to-b from-indigo-50/10 to-indigo-50/30">
+                            <div>
+                              <label className="block text-[9.5px] uppercase font-mono font-bold text-slate-500 mb-1.5 tracking-wide">Target Job Profile</label>
+                              <select
+                                value={addChapterRoleId}
+                                onChange={(e) => setAddChapterRoleId(e.target.value)}
+                                className="w-full bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:border-indigo-550 focus:ring-4 focus:ring-indigo-100 outline-none transition cursor-pointer"
+                              >
+                                {roles.map(r => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </select>
+                            </div>
 
-                          <div>
-                            <label className="block text-[9px] uppercase font-mono font-bold text-slate-400 mb-1">Chapter Name</label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Closing adjusting ledgers"
-                              value={newChapterName}
-                              onChange={(e) => setNewChapterName(e.target.value)}
-                              className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs outline-none focus:border-indigo-500"
-                            />
+                            <div>
+                              <label className="block text-[9.5px] uppercase font-mono font-bold text-slate-500 mb-1.5 tracking-wide">Chapter Name</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Closing adjusting ledgers"
+                                value={newChapterName}
+                                onChange={(e) => setNewChapterName(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-indigo-550 focus:ring-4 focus:ring-indigo-100 outline-none transition"
+                              />
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={handleAddChapter}
+                              className="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition duration-150 cursor-pointer"
+                            >
+                              + Setup Chapter File
+                            </button>
                           </div>
-                          
-                          <button
-                            onClick={handleAddChapter}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-1.5 rounded-lg transition cursor-pointer"
-                          >
-                            + Setup Chapter File
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                 {/* Right Column: Units Creation Matrix */}
                 <div className="lg:col-span-2 space-y-6 max-h-[580px] overflow-y-auto pr-2 scrollbar-thin">
                   
                   {/* Action box to create new unit */}
-                  <div className="bg-gradient-to-r from-indigo-50/40 via-teal-50/20 to-indigo-50/40 rounded-2xl border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-3xs">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-amber-500 text-xs shrink-0">⚡</span>
-                        <h5 className="text-[11.5px] font-extrabold text-indigo-950 tracking-tight">Mapped Operational Lessons</h5>
+                  {hasPermission('perm_curr_unit_add') && (
+                    <div className="bg-gradient-to-r from-indigo-50/40 via-teal-50/20 to-indigo-50/40 rounded-2xl border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-3xs">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-amber-500 text-xs shrink-0">⚡</span>
+                          <h5 className="text-[11.5px] font-extrabold text-indigo-950 tracking-tight">Mapped Operational Lessons</h5>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">Need to deploy procedural learning walkthrough checklists to chapters?</p>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">Need to deploy procedural learning walkthrough checklists to chapters?</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingUnitId(null);
+                          setUnitCode('');
+                          setUnitTaskName('');
+                          setUnitVideoTitle('');
+                          setUnitVideoUrl('');
+                          setUnitPdfUrl('');
+                          setUnitDesc('');
+                          setUnitChapterId('');
+                          setIsUnitModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs hover:shadow-sm active:scale-98 transition duration-150 cursor-pointer shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Lesson Unit SKU</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingUnitId(null);
-                        setUnitCode('');
-                        setUnitTaskName('');
-                        setUnitVideoTitle('');
-                        setUnitVideoUrl('');
-                        setUnitPdfUrl('');
-                        setUnitDesc('');
-                        setUnitChapterId('');
-                        setIsUnitModalOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs hover:shadow-sm active:scale-98 transition duration-150 cursor-pointer shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Lesson Unit SKU</span>
-                    </button>
-                  </div>
+                  )}
+
+                  {/* Chapter Edit Modal Dialog */}
+                  <AnimatePresence>
+                    {isEditChapterModalOpen && (
+                      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => {
+                            setIsEditChapterModalOpen(false);
+                            setEditingChapterId(null);
+                          }}
+                          className="fixed inset-0"
+                        />
+
+                        <motion.div
+                          initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                          transition={{ type: 'spring', duration: 0.3 }}
+                          className="relative bg-white text-slate-800 rounded-3xl border border-slate-200 shadow-2xl p-6 md:p-8 w-full max-w-md z-10 my-8 max-h-[90vh] overflow-y-auto text-left"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditChapterModalOpen(false);
+                              setEditingChapterId(null);
+                            }}
+                            className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition cursor-pointer"
+                            title="Close Modal"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+
+                          <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1">
+                            <span>📝 Edit Chapter Settings</span>
+                          </h3>
+                          <p className="text-[11px] text-slate-500 mb-6">
+                            Modify the chapter name and reassign it to a different job profile/role if needed.
+                          </p>
+
+                          <form onSubmit={handleSaveChapterEdit} className="space-y-4 text-xs font-sans text-slate-750">
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Chapter Name <span className="text-rose-500 font-bold">*</span></label>
+                              <input
+                                required
+                                type="text"
+                                value={editingChapterName}
+                                onChange={(e) => setEditingChapterName(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 mb-1.5">Target Job Profile <span className="text-rose-500 font-bold">*</span></label>
+                              <select
+                                required
+                                value={editingChapterRoleId}
+                                onChange={(e) => setEditingChapterRoleId(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
+                              >
+                                {roles.map(r => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditChapterModalOpen(false);
+                                  setEditingChapterId(null);
+                                }}
+                                className="flex-1 py-3 bg-slate-150 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs hover:shadow-sm transition cursor-pointer"
+                              >
+                                Save Changes
+                              </button>
+                            </div>
+                          </form>
+                        </motion.div>
+                      </div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Lessons Modal Dialog */}
                   <AnimatePresence>
@@ -6066,22 +6529,26 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                               ▼
                                             </button>
                                           </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => startEditUnit(unit)}
-                                            className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
-                                            title="Edit Unit"
-                                          >
-                                            <Edit3 className="w-3 h-3" />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteUnit(unit.id)}
-                                            className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
-                                            title="Delete Unit"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
+                                          {hasPermission('perm_curr_unit_edt') && (
+                                            <button
+                                              type="button"
+                                              onClick={() => startEditUnit(unit)}
+                                              className="bg-slate-100 text-slate-650 hover:bg-slate-200 p-1.5 rounded transition cursor-pointer"
+                                              title="Edit Unit"
+                                            >
+                                              <Edit3 className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                          {hasPermission('perm_curr_unit_del') && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteUnit(unit.id)}
+                                              className="bg-slate-100 text-rose-600 hover:bg-rose-50 p-1.5 rounded transition cursor-pointer"
+                                              title="Delete Unit"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          )}
                                         </div>
                                       </div>
                                     );
@@ -8287,6 +8754,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            if (!hasPermission('perm_verif_approve')) {
+                                              showToast("🔒 Permission Denied: Your designation does not have 'Approve Curriculum Unit' permission in the matrix!", "error");
+                                              return;
+                                            }
                                             onSettleVerification(r.user.id, r.unit.id, 'verify');
                                             showToast(`✓ Mastered verification logged for ${r.user.name}.`, 'success');
                                           }}
@@ -8297,6 +8768,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            if (!hasPermission('perm_verif_reject')) {
+                                              showToast("🔒 Permission Denied: Your designation does not have 'Reject/Redo Curriculum Unit' permission in the matrix!", "error");
+                                              return;
+                                            }
                                             onSettleVerification(r.user.id, r.unit.id, 'reject');
                                             showToast(`✕ Task status returned back to trainee for revision.`, 'error');
                                           }}
