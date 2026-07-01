@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification, HelplineContact } from '../types';
+import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification, HelplineContact, SmtpConfig } from '../types';
 import { initialRoles, initialUsers, initialChapters, initialUnits, initialProgress, initialDepartments } from './initialRecords';
 import { setCollectionData, setDocumentData, getCollectionData, isFirebasePlaceholder, deleteDocumentsBatch } from './firebase';
 
@@ -21,7 +21,17 @@ const KEYS = {
   QUESTIONS: 'lms_questions_v1',
   EXAM_CONFIG: 'lms_exam_config_v1',
   NOTIFICATIONS: 'lms_notifications_v1',
-  HELPLINE_CONTACTS: 'lms_helpline_contacts_v1'
+  HELPLINE_CONTACTS: 'lms_helpline_contacts_v1',
+  SMTP_CONFIG: 'lms_smtp_config_v1'
+};
+
+export const defaultSmtpConfig: SmtpConfig = {
+  host: '',
+  port: '587',
+  user: '',
+  pass: '',
+  fromName: 'Rathi LMS Security',
+  fromEmail: 'security@rathibuildmart.com'
 };
 
 export const defaultCertificateTemplate: CertificateTemplate = {
@@ -367,6 +377,9 @@ export function initializeStorage() {
   if (!localStorage.getItem(KEYS.EXAM_CONFIG)) {
     localStorage.setItem(KEYS.EXAM_CONFIG, JSON.stringify(defaultExamConfig));
   }
+  if (!localStorage.getItem(KEYS.SMTP_CONFIG)) {
+    localStorage.setItem(KEYS.SMTP_CONFIG, JSON.stringify(defaultSmtpConfig));
+  }
   if (!localStorage.getItem(KEYS.NOTIFICATIONS)) {
     const initialNotifs: GlobalNotification[] = [
       {
@@ -412,6 +425,21 @@ export function getExamConfig(): ExamConfig {
 export function saveExamConfig(config: ExamConfig) {
   localStorage.setItem(KEYS.EXAM_CONFIG, JSON.stringify(config));
   setDocumentData('configs', 'exam_config', config);
+}
+
+export function getSmtpConfig(): SmtpConfig {
+  initializeStorage();
+  const data = localStorage.getItem(KEYS.SMTP_CONFIG);
+  try {
+    return data ? JSON.parse(data) : defaultSmtpConfig;
+  } catch (e) {
+    return defaultSmtpConfig;
+  }
+}
+
+export function saveSmtpConfig(config: SmtpConfig) {
+  localStorage.setItem(KEYS.SMTP_CONFIG, JSON.stringify(config));
+  setDocumentData('configs', 'smtp_config', config);
 }
 
 export function getDepartments(): string[] {
@@ -762,6 +790,7 @@ export function resetToDefaults() {
   localStorage.removeItem(KEYS.COMPANY_BRANDING);
   localStorage.removeItem(KEYS.QUESTIONS);
   localStorage.removeItem(KEYS.EXAM_CONFIG);
+  localStorage.removeItem(KEYS.SMTP_CONFIG);
   initializeStorage();
   
   if (!isFirebasePlaceholder) {
@@ -775,6 +804,7 @@ export function resetToDefaults() {
     setDocumentData('configs', 'branding', defaultCompanyBranding);
     setDocumentData('configs', 'cert_template', defaultCertificateTemplate);
     setDocumentData('configs', 'exam_config', defaultExamConfig);
+    setDocumentData('configs', 'smtp_config', defaultSmtpConfig);
   }
 }
 
@@ -1118,6 +1148,13 @@ export async function syncAllWithCloud(): Promise<boolean> {
         await setDocumentData('configs', 'exam_config', getExamConfig());
       }
 
+      const smtpCfg = cloudConfigs.find((c: any) => c.id === 'smtp_config');
+      if (smtpCfg) {
+        localStorage.setItem(KEYS.SMTP_CONFIG, JSON.stringify(smtpCfg));
+      } else {
+        await setDocumentData('configs', 'smtp_config', getSmtpConfig());
+      }
+
       const helpline = cloudConfigs.find((c: any) => c.id === 'helpline_contacts');
       if (helpline && helpline.list) {
         localStorage.setItem(KEYS.HELPLINE_CONTACTS, JSON.stringify(helpline.list));
@@ -1129,6 +1166,7 @@ export async function syncAllWithCloud(): Promise<boolean> {
       await setDocumentData('configs', 'branding', getCompanyBranding());
       await setDocumentData('configs', 'cert_template', getCertificateTemplate());
       await setDocumentData('configs', 'exam_config', getExamConfig());
+      await setDocumentData('configs', 'smtp_config', getSmtpConfig());
       await setDocumentData('configs', 'helpline_contacts', { list: getHelplineContacts() });
     }
 

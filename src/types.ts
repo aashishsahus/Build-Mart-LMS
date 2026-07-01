@@ -29,6 +29,9 @@ export interface User {
   status?: UserStatus; // 'Active' or 'Deactivated' or 'Left' (Resigned)
   reportsTo?: string; // Referring to parent user's id (Manager/Supervisor)
   lastActive?: string; // ISO string of last known active timestamp
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  permissions?: string[];
 }
 
 export interface Chapter {
@@ -139,6 +142,16 @@ export interface HelplineContact {
   roleBadge: string;
   badgeType: 'indigo' | 'rose' | 'emerald' | 'amber';
 }
+
+export interface SmtpConfig {
+  host: string;
+  port: string;
+  user: string;
+  pass: string;
+  fromName: string;
+  fromEmail: string;
+}
+
 
 
 

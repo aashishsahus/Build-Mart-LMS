@@ -46,7 +46,8 @@ import { Avatar } from './components/Avatar';
 import { Activity, BookOpen, Layers, Database, HelpCircle, ShieldCheck, Keyboard, LifeBuoy, AlertTriangle, CheckCircle, RefreshCw, Users, Server } from 'lucide-react';
 import { isFirebasePlaceholder } from './data/firebase';
 
-function checkIsAdminUser(role?: string, dept?: string): boolean {
+function checkIsAdminUser(role?: string, dept?: string, user?: User): boolean {
+  if (user?.isSuperAdmin || user?.isAdmin) return true;
   if (!role) return false;
   const r = role.toLowerCase();
   const d = (dept || '').toLowerCase();
@@ -175,7 +176,7 @@ export default function App() {
       setUserId(savedUserId);
       const user = currentUsers.find(u => u.id === savedUserId);
       if (user) {
-        if (checkIsAdminUser(user.roleId, user.department)) {
+        if (checkIsAdminUser(user.roleId, user.department, user)) {
           setActiveTab('admin-reports');
         } else {
           setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
@@ -195,7 +196,7 @@ export default function App() {
       setCurrentUserId(userId); // Persist session to prevent status deletion
       setSimulatedUserId(null);
       const user = getUsers().find(u => u.id === userId);
-      if (user && checkIsAdminUser(user.roleId, user.department)) {
+      if (user && checkIsAdminUser(user.roleId, user.department, user)) {
         setActiveTab('admin-reports');
       } else if (user) {
         setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
@@ -204,13 +205,13 @@ export default function App() {
       // Already logged in!
       // Check if original logged-in user is privileged (Sr Accountant or Director/CEO/COO/MD or HR)
       const principalUser = getUsers().find(u => u.id === currentUserId);
-      const isPrincipalAdmin = principalUser && checkIsAdminUser(principalUser.roleId, principalUser.department);
+      const isPrincipalAdmin = principalUser && checkIsAdminUser(principalUser.roleId, principalUser.department, principalUser);
       
       if (isPrincipalAdmin) {
         // Simulating the user!
         setSimulatedUserId(userId);
         const targetUser = getUsers().find(u => u.id === userId);
-        if (targetUser && checkIsAdminUser(targetUser.roleId, targetUser.department)) {
+        if (targetUser && checkIsAdminUser(targetUser.roleId, targetUser.department, targetUser)) {
           setActiveTab('admin-reports');
         } else if (targetUser) {
           setActiveTab(targetUser.roleId === 'role_candidate' ? 'testing' : 'learning');
@@ -221,7 +222,7 @@ export default function App() {
         setCurrentUserId(userId); // Persist session to prevent status deletion
         setSimulatedUserId(null);
         const user = getUsers().find(u => u.id === userId);
-        if (user && checkIsAdminUser(user.roleId, user.department)) {
+        if (user && checkIsAdminUser(user.roleId, user.department, user)) {
           setActiveTab('admin-reports');
         } else if (user) {
           setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
@@ -233,7 +234,7 @@ export default function App() {
   const handleExitSimulation = () => {
     setSimulatedUserId(null);
     const user = getUsers().find(u => u.id === currentUserId);
-    if (user && checkIsAdminUser(user.roleId, user.department)) {
+    if (user && checkIsAdminUser(user.roleId, user.department, user)) {
       setActiveTab('admin-reports');
     } else if (user) {
       setActiveTab(user.roleId === 'role_candidate' ? 'testing' : 'learning');
@@ -577,10 +578,10 @@ export default function App() {
               
               {/* Left Side: Compliance & Real-time Live Counters */}
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/70 text-emerald-700 rounded-full border border-emerald-100/80 text-[9px] font-mono tracking-wider uppercase font-bold shadow-3xs">
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-full text-[9.5px] font-mono tracking-widest uppercase font-extrabold shadow-sm transition duration-200">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)]"></span>
                   </span>
                   Security Matrix Compliant
                 </span>

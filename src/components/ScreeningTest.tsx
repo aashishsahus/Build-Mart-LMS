@@ -289,7 +289,9 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
   };
 
   // Is Admin Indicator
-  const isAdmin = currentUser.roleId === 'role_sr_acc' || 
+  const isAdmin = currentUser.isSuperAdmin || 
+                  currentUser.isAdmin || 
+                  currentUser.roleId === 'role_sr_acc' || 
                   currentUser.roleId === 'role_md' || 
                   currentUser.roleId === 'role_ceo' || 
                   currentUser.roleId === 'role_coo' || 

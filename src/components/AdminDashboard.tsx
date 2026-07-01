@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
 import HierarchyView from './HierarchyView';
-import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact } from '../types';
-import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts } from '../data/stateManager';
+import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact, SmtpConfig } from '../types';
+import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts, getSmtpConfig, saveSmtpConfig } from '../data/stateManager';
 import { 
   Users, 
   Layers, 
@@ -91,52 +91,54 @@ interface PermissionDefinition {
 }
 
 const ALL_PERMISSIONS: PermissionDefinition[] = [
-  // Account Group Module
-  { id: 'perm_acc_group', name: 'Account Group', isParent: true, group: 'Account Group' },
-  { id: 'perm_acc_group_add', name: 'Account Group Add', group: 'Account Group' },
-  { id: 'perm_acc_group_del', name: 'Account Group Delete', group: 'Account Group' },
-  { id: 'perm_acc_group_edt', name: 'Account Group Edit', group: 'Account Group' },
-  { id: 'perm_acc_group_eds', name: 'Account Group Edit Status', group: 'Account Group' },
-  { id: 'perm_acc_group_viw', name: 'Account Group View', group: 'Account Group' },
-  { id: 'perm_acc_group_vdt', name: 'Account Group View Details', group: 'Account Group' },
-  { id: 'perm_sec_group', name: 'Secured Group', isParent: true, group: 'Account Group' },
-  { id: 'perm_sec_group_acc', name: 'Secured Group Access', group: 'Account Group' },
-  { id: 'perm_sec_ledger_adt', name: 'Secured Ledger Audit', group: 'Account Group' },
+  // Group: Account Group & Roles Matrix
+  { id: 'perm_acc_group', name: 'Account Group Panel', isParent: true, group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_add', name: 'Add Account Group', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_del', name: 'Delete Account Group', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_edt', name: 'Edit Account Group', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_eds', name: 'Toggle Account Group Status', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_viw', name: 'View Account Groups List', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_acc_group_vdt', name: 'View Account Group Details', group: 'Account Group & Roles Matrix' },
+  { id: 'perm_sec_group', name: 'Job Roles & Permissions Panel', isParent: true, group: 'Account Group & Roles Matrix' },
+  { id: 'perm_sec_group_acc', name: 'Access Permissions Matrix Editor', group: 'Account Group & Roles Matrix' },
 
-  // Curriculum Architecture Module
-  { id: 'perm_curr_builder', name: 'Corporate Curriculum', isParent: true, group: 'Curriculum Architecture' },
-  { id: 'perm_curr_chap_add', name: 'Curriculum Chapter Add', group: 'Curriculum Architecture' },
-  { id: 'perm_curr_chap_del', name: 'Curriculum Chapter Delete', group: 'Curriculum Architecture' },
-  { id: 'perm_curr_chap_edt', name: 'Curriculum Chapter Edit', group: 'Curriculum Architecture' },
-  { id: 'perm_curr_unit_add', name: 'Curriculum Unit Add', group: 'Curriculum Architecture' },
-  { id: 'perm_curr_unit_del', name: 'Curriculum Unit Delete', group: 'Curriculum Architecture' },
-  { id: 'perm_curr_unit_edt', name: 'Curriculum Unit Edit', group: 'Curriculum Architecture' },
+  // Group: Curriculum Builder
+  { id: 'perm_curr_builder', name: 'Curriculum Builder Panel', isParent: true, group: 'Curriculum Builder' },
+  { id: 'perm_curr_chap_add', name: 'Add Curriculum Chapters', group: 'Curriculum Builder' },
+  { id: 'perm_curr_chap_del', name: 'Delete Curriculum Chapters', group: 'Curriculum Builder' },
+  { id: 'perm_curr_chap_edt', name: 'Edit Curriculum Chapters', group: 'Curriculum Builder' },
+  { id: 'perm_curr_unit_add', name: 'Add Curriculum Units (SKU)', group: 'Curriculum Builder' },
+  { id: 'perm_curr_unit_del', name: 'Delete Curriculum Units (SKU)', group: 'Curriculum Builder' },
+  { id: 'perm_curr_unit_edt', name: 'Edit Curriculum Units (SKU)', group: 'Curriculum Builder' },
 
-  // Corporate Verification Module (Double-Check Framework)
-  { id: 'perm_verif_ctr', name: 'Verification Cockpit', isParent: true, group: 'Corporate Verification' },
-  { id: 'perm_verif_view', name: 'Verification Board View', group: 'Corporate Verification' },
-  { id: 'perm_verif_approve', name: 'Approve Curriculum Unit', group: 'Corporate Verification' },
-  { id: 'perm_verif_reject', name: 'Reject/Redo Curriculum Unit', group: 'Corporate Verification' },
-  { id: 'perm_verif_override', name: 'Director Override Authority', group: 'Corporate Verification' },
+  // Group: Enrollment Approvals
+  { id: 'perm_verif_view', name: 'View Pending Registrations List', isParent: true, group: 'Enrollment Approvals' },
+  { id: 'perm_verif_approve', name: 'Approve Trainee Signup', group: 'Enrollment Approvals' },
+  { id: 'perm_verif_reject', name: 'Reject Trainee Signup', group: 'Enrollment Approvals' },
 
-  // User Database Module
-  { id: 'perm_user_db', name: 'User Management', isParent: true, group: 'User Database' },
-  { id: 'perm_user_add', name: 'Register New Trainee', group: 'User Database' },
-  { id: 'perm_user_edt', name: 'Edit Trainee Profile', group: 'User Database' },
-  { id: 'perm_user_del', name: 'Offboard/Delete User', group: 'User Database' },
-  { id: 'perm_user_batch', name: 'Batch Profile Copier & Share Syner', group: 'User Database' },
+  // Group: User Database
+  { id: 'perm_user_db', name: 'User Database Panel', isParent: true, group: 'User Database' },
+  { id: 'perm_user_add', name: 'Onboard/Create New User Profile', group: 'User Database' },
+  { id: 'perm_user_edt', name: 'Edit Trainee Profiles', group: 'User Database' },
+  { id: 'perm_user_del', name: 'Offboard/Delete Trainee Accounts', group: 'User Database' },
+  { id: 'perm_user_batch', name: 'Bulk Profile Batch Copier & Syncer', group: 'User Database' },
 
-  // Performance Records Module
-  { id: 'perm_perf_rec', name: 'Performance Records', isParent: true, group: 'Performance Records' },
-  { id: 'perm_perf_view', name: 'View Performance Reports', group: 'Performance Records' },
-  { id: 'perm_perf_chart', name: 'View Interactive Charts', group: 'Performance Records' },
-  { id: 'perm_perf_export', name: 'Export Matrix Data', group: 'Performance Records' },
+  // Group: Assessment Exams
+  { id: 'perm_verif_ctr', name: 'Assessment Exams Panel', isParent: true, group: 'Assessment Exams' },
+  { id: 'perm_verif_override', name: 'Director Override Authority', group: 'Assessment Exams' },
 
-  // System Administration & Control Hub Module
-  { id: 'perm_sys_settings', name: 'Control Hub Settings', isParent: true, group: 'System Settings' },
-  { id: 'perm_hierarchy_view', name: 'Hierarchy Matrix View', group: 'System Settings' },
-  { id: 'perm_departments_view', name: 'Departments Matrix View', group: 'System Settings' },
-  { id: 'perm_cert_config', name: 'Certificate Settings Config', group: 'System Settings' },
+  // Group: Performance & Audit Trail
+  { id: 'perm_perf_rec', name: 'Performance & Analytics Panel', isParent: true, group: 'Performance & Audit Trail' },
+  { id: 'perm_perf_view', name: 'View Performance Progress Reports', group: 'Performance & Audit Trail' },
+  { id: 'perm_perf_chart', name: 'View Interactive Progress Charts', group: 'Performance & Audit Trail' },
+  { id: 'perm_perf_export', name: 'Export Compliance/Audit Reports', group: 'Performance & Audit Trail' },
+  { id: 'perm_sec_ledger_adt', name: 'Access Audit Trail Logs', group: 'Performance & Audit Trail' },
+
+  // Group: Control Hub Settings
+  { id: 'perm_sys_settings', name: 'Control Hub Settings Panel', isParent: true, group: 'Control Hub Settings' },
+  { id: 'perm_hierarchy_view', name: 'View & Edit Org Hierarchy Matrix', group: 'Control Hub Settings' },
+  { id: 'perm_departments_view', name: 'View & Edit Division Departments Grid', group: 'Control Hub Settings' },
+  { id: 'perm_cert_config', name: 'Configure PDF Certificate Templates & Signatures', group: 'Control Hub Settings' },
 ];
 
 function getInitialMatrixState(currentRoles: Role[], bypassSaved: boolean = false): Record<string, Record<string, boolean>> {
@@ -354,15 +356,18 @@ export default function AdminDashboard({
   });
 
   // Checking admin and group directorship/ownership authorization
-  const isAdmin = currentUser.roleId === 'role_sr_acc';
-  const isDirectorOrOwner = currentUser.roleId === 'role_md' || currentUser.roleId === 'role_ceo' || currentUser.roleId === 'role_coo' || currentUser.department === 'Director' || currentUser.role?.name?.toLowerCase().includes('director') || currentUser.role?.name?.toLowerCase().includes('owner');
-  const isHR = currentUser.roleId === 'role_hr_mgr' || currentUser.roleId === 'role_ta_exec' || currentUser.roleId === 'role_training_mgr' || currentUser.department?.toLowerCase().includes('hr') || currentUser.department?.toLowerCase().includes('talent') || currentUser.role?.name?.toLowerCase().includes('hr');
+  const isSuperAdmin = !!currentUser.isSuperAdmin;
+  const isAdminCheckbox = !!currentUser.isAdmin;
+  const isAdmin = currentUser.roleId === 'role_sr_acc' || isSuperAdmin || isAdminCheckbox;
+  const isDirectorOrOwner = isSuperAdmin || currentUser.roleId === 'role_md' || currentUser.roleId === 'role_ceo' || currentUser.roleId === 'role_coo' || currentUser.department === 'Director' || currentUser.role?.name?.toLowerCase().includes('director') || currentUser.role?.name?.toLowerCase().includes('owner');
+  const isHR = isSuperAdmin || currentUser.roleId === 'role_hr_mgr' || currentUser.roleId === 'role_ta_exec' || currentUser.roleId === 'role_training_mgr' || currentUser.department?.toLowerCase().includes('hr') || currentUser.department?.toLowerCase().includes('talent') || currentUser.role?.name?.toLowerCase().includes('hr');
   
   // Dynamic authorization: true if user is Admin/Director/HR OR has any active permission in the matrix
   const hasAnyMatrixPermission = currentUser.roleId 
     ? Object.keys(permissionsMatrix).some(permId => permissionsMatrix[permId]?.[currentUser.roleId] === true)
     : false;
-  const hasAccess = isAdmin || isDirectorOrOwner || isHR || hasAnyMatrixPermission;
+  const hasAnyUserPermission = isAdminCheckbox && currentUser.permissions && currentUser.permissions.length > 0;
+  const hasAccess = isAdmin || isDirectorOrOwner || isHR || hasAnyMatrixPermission || hasAnyUserPermission;
   
   const [bypassAuth, setBypassAuth] = useState(false);
 
@@ -447,6 +452,13 @@ export default function AdminDashboard({
     }
   };
 
+  // Advanced Analytics Dashboard State
+  const [analyticsSearch, setAnalyticsSearch] = useState('');
+  const [analyticsRoleFilter, setAnalyticsRoleFilter] = useState('all');
+  const [analyticsProgressFilter, setAnalyticsProgressFilter] = useState('all'); // 'all' | 'certified' | 'in_progress' | 'not_started'
+  const [analyticsSortBy, setAnalyticsSortBy] = useState<'name_asc' | 'name_desc' | 'progress_desc' | 'progress_asc'>('progress_desc');
+  const [analyticsInspectedUserId, setAnalyticsInspectedUserId] = useState<string | null>(null);
+
   // Certificate Template Customization state
   const [certFocusEntity, setCertFocusEntity] = useState(() => getCertificateTemplate().focusEntity);
   const [certSubHeader, setCertSubHeader] = useState(() => getCertificateTemplate().subHeader);
@@ -508,6 +520,74 @@ export default function AdminDashboard({
       setTimeout(() => setCertSavingSuccess(''), 4000);
     } catch (err: any) {
       showToast("Error saving certificate templates: " + err.message, 'error');
+    }
+  };
+
+  // SMTP Email Delivery Config State
+  const [smtpHost, setSmtpHost] = useState(() => getSmtpConfig().host);
+  const [smtpPort, setSmtpPort] = useState(() => getSmtpConfig().port);
+  const [smtpUser, setSmtpUser] = useState(() => getSmtpConfig().user);
+  const [smtpPass, setSmtpPass] = useState(() => getSmtpConfig().pass);
+  const [smtpFromName, setSmtpFromName] = useState(() => getSmtpConfig().fromName);
+  const [smtpFromEmail, setSmtpFromEmail] = useState(() => getSmtpConfig().fromEmail);
+  const [smtpSavingSuccess, setSmtpSavingSuccess] = useState('');
+  const [smtpTestLoading, setSmtpTestLoading] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+
+  const handleSaveSmtp = () => {
+    try {
+      const config: SmtpConfig = {
+        host: smtpHost,
+        port: smtpPort,
+        user: smtpUser,
+        pass: smtpPass,
+        fromName: smtpFromName,
+        fromEmail: smtpFromEmail
+      };
+      saveSmtpConfig(config);
+      setSmtpSavingSuccess("✓ SMTP Email Configurations successfully saved and live!");
+      setTimeout(() => setSmtpSavingSuccess(''), 4000);
+      showToast("✓ SMTP configuration saved successfully!", "success");
+    } catch (err: any) {
+      showToast("Error saving SMTP configuration: " + err.message, "error");
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    if (!smtpTestEmail) {
+      showToast("Please enter a valid recipient email address first!", "info");
+      return;
+    }
+    setSmtpTestLoading(true);
+    try {
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: smtpTestEmail,
+          otp: Math.floor(100000 + Math.random() * 900000).toString(),
+          name: 'Administrator Test Recipient',
+          mode: 'forgot',
+          smtpConfig: {
+            host: smtpHost,
+            port: smtpPort,
+            user: smtpUser,
+            pass: smtpPass,
+            fromName: smtpFromName,
+            fromEmail: smtpFromEmail
+          }
+        })
+      });
+      const data = await response.json();
+      setSmtpTestLoading(false);
+      if (data.sent) {
+        showToast("✓ Real SMTP test email dispatched successfully! Please check your inbox.", "success");
+      } else {
+        showToast(`❌ SMTP send failed: ${data.message || 'No direct response'}`, "error");
+      }
+    } catch (err: any) {
+      setSmtpTestLoading(false);
+      showToast(`❌ Connection failed: ${err.message}`, "error");
     }
   };
 
@@ -689,6 +769,9 @@ export default function AdminDashboard({
   const [editUserFocus, setEditUserFocus] = useState('');
   const [editUserPassword, setEditUserPassword] = useState('');
   const [editUserStatus, setEditUserStatus] = useState<'Active' | 'Deactivated' | 'Left'>('Active');
+  const [editUserIsAdmin, setEditUserIsAdmin] = useState(false);
+  const [editUserIsSuperAdmin, setEditUserIsSuperAdmin] = useState(false);
+  const [editUserPermissions, setEditUserPermissions] = useState<string[]>([]);
 
   // Trainee Registration State (Add User)
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -701,6 +784,9 @@ export default function AdminDashboard({
   const [newUserRoles, setNewUserRoles] = useState<string[]>([]); // Secondary/other roles for register
   const [newUserPassword, setNewUserPassword] = useState('rathi123');
   const [newUserStatus, setNewUserStatus] = useState<'Active' | 'Deactivated' | 'Left'>('Active');
+  const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
+  const [newUserIsSuperAdmin, setNewUserIsSuperAdmin] = useState(false);
+  const [newUserPermissions, setNewUserPermissions] = useState<string[]>([]);
   
   // 1. Roles & Permissions Sub-Tab & Matrix States
   const [rolesSubTab, setRolesSubTab] = useState<'matrix' | 'list' | 'add'>('matrix');
@@ -754,7 +840,7 @@ export default function AdminDashboard({
   const [confirmDeleteUnitId, setConfirmDeleteUnitId] = useState<string | null>(null);
   const [confirmClearLogs, setConfirmClearLogs] = useState<boolean>(false);
   const [confirmDeleteQuestionId, setConfirmDeleteQuestionId] = useState<string | null>(null);
-  const [selectedPermissionGroup, setSelectedPermissionGroup] = useState<string>('Account Group');
+  const [selectedPermissionGroup, setSelectedPermissionGroup] = useState<string>('Account Group & Roles Matrix');
   const [searchPermissionQuery, setSearchPermissionQuery] = useState<string>('');
   const [visibleRoleColumns, setVisibleRoleColumns] = useState<string[]>(() => {
     return roles ? roles.map(r => r.id) : [];
@@ -762,6 +848,17 @@ export default function AdminDashboard({
   const [showRoleSelectionDropdown, setShowRoleSelectionDropdown] = useState<boolean>(false);
   // Helper to check if simulated or active currentUser's role has a specific permission key enabled
   const hasPermission = (permId: string): boolean => {
+    // 1. Super Admin bypasses all checks
+    if (currentUser.isSuperAdmin) {
+      return true;
+    }
+
+    // 2. Admin with user-wise permissions
+    if (currentUser.isAdmin) {
+      const userPerms = currentUser.permissions || [];
+      return userPerms.includes(permId);
+    }
+
     const roleId = currentUser.roleId;
     if (!roleId) return true; // Default fallback if no role ID
     
@@ -1083,14 +1180,17 @@ export default function AdminDashboard({
           department: editUserDept,
           focusEntity: editUserFocus,
           password: editUserPassword || 'rathi123',
-          status: editUserStatus
+          status: editUserStatus,
+          isAdmin: editUserIsAdmin,
+          isSuperAdmin: editUserIsSuperAdmin,
+          permissions: editUserIsAdmin ? editUserPermissions : []
         };
       }
       return u;
     });
     onUpdateUsers(updated);
     setEditingUserId(null);
-    showToast('✓ User updated and job profiles saved successfully!', 'success');
+    showToast('✓ User updated and job privileges saved successfully!', 'success');
   };
 
   const handleCreateUser = (e: React.FormEvent) => {
@@ -1122,7 +1222,10 @@ export default function AdminDashboard({
       focusEntity: newUserFocus.trim() || "Rathi Buildmart Head Office",
       password: newUserPassword || 'rathi123',
       avatarUrl: newUserAvatar.trim() || `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 100000)}?w=120`,
-      status: newUserStatus
+      status: newUserStatus,
+      isAdmin: newUserIsAdmin,
+      isSuperAdmin: newUserIsSuperAdmin,
+      permissions: newUserIsAdmin ? newUserPermissions : []
     };
 
     onUpdateUsers([...users, newUserObj]);
@@ -1137,6 +1240,9 @@ export default function AdminDashboard({
     setNewUserRoles([]);
     setNewUserPassword('rathi123');
     setNewUserStatus('Active');
+    setNewUserIsAdmin(false);
+    setNewUserIsSuperAdmin(false);
+    setNewUserPermissions([]);
     setIsAddingUser(false);
     showToast(`✓ Registered "${newUserObj.name}" with password into the enterprise directory!`, 'success');
   };
@@ -2298,22 +2404,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       }
                     ]
                   },
-                  { 
-                    id: 'analytics', 
-                    label: 'Data Visuals', 
-                    icon: TrendingUp,
-                    countLabel: 'Charts',
-                    subTabs: [
-                      { 
-                        id: 'analytics_charts', 
-                        label: 'Progress Visuals', 
-                        isActive: adminTab === 'analytics',
-                        onClick: () => {
-                          setAdminTab('analytics');
-                        }
-                      }
-                    ]
-                  },
+
                   { 
                     id: 'recruitment', 
                     label: 'Assessment Exams', 
@@ -2863,10 +2954,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 {/* MAIN WORKFORCE SCORECARD DIRECTORY & ANALYTICS COCKPIT */}
                 <div className={`${showDepartmentsSidebar ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-12'} space-y-6 transition-all duration-350`}>
 
-                  {/* Trainee Stands & Scorecard Directory */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs space-y-3.5">
-                    
-                    {/* Unified Premium Header: Merging both headers and adding Show/Hide toggle button */}
+                {isDirectorOrOwner ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs space-y-4">
+                    {/* Unified Premium Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-2">
                       <div className="flex items-center gap-2">
                         <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100/60 shadow-3xs shrink-0">
@@ -2905,14 +2995,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       </button>
                     </div>
 
-                {isDirectorOrOwner ? (
-                  <>
-                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-850 flex items-center gap-2 mt-4">
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-850 flex items-center gap-2 mt-2">
                       <Shield className="w-4 h-4 text-amber-600 shrink-0" />
                       <span>Individual employee profiles and scorecards are restricted to Senior Accountants and LMS Administrators for privacy and audit security compliance.</span>
                     </div>
 
-                    <div className="mt-4 bg-slate-50 rounded-2xl p-6 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="flex flex-col justify-center">
                         <h4 className="text-sm font-extrabold text-slate-900 border-b pb-2 mb-3 flex items-center gap-1.5 font-sans">
                           <Shield className="w-4 h-4 text-emerald-600" />
@@ -2968,308 +3056,869 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
                       </div>
                     </div>
-                  </>
-              ) : (
-                <>
-
-                {/* Filter and search bar */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200">
-                  <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Search Practitioner Name/Email</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Aashish Sahu, misrpr@rathibuildmart.com..."
-                      value={scorecardSearch}
-                      onChange={(e) => setScorecardSearch(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-emerald-500 font-medium font-sans"
-                    />
                   </div>
+                ) : (
+                  <>
+                    {/* KPI OVERVIEW STAT CARDS - Merged from Analytics */}
+                    {(() => {
+                      const totalUsersTracked = users.length;
+                      const avgMasteryPercentage = users.length > 0 
+                        ? Math.round(users.reduce((sum, u) => sum + calculateUserProgress(u.id, u.roleId).masteryPercent, 0) / users.length) 
+                        : 0;
+                      const pendingReviewsCount = progress.filter(p => p.status === 'Completed (Pending Review)').length;
+                      const fullyCertifiedCount = users.filter(u => calculateUserProgress(u.id, u.roleId).masteryPercent === 100).length;
 
-                  <div className="relative">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Filter Department</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-emerald-500 font-semibold font-sans flex items-center justify-between shadow-3xs hover:border-slate-400 transition cursor-pointer select-none text-left"
-                    >
-                      <span className="truncate pr-2">
-                        {scorecardDeptFilters.length === 0
-                          ? `All Departments (${departments.length})`
-                          : scorecardDeptFilters.length === 1
-                            ? scorecardDeptFilters[0]
-                            : `${scorecardDeptFilters.length} Selected`
-                        }
-                      </span>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    </button>
-                    
-                    {isDeptDropdownOpen && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-10" 
-                          onClick={() => setIsDeptDropdownOpen(false)}
-                        />
-                        <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1.5 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                          <div className="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between gap-2 mb-1">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">Multi-Select</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setScorecardDeptFilters([]);
-                              }}
-                              className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wide cursor-pointer"
-                            >
-                              Reset All
-                            </button>
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-3xs flex items-center gap-3">
+                            <div className="p-2.5 bg-indigo-50 text-indigo-650 rounded-lg shrink-0 border border-indigo-100/50">
+                              <Users className="w-4.5 h-4.5" />
+                            </div>
+                            <div>
+                              <div className="text-xl font-black text-slate-900 font-mono leading-none mb-1">{totalUsersTracked}</div>
+                              <div className="text-[9px] uppercase font-bold text-slate-450 text-slate-400 tracking-wider">Total Staffers Tracked</div>
+                            </div>
                           </div>
-                          {departments.map((dept) => {
-                            const isChecked = scorecardDeptFilters.includes(dept);
-                            return (
-                              <label
-                                key={dept}
-                                className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 cursor-pointer text-xs font-semibold text-slate-700 select-none transition"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    if (isChecked) {
-                                      setScorecardDeptFilters(scorecardDeptFilters.filter(d => d !== dept));
-                                    } else {
-                                      setScorecardDeptFilters([...scorecardDeptFilters, dept]);
-                                    }
-                                  }}
-                                  className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                                />
-                                <span className="font-mono text-[10px] uppercase tracking-wide">{dept}</span>
-                              </label>
-                            );
-                          })}
+
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-3xs flex items-center gap-3">
+                            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg shrink-0 border border-emerald-100/50">
+                              <TrendingUp className="w-4.5 h-4.5" />
+                            </div>
+                            <div>
+                              <div className="text-xl font-black text-slate-900 font-mono leading-none mb-1">{avgMasteryPercentage}%</div>
+                              <div className="text-[9px] uppercase font-bold text-slate-450 text-slate-400 tracking-wider">Overall Compliance Rate</div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-3xs flex items-center gap-3">
+                            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg shrink-0 border border-amber-100/50">
+                              <Clock className="w-4.5 h-4.5 animate-pulse" />
+                            </div>
+                            <div>
+                              <div className="text-xl font-black text-slate-900 font-mono leading-none mb-1">{pendingReviewsCount}</div>
+                              <div className="text-[9px] uppercase font-bold text-slate-450 text-slate-400 tracking-wider">Pending Audit Sign-offs</div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-3xs flex items-center gap-3">
+                            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-lg shrink-0 border border-purple-100/50">
+                              <Award className="w-4.5 h-4.5" />
+                            </div>
+                            <div>
+                              <div className="text-xl font-black text-slate-900 font-mono leading-none mb-1">{fullyCertifiedCount}</div>
+                              <div className="text-[9px] uppercase font-bold text-slate-450 text-slate-400 tracking-wider">Certified Compliant Staff</div>
+                            </div>
+                          </div>
                         </div>
-                      </>
-                    )}
-                  </div>
+                      );
+                    })()}
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Filter Designation</label>
-                    <select
-                      value={scorecardRoleFilter}
-                      onChange={(e) => setScorecardRoleFilter(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-emerald-500 font-medium font-sans"
-                    >
-                      <option value="all">All Roles ({roles.length})</option>
-                      {roles.map(r => (
-                        <option key={r.id} value={r.id}>{r.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                    {/* Unified Premium Table: Staffer Progress Ledger & Compliance Audit */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs space-y-4">
+                      
+                      {/* Premium Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100/60 shadow-3xs shrink-0">
+                            <Users className="w-4 h-4 text-emerald-600" />
+                          </span>
+                          <div className="text-left">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-none">
+                                Staffer Progress Ledger & Compliance Audit
+                              </h3>
+                              <span className="bg-emerald-100 text-emerald-800 text-[8px] font-mono px-1 rounded font-bold uppercase tracking-wide">Live</span>
+                            </div>
+                            <p className="text-[10px] text-slate-450 text-slate-400 mt-0.5 font-medium">Filter, search, and audit exact operational unit metrics of every registered staff member</p>
+                          </div>
+                        </div>
 
-                {/* Show entries control and status bar */}
-                <div className="flex items-center justify-between gap-2 py-1.5">
-                  <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
-                    Showing {Math.min(reportsLimit, scoreFilteredUsers.length)} of {scoreFilteredUsers.length} Staff Members
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs">
-                    <span>Show entries:</span>
-                    <select
-                      value={reportsLimit}
-                      onChange={(e) => setReportsLimit(Number(e.target.value))}
-                      className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                      <option value={500}>500</option>
-                    </select>
-                  </div>
-                </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Export Report Data Shortcut */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                const csvData = users.map(u => {
+                                  const stats = calculateUserProgress(u.id, u.roleId);
+                                  const r = roles.find(rl => rl.id === u.roleId);
+                                  return {
+                                    'Staffer Name': u.name,
+                                    'Email Address': u.email,
+                                    'Designation': r ? r.name : 'Unknown',
+                                    'Department': u.department,
+                                    'Assigned Total Units': stats.totalUnits,
+                                    'Verified & Mastered Units': stats.verifiedCount,
+                                    'In Progress Units': stats.inProgressCount,
+                                    'Overall Progress (%)': stats.overallPercent,
+                                    'Mastery Percent (%)': stats.masteryPercent,
+                                    'Compliance Status': stats.masteryPercent === 100 ? 'Certified Compliant' : 'In Training'
+                                  };
+                                });
+                                const worksheet = XLSX.utils.json_to_sheet(csvData);
+                                const workbook = XLSX.utils.book_new();
+                                XLSX.utils.book_append_sheet(workbook, worksheet, "Compliance Report");
+                                XLSX.writeFile(workbook, `Compliance_Audit_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                                showToast("✓ Compliance Report downloaded successfully as Excel! 📊", "success");
+                              } catch (e: any) {
+                                showToast(`Failed to export report: ${e.message}`, "error");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border border-emerald-200 transition cursor-pointer shadow-3xs"
+                          >
+                            <Download className="w-3 h-3" /> Export Audit Ledger
+                          </button>
 
-                {/* Scorecard Table List */}
-                <div className="overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-3xs text-[11px] max-w-full max-h-[300px]">
-                  <table className="w-full text-left text-xs text-slate-655 border-collapse min-w-[750px]">
-                    <thead>
-                      <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 border-b border-slate-250 text-[10px] tracking-wider uppercase font-display font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                        <th className="p-2.5 bg-slate-50 pl-5 text-[9.5px] font-black uppercase text-slate-500 tracking-wider">Staff Member</th>
-                        <th className="p-2.5 bg-slate-50 text-center">Business Unit</th>
-                        <th className="p-2.5 bg-slate-50">Curriculum Progress</th>
-                        <th className="p-2.5 bg-slate-50 text-center">Mastery Index</th>
-                        <th className="p-2.5 bg-slate-50 text-center">Exams Rating</th>
-                        <th className="p-2.5 bg-slate-50 pr-5 text-right">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-705">
-                      {scoreFilteredUsers.slice(0, reportsLimit).map((user) => {
-                        const stats = calculateUserProgress(user.id, user.roleId);
-                        const roleObj = roles.find(r => r.id === user.roleId);
-                        
-                        // Find user's highest score from exam attempts
-                        const userAttempts = attemptsList.filter((att: any) => att.userEmail === user.email);
-                        const highestAttempt = userAttempts.length > 0 
-                          ? userAttempts.reduce((max: any, att: any) => att.score > max.score ? att : max, userAttempts[0])
-                          : null;
+                          <button
+                            type="button"
+                            onClick={() => setShowDepartmentsSidebar(!showDepartmentsSidebar)}
+                            className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all duration-300 cursor-pointer select-none border shadow-3xs shrink-0 ${
+                              showDepartmentsSidebar
+                                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500 hover:border-indigo-500 hover:shadow-indigo-500/10'
+                                : 'bg-white text-slate-700 border-slate-250 hover:bg-slate-50 hover:text-indigo-650 hover:border-indigo-200'
+                            }`}
+                          >
+                            <Building className="w-3 h-3 animate-pulse" />
+                            <span>
+                              {showDepartmentsSidebar ? 'Hide Departments' : 'Show Departments'}
+                            </span>
+                            <span className={`ml-0.5 px-1 py-0.2 rounded font-mono font-black text-[9px] border ${
+                              showDepartmentsSidebar
+                                ? 'bg-white/20 text-white border-white/15'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {departments.length}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
 
-                        return (
-                          <tr key={user.id} className="hover:bg-slate-50/50 transition">
-                            <td className="p-2 pl-5">
-                              <div className="flex items-center gap-2.5">
-                                <Avatar
-                                  src={user.avatarUrl}
-                                  name={user.name}
-                                  className="w-7 h-7 border border-slate-200 shadow-3xs shrink-0"
-                                />
-                                <div className="flex items-center gap-x-2 gap-y-1 text-[10px] text-slate-600 font-sans font-bold tracking-tight flex-wrap">
-                                  <span className="font-bold text-slate-900 text-[11px] whitespace-nowrap">{user.name}</span>
-                                  {user.roleId === 'role_sr_acc' && (
-                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] px-1.5 py-0.2 rounded font-mono uppercase font-black tracking-wide shrink-0">Admin</span>
-                                  )}
-                                  <span className="text-slate-300 select-none font-extrabold">•</span>
-                                  <span className="text-slate-705 font-bold whitespace-nowrap">{user.focusEntity || 'Accounts'}</span>
-                                  <span className="text-slate-300 select-none font-extrabold">•</span>
-                                  <span className="bg-zinc-100 text-zinc-800 font-mono font-bold text-[8.5px] uppercase tracking-wide px-1.5 py-0.2 rounded border border-zinc-200 whitespace-nowrap shrink-0">{roleObj?.name || 'Trainee'}</span>
-                                  <span className="text-slate-300 select-none font-extrabold">•</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedRoleDetailUser(user)}
-                                    className="inline-flex items-center gap-1 text-[8.5px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded px-1.5 py-0.2 font-sans font-black tracking-tight transition cursor-pointer shrink-0"
-                                    title="Click to view designations mapped and role specifications"
-                                  >
-                                    View Mapped Roles
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
+                      {/* FILTERS CONTROL BOX */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        {/* Search Term */}
+                        <div className="relative">
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Search Name/Email</label>
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+                              <Search className="w-3 h-3" />
+                            </span>
+                            <input
+                              type="text"
+                              value={analyticsSearch}
+                              onChange={(e) => setAnalyticsSearch(e.target.value)}
+                              placeholder="e.g. Aashish Sahu, misrpr@rathibuildmart.com..."
+                              className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg pl-8 pr-2.5 py-1.5 outline-none text-xs text-slate-850 placeholder-slate-400 font-sans shadow-3xs"
+                            />
+                          </div>
+                        </div>
 
-                            <td className="p-2 text-center">
-                              <span className="inline-block bg-zinc-100 text-zinc-900 border border-zinc-300 px-2 py-0.5 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[140px] text-center leading-tight">
-                                {user.department}
-                              </span>
-                            </td>
+                        {/* Filter by Role / Designation */}
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Filter Designation</label>
+                          <select
+                            value={scorecardRoleFilter}
+                            onChange={(e) => setScorecardRoleFilter(e.target.value)}
+                            className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
+                          >
+                            <option value="all">All Roles ({roles.length})</option>
+                            {roles.map(r => (
+                              <option key={r.id} value={r.id}>{r.name}</option>
+                            ))}
+                          </select>
+                        </div>
 
-                            <td className="p-2">
-                              <div className="space-y-0.5 max-w-[150px]">
-                                <div className="flex justify-between items-center text-[10px] text-slate-700 font-mono font-extrabold">
-                                  <span>{stats.completedCount}/{stats.totalUnits} Units</span>
-                                  <span className="font-extrabold text-indigo-700">{stats.overallPercent}%</span>
-                                </div>
-                                <div className="h-1.5 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex shadow-inner">
-                                  <div className="bg-indigo-600 h-1.5" style={{ width: `${stats.overallPercent}%` }}></div>
-                                </div>
-                              </div>
-                            </td>
+                        {/* Filter by Compliance status */}
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Compliance Status</label>
+                          <select
+                            value={analyticsProgressFilter}
+                            onChange={(e) => setAnalyticsProgressFilter(e.target.value)}
+                            className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
+                          >
+                            <option value="all">All Compliance Statuses</option>
+                            <option value="certified">Awarded Certification (100% Mastery)</option>
+                            <option value="in_progress">In Progress (1-99% Mastery)</option>
+                            <option value="not_started">Unstarted (0% Mastery)</option>
+                          </select>
+                        </div>
 
-                            <td className="p-2 text-center">
-                              <div className="inline-block text-center pr-2">
-                                <span className={`px-2 py-0.5 rounded-md font-mono text-[10.5px] font-black border ${
-                                  stats.masteryPercent >= 80 
-                                    ? 'bg-emerald-100 text-emerald-950 border-emerald-300' 
-                                    : stats.masteryPercent >= 40 
-                                      ? 'bg-blue-100 text-blue-950 border-blue-300' 
-                                      : 'bg-zinc-100 text-zinc-900 border-zinc-350'
-                                }`}>
-                                  {stats.masteryPercent}%
-                                </span>
-                              </div>
-                            </td>
+                        {/* Sort Option */}
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Sorting Order</label>
+                          <div className="flex gap-2">
+                            <select
+                              value={analyticsSortBy}
+                              onChange={(e) => setAnalyticsSortBy(e.target.value as any)}
+                              className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
+                            >
+                              <option value="progress_desc">Highest Progress First</option>
+                              <option value="progress_asc">Lowest Progress First</option>
+                              <option value="name_asc">Name (A to Z)</option>
+                              <option value="name_desc">Name (Z to A)</option>
+                            </select>
 
-                            <td className="p-2 text-center">
-                              {highestAttempt ? (
-                                <div className="inline-flex flex-col items-center">
-                                  <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-black border ${
-                                    highestAttempt.passed 
-                                      ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold' 
-                                      : 'bg-rose-100 border-rose-300 text-rose-950 font-extrabold'
-                                  }`}>
-                                    {highestAttempt.score}% {highestAttempt.passed ? 'PASSED' : 'FAILED'}
-                                  </span>
-                                  <span className="text-[8.5px] text-slate-500 font-mono font-bold mt-0.5">
-                                    {new Date(highestAttempt.date || highestAttempt.timestamp).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-[9.5px] text-slate-500 font-sans font-extrabold italic">No Exams</span>
-                              )}
-                            </td>
-
-                            <td className="p-2 pr-5 text-right">
+                            {(analyticsSearch || scorecardDeptFilters.length > 0 || scorecardRoleFilter !== 'all' || analyticsProgressFilter !== 'all') && (
                               <button
                                 type="button"
-                                onClick={() => setInspectedUser(user)}
-                                className="bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 font-sans font-bold text-[10.5px] px-2.5 py-0.5 rounded-lg transition shadow-3xs flex items-center gap-1 inline-flex justify-center"
+                                onClick={() => {
+                                  setAnalyticsSearch('');
+                                  setScorecardDeptFilters([]);
+                                  setScorecardRoleFilter('all');
+                                  setAnalyticsProgressFilter('all');
+                                  setAnalyticsSortBy('progress_desc');
+                                  showToast("All filters and searches reset safely!", "info");
+                                }}
+                                className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg transition text-xs shrink-0 cursor-pointer flex items-center justify-center border border-slate-300/60"
+                                title="Clear All Filters"
                               >
-                                View Scoreboard
+                                <X className="w-3.5 h-3.5" />
                               </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {scoreFilteredUsers.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="text-center py-16 text-slate-450 italic font-medium">
-                            No employees or candidates match.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Quick stats distribution panel */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-205">
-                  <div className="flex flex-col justify-center">
-                    <h4 className="text-xs font-black text-slate-900 border-b pb-1.5 mb-2 flex items-center gap-1 font-sans">
-                      <BarChart2 className="w-4 h-4 text-emerald-600" />
-                      Workforce Visual Progress Standings
-                    </h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed font-sans">
-                      The status breakdown charts detailed training progress benchmarks across the workforce hierarchy. Use the Analytics Console side-tab to inspect consolidated bar charts and audit trends.
-                    </p>
-                    <button
-                      onClick={() => setAdminTab('analytics')}
-                      className="bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-900 text-slate-650 font-sans font-bold text-[10px] uppercase py-1.5 px-3 rounded-lg shadow-3xs self-start mt-4 transition"
-                    >
-                      Maximize Analytics & Graphs
-                    </button>
-                  </div>
-
-                  <div className="h-auto sm:h-32 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-0">
-                    <div className="relative flex-1 h-28 sm:h-full min-w-0 w-full">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                        <PieChart>
-                          <Pie
-                            data={statusCounts.filter(v => v.value > 0)}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={28}
-                            outerRadius={42}
-                            paddingAngle={3}
-                            dataKey="value"
-                          >
-                            {statusCounts.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ fontSize: 9 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-row sm:flex-col flex-wrap justify-center sm:justify-start gap-1.5 text-[9px] font-mono pl-0 sm:pl-2 border-t sm:border-t-0 sm:border-l pt-2 sm:pt-0 w-full sm:w-auto">
-                      {statusCounts.map((st, idx) => (
-                        <div key={idx} className="flex items-center gap-1 font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.color }}></span>
-                          <span className="font-bold text-slate-705">{st.name} ({st.value})</span>
+                            )}
+                          </div>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Filter by Department Info Badge & Multi-Select dropdown */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-bold font-mono text-slate-500 uppercase tracking-wider">
+                          <span>Showing {Math.min(reportsLimit, (() => {
+                            const scoreFilteredUsers = users.filter(u => {
+                              const matchesSearch = analyticsSearch.trim() === '' || 
+                                                    u.name.toLowerCase().includes(analyticsSearch.toLowerCase()) || 
+                                                    u.email.toLowerCase().includes(analyticsSearch.toLowerCase());
+                              const matchesDept = scorecardDeptFilters.length === 0 || scorecardDeptFilters.includes(u.department);
+                              const matchesRole = scorecardRoleFilter === 'all' || u.roleId === scorecardRoleFilter;
+                              
+                              const stats = calculateUserProgress(u.id, u.roleId);
+                              let matchesProgress = true;
+                              if (analyticsProgressFilter === 'certified') {
+                                matchesProgress = stats.masteryPercent === 100;
+                              } else if (analyticsProgressFilter === 'in_progress') {
+                                matchesProgress = stats.masteryPercent > 0 && stats.masteryPercent < 100;
+                              } else if (analyticsProgressFilter === 'not_started') {
+                                matchesProgress = stats.masteryPercent === 0;
+                              }
+                              
+                              return matchesSearch && matchesDept && matchesRole && matchesProgress;
+                            });
+                            return scoreFilteredUsers.length;
+                          })())} of {(() => {
+                            const scoreFilteredUsers = users.filter(u => {
+                              const matchesSearch = analyticsSearch.trim() === '' || 
+                                                    u.name.toLowerCase().includes(analyticsSearch.toLowerCase()) || 
+                                                    u.email.toLowerCase().includes(analyticsSearch.toLowerCase());
+                              const matchesDept = scorecardDeptFilters.length === 0 || scorecardDeptFilters.includes(u.department);
+                              const matchesRole = scorecardRoleFilter === 'all' || u.roleId === scorecardRoleFilter;
+                              
+                              const stats = calculateUserProgress(u.id, u.roleId);
+                              let matchesProgress = true;
+                              if (analyticsProgressFilter === 'certified') {
+                                matchesProgress = stats.masteryPercent === 100;
+                              } else if (analyticsProgressFilter === 'in_progress') {
+                                matchesProgress = stats.masteryPercent > 0 && stats.masteryPercent < 100;
+                              } else if (analyticsProgressFilter === 'not_started') {
+                                matchesProgress = stats.masteryPercent === 0;
+                              }
+                              
+                              return matchesSearch && matchesDept && matchesRole && matchesProgress;
+                            });
+                            return scoreFilteredUsers.length;
+                          })()} Staff Members</span>
+                          {scorecardDeptFilters.length > 0 && (
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-150 text-[9px] font-extrabold normal-case font-sans">Filtered by {scorecardDeptFilters.length} Department(s)</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs shrink-0">
+                          <span>Show entries:</span>
+                          <select
+                            value={reportsLimit}
+                            onChange={(e) => setReportsLimit(Number(e.target.value))}
+                            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                          >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={500}>500</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Merged Scorecard & Ledger Table */}
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-3xs bg-white min-w-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse text-left text-xs text-slate-705">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-250 font-mono text-[9.5px] uppercase font-black tracking-wider text-slate-500">
+                                <th className="p-3.5 pl-5 font-black">Staff Member</th>
+                                <th className="p-3.5 font-black text-center">Designation Role</th>
+                                <th className="p-3.5 font-black">Department / BU</th>
+                                <th className="p-3.5 font-black">Compliance Mastery Percentage</th>
+                                <th className="p-3.5 font-black text-center">Units Audit Summary</th>
+                                <th className="p-3.5 font-black text-center">Exams Rating</th>
+                                <th className="p-3.5 font-black text-center">Status</th>
+                                <th className="p-3.5 pr-5 font-black text-right">Action Detail</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-150">
+                              {(() => {
+                                const scoreFilteredUsers = users.filter(u => {
+                                  const matchesSearch = analyticsSearch.trim() === '' || 
+                                                        u.name.toLowerCase().includes(analyticsSearch.toLowerCase()) || 
+                                                        u.email.toLowerCase().includes(analyticsSearch.toLowerCase());
+                                  const matchesDept = scorecardDeptFilters.length === 0 || scorecardDeptFilters.includes(u.department);
+                                  const matchesRole = scorecardRoleFilter === 'all' || u.roleId === scorecardRoleFilter;
+                                  
+                                  const stats = calculateUserProgress(u.id, u.roleId);
+                                  let matchesProgress = true;
+                                  if (analyticsProgressFilter === 'certified') {
+                                    matchesProgress = stats.masteryPercent === 100;
+                                  } else if (analyticsProgressFilter === 'in_progress') {
+                                    matchesProgress = stats.masteryPercent > 0 && stats.masteryPercent < 100;
+                                  } else if (analyticsProgressFilter === 'not_started') {
+                                    matchesProgress = stats.masteryPercent === 0;
+                                  }
+                                  
+                                  return matchesSearch && matchesDept && matchesRole && matchesProgress;
+                                });
+
+                                const sortedScoreFilteredUsers = [...scoreFilteredUsers].sort((a, b) => {
+                                  const statsA = calculateUserProgress(a.id, a.roleId);
+                                  const statsB = calculateUserProgress(b.id, b.roleId);
+                                  
+                                  if (analyticsSortBy === 'progress_desc') {
+                                    return statsB.masteryPercent - statsA.masteryPercent;
+                                  } else if (analyticsSortBy === 'progress_asc') {
+                                    return statsA.masteryPercent - statsB.masteryPercent;
+                                  } else if (analyticsSortBy === 'name_asc') {
+                                    return a.name.localeCompare(b.name);
+                                  } else if (analyticsSortBy === 'name_desc') {
+                                    return b.name.localeCompare(a.name);
+                                  }
+                                  return 0;
+                                });
+
+                                if (sortedScoreFilteredUsers.length === 0) {
+                                  return (
+                                    <tr>
+                                      <td colSpan={8} className="p-16 text-center text-slate-450 italic font-medium">
+                                        <AlertTriangle className="w-7 h-7 mx-auto text-amber-500/80 mb-2.5" />
+                                        No employees or candidates match.
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                return sortedScoreFilteredUsers.slice(0, reportsLimit).map((user) => {
+                                  const stats = calculateUserProgress(user.id, user.roleId);
+                                  const roleObj = roles.find(r => r.id === user.roleId);
+                                  const isCertified = stats.masteryPercent === 100;
+                                  const isInspected = analyticsInspectedUserId === user.id;
+
+                                  // Find user's highest score from exam attempts
+                                  const userAttempts = attemptsList.filter((att: any) => att.userEmail === user.email);
+                                  const highestAttempt = userAttempts.length > 0 
+                                    ? userAttempts.reduce((max: any, att: any) => att.score > max.score ? att : max, userAttempts[0])
+                                    : null;
+
+                                  return (
+                                    <tr 
+                                      key={user.id} 
+                                      className={`hover:bg-slate-50/50 transition ${isInspected ? 'bg-indigo-50/30 hover:bg-indigo-50/50' : ''}`}
+                                    >
+                                      {/* Staff Member column */}
+                                      <td className="p-3 pl-5">
+                                        <div className="flex items-center gap-2.5">
+                                          <Avatar
+                                            src={user.avatarUrl}
+                                            name={user.name}
+                                            className="w-8 h-8 rounded-full border border-slate-200 shadow-3xs shrink-0"
+                                          />
+                                          <div className="flex flex-col text-left">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-bold text-slate-900 text-[11px] whitespace-nowrap">{user.name}</span>
+                                              {user.roleId === 'role_sr_acc' && (
+                                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] px-1 py-0.2 rounded font-mono uppercase font-black tracking-wide shrink-0">Admin</span>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] text-slate-450 font-medium font-sans mt-0.5 leading-none">{user.email}</span>
+                                            
+                                            {/* Unified button to view mapped roles & specifications inside cell */}
+                                            <button
+                                              type="button"
+                                              onClick={() => setSelectedRoleDetailUser(user)}
+                                              className="inline-flex items-center gap-1 text-[8.5px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded px-1.5 py-0.5 font-sans font-black tracking-tight transition mt-1.5 cursor-pointer w-fit"
+                                              title="Click to view designations mapped and role specifications"
+                                            >
+                                              View Mapped Roles
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Designation Role column */}
+                                      <td className="p-3 text-center">
+                                        <span className="bg-slate-100 text-slate-750 border border-slate-200 font-mono font-bold text-[9.5px] uppercase px-2 py-0.5 rounded-md inline-block max-w-[140px] truncate" title={roleObj?.name}>
+                                          {roleObj?.name || 'No Role Assigned'}
+                                        </span>
+                                      </td>
+
+                                      {/* Department BU column */}
+                                      <td className="p-3">
+                                        <div className="text-left">
+                                          <span className="inline-block bg-zinc-100 text-zinc-900 border border-zinc-250 px-2 py-0.5 rounded-md text-[9.5px] font-mono tracking-wider font-extrabold uppercase shadow-3xs">
+                                            {user.department}
+                                          </span>
+                                          <span className="block text-[8.5px] text-slate-400 font-mono mt-1 font-bold">{user.focusEntity || 'Accounts'}</span>
+                                        </div>
+                                      </td>
+
+                                      {/* Compliance Mastery Percentage progress bar column */}
+                                      <td className="p-3">
+                                        <div className="space-y-1 w-full min-w-[125px] max-w-[175px]">
+                                          <div className="flex justify-between items-center text-[10px] font-mono font-extrabold">
+                                            <span className="text-emerald-700">{stats.masteryPercent}% Verified</span>
+                                            {stats.overallPercent > stats.masteryPercent && (
+                                              <span className="text-blue-600">({stats.overallPercent}% Submitted)</span>
+                                            )}
+                                          </div>
+                                          <div className="h-1.75 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex shadow-inner">
+                                            <div 
+                                              className="bg-emerald-500 h-full rounded-full transition-all duration-305" 
+                                              style={{ width: `${stats.masteryPercent}%` }}
+                                              title={`Verified Mastered: ${stats.masteryPercent}%`}
+                                            />
+                                            <div 
+                                              className="bg-blue-400 h-full transition-all duration-305" 
+                                              style={{ width: `${stats.overallPercent - stats.masteryPercent}%` }}
+                                              title={`Review Pending: ${stats.overallPercent - stats.masteryPercent}%`}
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Units Audit Summary column */}
+                                      <td className="p-3 text-center">
+                                        <div className="text-[10.5px] font-mono text-slate-650 space-y-0.5 leading-tight">
+                                          <div>
+                                            <strong className="font-extrabold text-emerald-600 font-mono">{stats.verifiedCount}</strong> / {stats.totalUnits} Units
+                                          </div>
+                                          {stats.completedCount > 0 && (
+                                            <div className="text-amber-600 text-[9px] font-black uppercase">
+                                              {stats.completedCount} Pending Sign-off
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* Exams Rating column */}
+                                      <td className="p-3 text-center">
+                                        {highestAttempt ? (
+                                          <div className="inline-flex flex-col items-center">
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-black border ${
+                                              highestAttempt.passed 
+                                                ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold' 
+                                                : 'bg-rose-100 border-rose-300 text-rose-950 font-extrabold'
+                                            }`}>
+                                              {highestAttempt.score}% {highestAttempt.passed ? 'PASSED' : 'FAILED'}
+                                            </span>
+                                            <span className="text-[8px] text-slate-450 font-mono font-bold mt-0.5">
+                                              {new Date(highestAttempt.date || highestAttempt.timestamp).toLocaleDateString()}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-[9.5px] text-slate-500 font-sans font-bold italic">No Exams</span>
+                                        )}
+                                      </td>
+
+                                      {/* Certified Status column */}
+                                      <td className="p-3 text-center">
+                                        {isCertified ? (
+                                          <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wide">
+                                            <CheckCircle2 className="w-3 h-3" /> Certified
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-0.5 bg-blue-50 text-blue-700 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-blue-150 uppercase tracking-wide">
+                                            <Clock className="w-3 h-3" /> In Training
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* Action Detail column */}
+                                      <td className="p-3 pr-5 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setAnalyticsInspectedUserId(isInspected ? null : user.id);
+                                            if (!isInspected) {
+                                              showToast(`Opening compliance checklist details for ${user.name}! 🔍`, 'info');
+                                            }
+                                          }}
+                                          className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1 inline-flex justify-center border ${
+                                            isInspected 
+                                              ? 'bg-indigo-600 border-indigo-700 text-white shadow-sm' 
+                                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 shadow-3xs'
+                                          }`}
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                          {isInspected ? 'Inspecting' : 'Audit Details'}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
                     </div>
-                  </div>
+
+                    {/* EXPANDED GRANULAR AUDIT DETAILS DRAWER PANEL */}
+                    <AnimatePresence>
+                      {analyticsInspectedUserId && (() => {
+                        const inspectedUser = users.find(u => u.id === analyticsInspectedUserId);
+                        const inspectedUserRole = inspectedUser ? roles.find(r => r.id === inspectedUser.roleId) : null;
+                        const inspectedUserStats = inspectedUser ? calculateUserProgress(inspectedUser.id, inspectedUser.roleId) : null;
+                        const inspectedUserChapters = inspectedUser
+                          ? (() => {
+                              const targetRoleIds = Array.isArray(inspectedUser.roleId) ? inspectedUser.roleId : [inspectedUser.roleId];
+                              return chapters.filter(c => targetRoleIds.includes(c.roleId));
+                            })()
+                          : [];
+
+                        if (!inspectedUser || !inspectedUserStats) return null;
+
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 15 }}
+                            transition={{ duration: 0.2 }}
+                            className="bg-white rounded-xl border-2 border-indigo-500 p-4 md:p-5 shadow-lg space-y-4 animate-in fade-in zoom-in-95"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center gap-3">
+                                <Avatar 
+                                  name={inspectedUser.name} 
+                                  avatarUrl={inspectedUser.avatarUrl} 
+                                  className="w-12 h-12 rounded-full border-2 border-indigo-200 shrink-0" 
+                                />
+                                <div className="text-left">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm sm:text-base font-black text-slate-900 leading-none">{inspectedUser.name}</h4>
+                                    {inspectedUserStats.masteryPercent === 100 && (
+                                      <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-[9px] font-extrabold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest flex items-center gap-0.5 leading-none">
+                                        🏆 Certified Expert
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 flex-wrap">
+                                    <span className="font-mono">{inspectedUser.email}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-bold text-slate-700">{inspectedUserRole?.name || 'No Role'}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-bold text-slate-700">{inspectedUser.department}</span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setAnalyticsInspectedUserId(null)}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px] px-3.5 py-2 rounded-lg transition cursor-pointer border border-slate-200"
+                                >
+                                  Close Audit Panel
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* GRANULAR AUDIT SCOREBOARD CARDS */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                              <div className="p-2.5 bg-white border border-slate-150 rounded-lg shadow-3xs">
+                                <div className="text-xl font-bold text-slate-800 font-mono">{inspectedUserStats.totalUnits}</div>
+                                <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-0.5 font-mono">Total Assigned Units</div>
+                              </div>
+                              <div className="p-2.5 bg-white border border-slate-150 rounded-lg shadow-3xs">
+                                <div className="text-xl font-bold text-emerald-600 font-mono">{inspectedUserStats.verifiedCount}</div>
+                                <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-0.5 font-mono">Verified & Mastered</div>
+                              </div>
+                              <div className="p-2.5 bg-white border border-slate-150 rounded-lg shadow-3xs">
+                                <div className="text-xl font-bold text-amber-500 font-mono">{inspectedUserStats.completedCount}</div>
+                                <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-0.5 font-mono">Pending Sign-off</div>
+                              </div>
+                              <div className="p-2.5 bg-white border border-slate-150 rounded-lg shadow-3xs">
+                                <div className="text-xl font-bold text-blue-500 font-mono">{inspectedUserStats.inProgressCount}</div>
+                                <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-0.5 font-mono">Currently Active</div>
+                              </div>
+                            </div>
+
+                            {/* CHAPTER BY CHAPTER DETAILED CHECKLIST OF CURRICULUM */}
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-1.5 pb-1">
+                                <BookOpen className="w-4 h-4 text-indigo-500" />
+                                <h5 className="text-xs font-black uppercase text-slate-800">Assigned Compliance Chapters Checklist ({inspectedUserChapters.length})</h5>
+                              </div>
+
+                              {inspectedUserChapters.length === 0 ? (
+                                <div className="p-6 bg-slate-50 border rounded-lg text-center text-slate-400 font-medium">
+                                  No chapters or curriculum tasks assigned to this staffer's designation in the organization schema. Go to the "Job Roles" sub-tab to map permissions.
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {inspectedUserChapters.map((chapter) => {
+                                    const chapterUnitsList = units.filter(un => un.chapterId === chapter.id);
+                                    
+                                    return (
+                                      <div key={chapter.id} className="border border-slate-200 rounded-lg overflow-hidden shadow-3xs text-left">
+                                        {/* Chapter Header bar */}
+                                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center">
+                                          <span className="font-bold text-slate-800 text-xs flex items-center gap-2">
+                                            <span className="w-5 h-5 bg-indigo-100 text-indigo-700 flex items-center justify-center rounded-full text-[10px] font-mono font-bold">
+                                              {chapter.order}
+                                            </span>
+                                            {chapter.name}
+                                          </span>
+                                          <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 border text-slate-500 rounded-full">
+                                            {chapterUnitsList.length} lesson units
+                                          </span>
+                                        </div>
+
+                                        {/* Chapter Units Checklist Grid */}
+                                        <div className="divide-y divide-slate-100 bg-white">
+                                          {chapterUnitsList.length === 0 ? (
+                                            <div className="p-3.5 text-xs text-slate-400 text-center italic">
+                                              No lesson tasks created inside this chapter yet.
+                                            </div>
+                                          ) : (
+                                            chapterUnitsList.map((unit) => {
+                                              const pLog = progress.find(p => p.userId === inspectedUser.id && p.unitId === unit.id);
+                                              const status = pLog ? pLog.status : 'Not Started';
+
+                                              // Badge styling helpers
+                                              let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                                              if (status === 'Verified & Mastered') {
+                                                badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                              } else if (status === 'Completed (Pending Review)') {
+                                                badgeColor = 'bg-amber-50 text-amber-750 text-amber-700 border-amber-200 animate-pulse';
+                                              } else if (status === 'In Progress') {
+                                                badgeColor = 'bg-blue-50 text-blue-700 border-blue-200';
+                                              }
+
+                                              return (
+                                                <div key={unit.id} className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50/40 transition">
+                                                  <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      <span className="bg-slate-900 text-white font-mono font-black text-[9px] px-1.5 py-0.5 rounded tracking-wider shrink-0">
+                                                        {unit.code}
+                                                      </span>
+                                                      <span className="font-bold text-slate-800 text-xs">
+                                                        {unit.taskName}
+                                                      </span>
+                                                      <span className="text-[9px] font-mono bg-indigo-50/70 border border-indigo-100 text-indigo-600 px-1.5 py-0.2 rounded-full font-bold">
+                                                        {unit.frequency}
+                                                      </span>
+                                                      <span className="text-[9px] font-mono bg-purple-50/70 border border-purple-100 text-purple-600 px-1.5 py-0.2 rounded-full font-bold">
+                                                        {unit.skillRequired} Level
+                                                      </span>
+                                                    </div>
+                                                    
+                                                    {unit.description && (
+                                                      <p className="text-[11px] text-slate-550 text-slate-500 mt-1 line-clamp-2 max-w-2xl">
+                                                        {unit.description}
+                                                      </p>
+                                                    )}
+
+                                                    {/* User Submitted Notes / Comments */}
+                                                    {pLog?.notes && (
+                                                      <div className="mt-2 text-[10px] bg-slate-50 border border-slate-150 rounded px-2.5 py-1.5 text-slate-600 font-mono">
+                                                        <strong className="text-slate-800 uppercase text-[9px] block mb-0.5">Trainee Response Note:</strong>
+                                                        "{pLog.notes}"
+                                                      </div>
+                                                    )}
+
+                                                    {/* Last Action Date or Sign-off Details */}
+                                                    {pLog && (
+                                                      <div className="text-[9px] text-slate-400 font-mono mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                                                        <span>Last Updated: {new Date(pLog.lastUpdated).toLocaleString()}</span>
+                                                        {pLog.verifiedBy && (
+                                                          <>
+                                                            <span>•</span>
+                                                            <span className="text-emerald-600 font-semibold">Signed off by: {pLog.verifiedBy}</span>
+                                                          </>
+                                                        )}
+                                                        {pLog.watchPercent !== undefined && (
+                                                          <>
+                                                            <span>•</span>
+                                                            <span>Lecture Progress: {pLog.watchPercent}%</span>
+                                                          </>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+
+                                                  {/* Status Badge & Action Buttons */}
+                                                  <div className="shrink-0 flex flex-wrap items-center gap-3 md:justify-end">
+                                                    <span className={`border px-2.5 py-1 rounded text-[10px] font-bold font-mono uppercase tracking-wider block text-center w-fit ${badgeColor}`}>
+                                                      {status}
+                                                    </span>
+
+                                                    {/* Admin direct sign off handlers */}
+                                                    {status === 'Completed (Pending Review)' && (
+                                                      <div className="flex gap-1.5">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            onSettleVerification(inspectedUser.id, unit.id, 'verify');
+                                                            showToast(`Approved & Signed off operational unit ${unit.code} for ${inspectedUser.name}!`, 'success');
+                                                          }}
+                                                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg border border-emerald-700 shadow-sm hover:shadow-md transition flex items-center gap-1 cursor-pointer"
+                                                        >
+                                                          <Check className="w-3 h-3" /> Sign-off
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            onSettleVerification(inspectedUser.id, unit.id, 'reject');
+                                                            showToast(`Sent rejection: ${unit.code} flagged back for redo.`, 'info');
+                                                          }}
+                                                          className="bg-rose-600 hover:bg-rose-500 text-white font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-lg border border-rose-700 shadow-sm hover:shadow-md transition flex items-center gap-1 cursor-pointer"
+                                                        >
+                                                          <X className="w-3 h-3" /> Redo
+                                                        </button>
+                                                      </div>
+                                                    )}
+
+                                                    {/* Quick Lesson Media simulation previews */}
+                                                    <div className="flex items-center gap-1.5">
+                                                      {unit.videoUrl && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            showToast(`Simulating video lecture launch: "${unit.videoTitle || 'Operational Checklist'}"`, 'info');
+                                                          }}
+                                                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md hover:text-indigo-600 transition cursor-pointer border border-slate-200"
+                                                          title={`Preview Lecture: ${unit.videoTitle}`}
+                                                        >
+                                                          <Video className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
+                                                      {unit.pdfUrl && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            showToast(`Simulating PDF Standard Operating Procedure manual download for ${unit.code}!`, 'info');
+                                                          }}
+                                                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md hover:text-emerald-600 transition cursor-pointer border border-slate-200"
+                                                          title="Preview PDF SOP Documentation"
+                                                        >
+                                                          <FileText className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+                    </AnimatePresence>
+
+                    {/* DUAL PERFORMANCE INSIGHTS CHARTS - Merged from Analytics */}
+                    <div id="performance-charts-section" className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs space-y-4">
+                      <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                        <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100/60 shadow-3xs shrink-0">
+                          <BarChart2 className="w-4 h-4 text-indigo-600" />
+                        </span>
+                        <div className="text-left">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-none">
+                            Workforce Visual Progress Standings & Performance Insights
+                          </h4>
+                          <p className="text-[10px] text-slate-450 text-slate-400 mt-0.5 font-medium">Consolidated live visual analytics on syllabus progress and skill mastery indices</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Employee overall percentages bar chart */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <h5 className="text-xs font-bold text-slate-750 font-mono uppercase mb-3 text-center">Path Progress (%) of registered staffers</h5>
+                          <div className="h-64 sm:h-72 relative w-full">
+                            <div className="relative w-full h-full min-w-0">
+                              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                <BarChart
+                                  data={chartUserData}
+                                  margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                                >
+                                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
+                                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} domain={[0, 100]} />
+                                  <Tooltip contentStyle={{ fontSize: 10, borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                                  <Bar name="Review Completed Progress (%)" dataKey="Progress" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                  <Bar name="Mastered / Verified (%)" dataKey="Mastery" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status breakdown pie chart */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                          <div>
+                            <h5 className="text-xs font-bold text-slate-750 font-mono uppercase mb-1 text-center">Unit-Wise Status Distribution</h5>
+                            <p className="text-[9px] text-slate-400 text-center mb-3">Total operations active inside security matrix</p>
+                          </div>
+
+                          <div className="h-44 sm:h-52 relative w-full flex items-center justify-center">
+                            <div className="relative flex-1 h-full min-w-0">
+                              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                <PieChart>
+                                  <Pie
+                                    data={statusCounts.filter(v => v.value > 0)}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={45}
+                                    outerRadius={65}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    label={({ name, value }) => `${name}: ${value}`}
+                                  >
+                                    {statusCounts.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip contentStyle={{ fontSize: 10, borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap justify-center gap-2 text-[9px] font-mono mt-2">
+                            {statusCounts.map((st, sidx) => (
+                              <div key={sidx} className="flex items-center gap-1 shrink-0 px-2 py-0.5 bg-white border rounded-md shadow-3xs">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.color }}></span>
+                                <span className="text-slate-600 font-medium">{st.name}: <strong className="text-slate-900">{st.value} Units</strong></span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
                 </div>
-              </>
-            )}
-            </div>
-          </div>
 
             {/* RIGHT SIDEBAR: Collapsible Department-Wise Performance Reports */}
             {showDepartmentsSidebar && (
@@ -4005,66 +4654,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Profile Photo (Image URL / Local File)</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Profile Photo (Image URL)</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       placeholder="e.g. https://images.unsplash.com/photo-..."
                       value={newUserAvatar}
                       onChange={(e) => setNewUserAvatar(e.target.value)}
-                      className="flex-grow bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
                     />
-                    <label className="bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded cursor-pointer flex items-center justify-center shrink-0">
-                      Upload File
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              if (typeof reader.result === 'string') {
-                                const img = new Image();
-                                img.onload = () => {
-                                  const canvas = document.createElement('canvas');
-                                  const MAX_W = 150;
-                                  const MAX_H = 150;
-                                  let w = img.width;
-                                  let h = img.height;
-                                  if (w > h) {
-                                    if (w > MAX_W) {
-                                      h *= MAX_W / w;
-                                      w = MAX_W;
-                                    }
-                                  } else {
-                                    if (h > MAX_H) {
-                                      w *= MAX_H / h;
-                                      h = MAX_H;
-                                    }
-                                  }
-                                  canvas.width = w;
-                                  canvas.height = h;
-                                  const ctx = canvas.getContext('2d');
-                                  if (ctx) {
-                                    ctx.drawImage(img, 0, 0, w, h);
-                                    const compressed = canvas.toDataURL('image/jpeg', 0.85);
-                                    setNewUserAvatar(compressed);
-                                    showToast("✓ Avatar loaded and optimized safely!", "info");
-                                  } else {
-                                    setNewUserAvatar(reader.result as string);
-                                    showToast("✓ Avatar loaded!", "info");
-                                  }
-                                };
-                                img.src = reader.result;
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
                   </div>
                 </div>
               </div>
@@ -4167,6 +4765,93 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <option value="Left">⚪ Left / Resigned (Offboarded)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Access Levels Section */}
+              <div className="bg-white border border-slate-200/80 rounded-xl p-4 space-y-3 shadow-3xs text-left">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase font-mono block">
+                    🔐 System Access & Privileges
+                  </span>
+                  {!currentUser.isSuperAdmin && (
+                    <span className="text-[9px] text-rose-500 font-bold font-mono">
+                      ⚠️ ONLY SUPER ADMIN ACCESS
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-6 items-center">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={newUserIsAdmin}
+                      disabled={!currentUser.isSuperAdmin}
+                      onChange={(e) => {
+                        setNewUserIsAdmin(e.target.checked);
+                        if (!e.target.checked) {
+                          setNewUserIsSuperAdmin(false);
+                        }
+                      }}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4.5 h-4.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Admin (User-wise Permissions)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={newUserIsSuperAdmin}
+                      disabled={!currentUser.isSuperAdmin}
+                      onChange={(e) => {
+                        setNewUserIsSuperAdmin(e.target.checked);
+                        if (e.target.checked) {
+                          setNewUserIsAdmin(true);
+                        }
+                      }}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4.5 h-4.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Super Admin (All Access Bypass)</span>
+                  </label>
+                </div>
+
+                {newUserIsAdmin && !newUserIsSuperAdmin && (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <span className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-2">
+                      Assign User-Wise Permissions:
+                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-lg max-h-[250px] overflow-y-auto">
+                      {ALL_PERMISSIONS.map((perm) => {
+                        const isChecked = newUserPermissions.includes(perm.id);
+                        return (
+                          <label key={perm.id} className={`flex items-start gap-1.5 p-1.5 rounded hover:bg-slate-100 cursor-pointer select-none ${perm.isParent ? 'font-bold text-slate-850' : 'text-slate-650'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={!currentUser.isSuperAdmin}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewUserPermissions(prev => [...prev, perm.id]);
+                                } else {
+                                  setNewUserPermissions(prev => prev.filter(id => id !== perm.id));
+                                }
+                              }}
+                              className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-3.5 h-3.5 mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <div className="flex flex-col">
+                              <span className={`text-[10px] leading-tight font-medium ${!currentUser.isSuperAdmin ? "opacity-50" : ""}`}>{perm.name}</span>
+                              <span className="text-[8px] text-slate-400 font-mono tracking-tighter">{perm.id}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {newUserIsSuperAdmin && (
+                  <div className="bg-indigo-50 border border-indigo-100 text-indigo-800 rounded-lg p-2.5 text-[10px] font-sans flex items-center gap-1.5">
+                    <span>👑 <strong>Super Admin Mode Active:</strong> This user has complete unrestricted bypass access to every administrative tool, syllabus editor, registration portal, and audit logs.</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2 justify-end">
@@ -4364,7 +5049,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   if (isEditing) {
                     return (
                       <tr key={item.id} className="bg-slate-50/70 border-l-4 border-l-emerald-500">
-                        <td className="p-3.5 pl-4 font-medium min-w-[200px]">
+                        <td className="p-3.5 pl-4 font-medium min-w-[220px]">
                           <input
                             type="text"
                             value={editUserName}
@@ -4383,59 +5068,92 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               placeholder="Photo URL (Optional)"
                               value={editUserAvatar}
                               onChange={(e) => setEditUserAvatar(e.target.value)}
-                              className="flex-grow bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2.5 py-1 text-[10px] text-slate-500 font-mono"
+                              className="w-full bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2.5 py-1 text-[10px] text-slate-500 font-mono"
                             />
-                            <label className="bg-slate-105 border border-slate-300 hover:bg-slate-200 bg-slate-100 text-slate-700 font-bold text-[9px] px-2 py-1 rounded cursor-pointer flex items-center justify-center shrink-0">
-                              Upload
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      if (typeof reader.result === 'string') {
-                                        const img = new Image();
-                                        img.onload = () => {
-                                          const canvas = document.createElement('canvas');
-                                          const MAX_W = 150;
-                                          const MAX_H = 150;
-                                          let w = img.width;
-                                          let h = img.height;
-                                          if (w > h) {
-                                            if (w > MAX_W) {
-                                              h *= MAX_W / w;
-                                              w = MAX_W;
+                          </div>
+
+                          {/* Privileges in Edit Row */}
+                          <div className="mt-2.5 pt-2 border-t border-slate-200/50 space-y-2 text-left">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[9px] font-bold text-slate-500 uppercase font-mono block">
+                                🔐 Security Privileges:
+                              </span>
+                              {!currentUser.isSuperAdmin && (
+                                <span className="text-[8px] text-rose-500 font-bold font-mono">
+                                  👑 SUPER ADMIN ONLY
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={editUserIsAdmin}
+                                  disabled={!currentUser.isSuperAdmin}
+                                  onChange={(e) => {
+                                    setEditUserIsAdmin(e.target.checked);
+                                    if (!e.target.checked) {
+                                      setEditUserIsSuperAdmin(false);
+                                    }
+                                  }}
+                                  className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-3.5 h-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Admin (User-wise)</span>
+                              </label>
+
+                              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={editUserIsSuperAdmin}
+                                  disabled={!currentUser.isSuperAdmin}
+                                  onChange={(e) => {
+                                    setEditUserIsSuperAdmin(e.target.checked);
+                                    if (e.target.checked) {
+                                      setEditUserIsAdmin(true);
+                                    }
+                                  }}
+                                  className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Super Admin</span>
+                              </label>
+                            </div>
+
+                            {editUserIsAdmin && !editUserIsSuperAdmin && (
+                              <div className="mt-1.5">
+                                <span className="block text-[8px] font-bold text-slate-400 uppercase font-mono mb-1">
+                                  User-Wise Permissions:
+                                </span>
+                                <div className="p-1 px-1.5 border border-slate-200 bg-white rounded-lg max-h-[100px] overflow-y-auto space-y-1">
+                                  {ALL_PERMISSIONS.map((perm) => {
+                                    const isChecked = editUserPermissions.includes(perm.id);
+                                    return (
+                                      <label key={perm.id} className="flex items-center gap-1.5 text-[9px] text-slate-600 hover:text-slate-950 cursor-pointer select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          disabled={!currentUser.isSuperAdmin}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setEditUserPermissions(prev => [...prev, perm.id]);
+                                            } else {
+                                              setEditUserPermissions(prev => prev.filter(id => id !== perm.id));
                                             }
-                                          } else {
-                                            if (h > MAX_H) {
-                                              w *= MAX_H / h;
-                                              h = MAX_H;
-                                            }
-                                          }
-                                          canvas.width = w;
-                                          canvas.height = h;
-                                          const ctx = canvas.getContext('2d');
-                                          if (ctx) {
-                                            ctx.drawImage(img, 0, 0, w, h);
-                                            const compressed = canvas.toDataURL('image/jpeg', 0.85);
-                                            setEditUserAvatar(compressed);
-                                            showToast("✓ Avatar loaded and optimized safely!", "info");
-                                          } else {
-                                            setEditUserAvatar(reader.result as string);
-                                            showToast("✓ Avatar loaded!", "info");
-                                          }
-                                        };
-                                        img.src = reader.result;
-                                      }
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
+                                          }}
+                                          className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-2.5 h-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        <span className={`leading-tight text-[9px] ${!currentUser.isSuperAdmin ? "opacity-50" : ""}`}>{perm.name}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {editUserIsSuperAdmin && (
+                              <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 rounded p-1 text-[8px] leading-tight">
+                                👑 Super Admin Mode: Grants total bypass on all sections.
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="p-3.5">
@@ -4557,9 +5275,19 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               className="w-7 h-7 border border-slate-200/80 relative shadow-xs" 
                             />
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-extrabold text-slate-850 text-xs tracking-tight whitespace-nowrap">{item.name}</span>
                             <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" className="scale-90 origin-left" />
+                            {item.isSuperAdmin && (
+                              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/50 text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-3xs" title="Super Admin (Full Bypass)">
+                                👑 Super Admin
+                              </span>
+                            )}
+                            {!item.isSuperAdmin && item.isAdmin && (
+                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-3xs" title="Admin (User-wise Permissions)">
+                                🔑 Admin ({item.permissions?.length || 0} perms)
+                              </span>
+                            )}
                             <span className="text-[10px] font-mono text-slate-400 select-all whitespace-nowrap">({item.email})</span>
                           </div>
                         </div>
@@ -4667,6 +5395,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                     setEditUserFocus(item.focusEntity);
                                     setEditUserPassword(item.password || 'rathi123');
                                     setEditUserStatus(item.status || 'Active');
+                                    setEditUserIsAdmin(!!item.isAdmin);
+                                    setEditUserIsSuperAdmin(!!item.isSuperAdmin);
+                                    setEditUserPermissions(item.permissions || []);
                                   }}
                                   title="Edit Employee Detail"
                                   className="bg-white border border-slate-200 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 transition cursor-pointer p-2 rounded-lg"
@@ -4926,11 +5657,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     onChange={(e) => setSelectedPermissionGroup(e.target.value)}
                     className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-750 shadow-3xs outline-none focus:border-teal-500 transition duration-150 cursor-pointer"
                   >
-                    <option value="Account Group">Account Group</option>
-                    <option value="Curriculum Architecture">Curriculum Architecture</option>
-                    <option value="Corporate Verification">Corporate Verification</option>
+                    <option value="Account Group & Roles Matrix">Account Group & Roles Matrix</option>
+                    <option value="Curriculum Builder">Curriculum Builder</option>
+                    <option value="Enrollment Approvals">Enrollment Approvals</option>
                     <option value="User Database">User Database</option>
-                    <option value="Performance Records">Performance Records</option>
+                    <option value="Assessment Exams">Assessment Exams</option>
+                    <option value="Performance & Audit Trail">Performance & Audit Trail</option>
+                    <option value="Control Hub Settings">Control Hub Settings</option>
                   </select>
 
                   {/* Prev / Next buttons exactly as requested */}
@@ -4938,7 +5671,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <button
                       type="button"
                       onClick={() => {
-                        const groups = ['Account Group', 'Curriculum Architecture', 'Corporate Verification', 'User Database', 'Performance Records'];
+                        const groups = [
+                          'Account Group & Roles Matrix',
+                          'Curriculum Builder',
+                          'Enrollment Approvals',
+                          'User Database',
+                          'Assessment Exams',
+                          'Performance & Audit Trail',
+                          'Control Hub Settings'
+                        ];
                         const idx = groups.indexOf(selectedPermissionGroup);
                         setSelectedPermissionGroup(idx > 0 ? groups[idx - 1] : groups[groups.length - 1]);
                       }}
@@ -4949,7 +5690,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <button
                       type="button"
                       onClick={() => {
-                        const groups = ['Account Group', 'Curriculum Architecture', 'Corporate Verification', 'User Database', 'Performance Records'];
+                        const groups = [
+                          'Account Group & Roles Matrix',
+                          'Curriculum Builder',
+                          'Enrollment Approvals',
+                          'User Database',
+                          'Assessment Exams',
+                          'Performance & Audit Trail',
+                          'Control Hub Settings'
+                        ];
                         const idx = groups.indexOf(selectedPermissionGroup);
                         setSelectedPermissionGroup(idx < groups.length - 1 ? groups[idx + 1] : groups[0]);
                       }}
@@ -6941,87 +7690,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
             )}
 
-          </div>
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 5: RECHARTS PROGRESS VISUALS / ANALYTICS
-          ---------------------------------------------------- */}
-      {adminTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5 uppercase pb-2 border-b border-slate-100 mb-3">
-              <BarChart2 className="w-4 h-4 text-emerald-600" />
-              Accounts Division Path Audits Data
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Employee overall percentages bar chart */}
-              <div className="bg-slate-50 p-4 rounded-xl border">
-                <h4 className="text-xs font-bold text-slate-700 font-mono uppercase mb-4 text-center">Path Progress (%) of registered staffers</h4>
-                <div className="h-64 sm:h-80 relative w-full">
-                  <div className="relative w-full h-full min-w-0">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <BarChart
-                        data={chartUserData}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
-                      >
-                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-                        <Tooltip contentStyle={{ fontSize: 11 }} />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
-                        <Bar dataKey="Progress" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Mastery" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status breakdown pie chart */}
-              <div className="bg-slate-50 p-4 rounded-xl border flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-700 font-mono uppercase mb-1 text-center">Unit-Wise Status Distribution</h4>
-                  <p className="text-[10px] text-slate-400 text-center mb-4">Total operations active inside security matrix</p>
-                </div>
-
-                <div className="h-48 sm:h-60 relative w-full flex items-center justify-center">
-                  <div className="relative flex-1 h-full min-w-0">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <PieChart>
-                        <Pie
-                          data={statusCounts.filter(v => v.value > 0)}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                          label={({ name, value }) => `${name}: ${value}`}
-                        >
-                          {statusCounts.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ fontSize: 11 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-2 sm:gap-4 text-[11px] font-mono mt-4">
-                  {statusCounts.map((st, sidx) => (
-                    <div key={sidx} className="flex items-center gap-1.5 shrink-0">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: st.color }}></span>
-                      <span>{st.name} ({st.value})</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
           </div>
         </div>
       )}
@@ -9254,70 +9922,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                   {logoType === 'image' && (
                     <div className="space-y-3">
-                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Paste logo internet URL link or drop file:</span>
+                      <span className="text-[10px] text-slate-400 font-semibold block uppercase">Paste logo internet URL link:</span>
                       <div className="flex gap-2">
                         <input
                           type="url"
                           value={logoValue}
                           onChange={(e) => setLogoValue(e.target.value)}
                           placeholder="e.g. https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=80"
-                          className="flex-grow bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none"
                         />
-                        <label className="bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-lg cursor-pointer flex items-center justify-center">
-                          Choose Local File
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  if (typeof reader.result === 'string') {
-                                    // Inline Helper to compress corporate branding logo to small Web-Eye size
-                                    const img = new Image();
-                                    img.onload = () => {
-                                      const canvas = document.createElement('canvas');
-                                      const MAX_W = 150;
-                                      const MAX_H = 150;
-                                      let w = img.width;
-                                      let h = img.height;
-                                      if (w > h) {
-                                        if (w > MAX_W) {
-                                          h *= MAX_W / w;
-                                          w = MAX_W;
-                                        }
-                                      } else {
-                                        if (h > MAX_H) {
-                                          w *= MAX_H / h;
-                                          h = MAX_H;
-                                        }
-                                      }
-                                      canvas.width = w;
-                                      canvas.height = h;
-                                      const ctx = canvas.getContext('2d');
-                                      if (ctx) {
-                                        ctx.drawImage(img, 0, 0, w, h);
-                                        const compressed = canvas.toDataURL('image/jpeg', 0.8);
-                                        setLogoValue(compressed);
-                                        showToast("✓ Local logo file loaded and optimized safely! Click 'Save' to apply changes.", "info");
-                                      } else {
-                                        setLogoValue(reader.result as string);
-                                        showToast("✓ Local logo file loaded inside input state. Click 'Save' to apply changes!", "info");
-                                      }
-                                    };
-                                    img.onerror = () => {
-                                      setLogoValue(reader.result as string);
-                                    };
-                                    img.src = reader.result;
-                                  }
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
                       </div>
                       
                       {logoValue && logoValue.startsWith('data:image/') && (
@@ -9694,6 +10307,185 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   >
                     Save Helpline Contacts
                   </button>
+                </div>
+              </div>
+
+              {/* SECTION D: SMTP EMAIL DISPATCH & SENDER ALIAS CONFIGURATIONS */}
+              <div id="smtp-email-config-panel" className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold flex items-center gap-2">
+                    <span className="p-1 rounded bg-indigo-50 text-indigo-700">✉️</span>
+                    Part 4: SMTP Email Server & Sender Alias Settings
+                  </h4>
+                  <span className="text-[9px] bg-slate-200 text-slate-800 font-mono font-bold px-2 py-0.5 rounded-full select-none">Live Delivery Gateway</span>
+                </div>
+
+                {smtpSavingSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs py-2.5 px-3.5 rounded-lg font-bold font-sans animate-fade-in">
+                    ✓ {smtpSavingSuccess}
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Configure custom SMTP connection details to send 2-Step Verification and passkey reset emails to Trainees directly through your corporate mail server using a custom sender alias name.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="smtp-host" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Outbound Host</label>
+                    <input
+                      id="smtp-host"
+                      type="text"
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="e.g. smtp.gmail.com"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="smtp-port" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Port</label>
+                    <input
+                      id="smtp-port"
+                      type="text"
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(e.target.value)}
+                      placeholder="e.g. 587 or 465"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="smtp-user" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Username</label>
+                    <input
+                      id="smtp-user"
+                      type="text"
+                      value={smtpUser}
+                      onChange={(e) => setSmtpUser(e.target.value)}
+                      placeholder="e.g. sender@gmail.com"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="smtp-pass" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Password</label>
+                    <input
+                      id="smtp-pass"
+                      type="password"
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
+                      placeholder="Enter server key or app password"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/80 border border-amber-200/60 rounded-lg p-3 text-[10.5px] text-amber-800 leading-normal space-y-1.5">
+                  <p className="font-bold flex items-center gap-1">
+                    <span>💡</span> Gmail/Google Workspace SMTP Configuration Notice:
+                  </p>
+                  <p>
+                    If you are using Google Mail (<code>smtp.gmail.com</code>) as your host and see the error <strong>"Application-specific password required (534-5.7.9)"</strong>, you must use an App Password rather than your standard account password:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-1.5">
+                    <li>Go to your <a href="https://myaccount.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-amber-950">Google Account Settings</a></li>
+                    <li>Go to the <strong>Security</strong> tab and ensure <strong>2-Step Verification</strong> is ON</li>
+                    <li>Search for <strong>"App Passwords"</strong> in the top search bar</li>
+                    <li>Generate a new App Password (select 'Other' and name it <em>"Rathi LMS"</em>)</li>
+                    <li>Copy the generated <strong>16-character code</strong> (without spaces) and paste it into the <strong>SMTP Password</strong> field above</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <label htmlFor="smtp-from-name" className="block text-[11px] font-bold text-slate-700 mb-1">Sender Display Name (Alias)</label>
+                    <input
+                      id="smtp-from-name"
+                      type="text"
+                      value={smtpFromName}
+                      onChange={(e) => setSmtpFromName(e.target.value)}
+                      placeholder="e.g. Rathi Buildmart Security"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-semibold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="smtp-from-email" className="block text-[11px] font-bold text-slate-700 mb-1">Sender Email Address</label>
+                    <input
+                      id="smtp-from-email"
+                      type="email"
+                      value={smtpFromEmail}
+                      onChange={(e) => setSmtpFromEmail(e.target.value)}
+                      placeholder="e.g. security@rathibuildmart.com"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmtpHost('');
+                      setSmtpPort('587');
+                      setSmtpUser('');
+                      setSmtpPass('');
+                      setSmtpFromName('Rathi LMS Security');
+                      setSmtpFromEmail('security@rathibuildmart.com');
+                      
+                      const defaults = {
+                        host: '',
+                        port: '587',
+                        user: '',
+                        pass: '',
+                        fromName: 'Rathi LMS Security',
+                        fromEmail: 'security@rathibuildmart.com'
+                      };
+                      saveSmtpConfig(defaults);
+                      showToast("✓ SMTP configuration reset back to default simulation mode.", "info");
+                    }}
+                    className="bg-slate-150 border border-slate-250 hover:bg-slate-200 text-slate-800 font-bold text-xs px-4 py-2 rounded-lg transition"
+                  >
+                    Reset Defaults
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSmtp}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition"
+                  >
+                    Save SMTP Configurations
+                  </button>
+                </div>
+
+                {/* NESTED TESTING PORTAL */}
+                <div id="smtp-dispatch-test-portal" className="mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
+                  <h5 className="text-[10px] font-mono uppercase tracking-wider text-indigo-800 font-extrabold flex items-center gap-1.5">
+                    <span>⚡</span> Live SMTP Gateway Dispatch Tester
+                  </h5>
+                  <p className="text-[10.5px] text-slate-500 leading-normal">
+                    Enter any recipient email to instantly test the configured SMTP routing and sender name alias.
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      id="smtp-test-email"
+                      type="email"
+                      value={smtpTestEmail}
+                      onChange={(e) => setSmtpTestEmail(e.target.value)}
+                      placeholder="Enter recipient email address..."
+                      className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      id="smtp-dispatch-test-btn"
+                      disabled={smtpTestLoading}
+                      onClick={handleTestSmtp}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {smtpTestLoading ? 'Sending...' : 'Dispatch Test'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -151,7 +151,9 @@ export default function UserDashboard({
     const d = (dept || '').toLowerCase();
     return r === 'role_hr_mgr' || r === 'role_ta_exec' || r === 'role_training_mgr' || d.includes('hr') || d.includes('talent');
   };
-  const isAdminUser = currentUser.roleId === 'role_sr_acc' || 
+  const isAdminUser = currentUser.isSuperAdmin || 
+                      currentUser.isAdmin || 
+                      currentUser.roleId === 'role_sr_acc' || 
                       currentUser.roleId === 'role_md' || 
                       currentUser.roleId === 'role_ceo' || 
                       currentUser.roleId === 'role_coo' || 

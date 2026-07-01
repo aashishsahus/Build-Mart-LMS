@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -148,6 +149,108 @@ ${messages.map(m => `${m.role === 'user' ? 'Candidate' : 'Interviewer'}: ${m.con
   } catch (error: any) {
     console.error('Error in evaluating screening:', error);
     res.status(550).json({ error: error.message || 'Internal Server Error' });
+  }
+});
+
+// REST API for sending real SMTP email containing security OTP
+app.post('/api/send-otp', async (req, res) => {
+  try {
+    const { email, otp, name, mode, smtpConfig } = req.body;
+    if (!email || !otp || !name) {
+      return res.status(400).json({ error: 'Missing required parameters: email, otp, name' });
+    }
+
+    const host = smtpConfig?.host || process.env.SMTP_HOST;
+    const port = smtpConfig?.port || process.env.SMTP_PORT;
+    const user = smtpConfig?.user || process.env.SMTP_USER;
+    const pass = smtpConfig?.pass || process.env.SMTP_PASS;
+    const fromName = smtpConfig?.fromName || "Rathi LMS Security";
+    const fromEmail = smtpConfig?.fromEmail || "security@rathibuildmart.com";
+    const from = smtpConfig?.fromName ? `"${fromName}" <${fromEmail}>` : (process.env.SMTP_FROM || `"${fromName}" <${fromEmail}>`);
+
+    if (!host || !user || !pass) {
+      // SMTP is not configured in environment variables or dynamic payload, return mock indicator
+      return res.json({ 
+        sent: false, 
+        error: 'SMTP_NOT_CONFIGURED',
+        message: 'SMTP Host/User/Pass environment variables are not configured. Running in secure simulated environment.' 
+      });
+    }
+
+    // Initialize real nodemailer transport
+    const transporter = nodemailer.createTransport({
+      host: host,
+      port: parseInt(port || '587', 10),
+      secure: port === '465', // true for 465, false for other ports
+      auth: {
+        user: user,
+        pass: pass,
+      },
+    });
+
+    const isForgot = mode === 'forgot';
+    const emailSubject = isForgot 
+      ? `🔐 LMS Security: Passkey Recovery Token - ${otp}`
+      : `🔐 LMS Security: 2-Step Verification Token - ${otp}`;
+
+    const emailBodyText = `Dear ${name},
+
+A security request has been received for your Rathi Accounts Learning Management System (LMS) account.
+
+Your 6-Digit Secure Verification OTP is: ${otp}
+
+This verification code is valid for 5 minutes. If you did not make this request, please contact the Rathi IT and HR department immediately to lock your account.
+
+Best regards,
+Rathi Build Mart Security Team`;
+
+    const emailBodyHtml = `
+      <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <div style="display: inline-block; background-color: #eff6ff; padding: 12px; border-radius: 12px; margin-bottom: 10px;">
+            <span style="font-size: 28px;">🔐</span>
+          </div>
+          <h2 style="margin: 0; font-size: 20px; color: #0f172a; font-weight: 800;">Security OTP Verification</h2>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Rathi Build Mart Accounts LMS Platform</p>
+        </div>
+        
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">Dear <strong>${name}</strong>,</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">A security verification request has been received for your corporate account.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 20px; text-align: center; margin: 25px 0;">
+          <p style="margin: 0 0 8px 0; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b;">Your 6-Digit Secure Code</p>
+          <span style="font-size: 32px; font-weight: 800; letter-spacing: 0.2em; color: #2563eb; font-family: monospace;">${otp}</span>
+        </div>
+        
+        <p style="font-size: 12px; line-height: 1.6; color: #64748b; background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px;">
+          ⚠️ <strong>Security Notice:</strong> This OTP is valid for 5 minutes. If you did not make this request, please contact the Rathi IT and HR department immediately to lock your account and protect corporate credentials.
+        </p>
+        
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
+        
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+          This is an automated system email. Please do not reply directly to this message.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: from,
+      to: email,
+      subject: emailSubject,
+      text: emailBodyText,
+      html: emailBodyHtml,
+    });
+
+    console.log(`Real SMTP email sent successfully to ${email}`);
+    res.json({ sent: true, provider: 'smtp' });
+  } catch (error: any) {
+    console.error('Error sending real email via SMTP:', error);
+    res.json({ 
+      sent: false, 
+      error: 'SMTP_SEND_FAILED', 
+      message: error.message || 'SMTP server connection or send request failed.' 
+    });
   }
 });
 

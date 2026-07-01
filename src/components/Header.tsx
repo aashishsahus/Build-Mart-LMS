@@ -122,7 +122,9 @@ export default function Header({
     return false;
   };
 
-  const isAdmin = currentUser.roleId === 'role_sr_acc' || 
+  const isAdmin = currentUser.isSuperAdmin || 
+                  currentUser.isAdmin || 
+                  currentUser.roleId === 'role_sr_acc' || 
                   currentUser.roleId === 'role_md' || 
                   currentUser.roleId === 'role_ceo' || 
                   currentUser.roleId === 'role_coo' || 
@@ -837,46 +839,11 @@ export default function Header({
                 </div>
               </div>
 
-              {/* METHOD 2: LOCAL DEVICE FILE DROP AREA */}
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-extrabold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Option 2: Upload Device Photo
-                </h4>
-                
-                <div
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center transition flex flex-col items-center justify-center cursor-pointer select-none ${
-                    dragActive 
-                      ? "border-emerald-500 bg-emerald-50/40" 
-                      : "border-slate-200 bg-slate-50/30 hover:bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  <label className="flex flex-col items-center cursor-pointer w-full h-full">
-                    <Upload className="w-7 h-7 text-slate-400 mb-2 animate-bounce" />
-                    <span className="text-xs font-bold text-slate-700">Drag & Drop profile image file here</span>
-                    <span className="text-[10px] text-slate-400 mt-1">Supports PNG, JPG, or GIF. Converted instantly to safe local state!</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <span className="mt-3 text-[10px] inline-block bg-white border border-slate-250 hover:bg-slate-50 text-slate-700 font-bold px-3 py-1 rounded-lg">
-                      Choose Device File
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* METHOD 3: COGNITIVE URL LINK */}
+              {/* METHOD 2: COGNITIVE URL LINK */}
               <div className="space-y-2">
                 <h4 className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-extrabold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  Option 3: External Image Link (URL)
+                  Option 2: External Image Link (URL)
                 </h4>
                 <div className="flex gap-2">
                   <input
