@@ -130,6 +130,24 @@
       "properties": {
         "status": { "type": "string" }
       }
+    },
+    "HelpdeskTicket": {
+      "title": "HelpdeskTicket",
+      "description": "SOP and training issue support tickets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ticketNo": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "ticketNo", "name", "email", "category", "description", "timestamp", "status"]
     }
   },
   "firestore": {
@@ -164,6 +182,10 @@
     "notifications/{notificationId}": {
       "schema": "GlobalNotification",
       "description": "Global corporate notifications feed"
+    },
+    "help_tickets/{ticketId}": {
+      "schema": "HelpdeskTicket",
+      "description": "SOP helpdesk tickets submitted by trainees"
     },
     "test-connection-probe/{probeId}": {
       "schema": "ConnectionProbe",

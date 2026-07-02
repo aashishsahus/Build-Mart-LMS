@@ -195,7 +195,7 @@ app.post('/api/send-otp', async (req, res) => {
 
     const emailBodyText = `Dear ${name},
 
-A security request has been received for your Rathi Accounts Learning Management System (LMS) account.
+A security request has been received for your Rathi Build Mart Learning Management System (LMS) account.
 
 Your 6-Digit Secure Verification OTP is: ${otp}
 
@@ -211,7 +211,7 @@ Rathi Build Mart Security Team`;
             <span style="font-size: 28px;">🔐</span>
           </div>
           <h2 style="margin: 0; font-size: 20px; color: #0f172a; font-weight: 800;">Security OTP Verification</h2>
-          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Rathi Build Mart Accounts LMS Platform</p>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Rathi Build Mart LMS Platform</p>
         </div>
         
         <p style="font-size: 14px; line-height: 1.5; color: #334155;">Dear <strong>${name}</strong>,</p>
@@ -251,6 +251,228 @@ Rathi Build Mart Security Team`;
       error: 'SMTP_SEND_FAILED', 
       message: error.message || 'SMTP server connection or send request failed.' 
     });
+  }
+});
+
+// REST API for sending real welcome email on registration
+app.post('/api/send-welcome-email', async (req, res) => {
+  try {
+    const { email, name, roleName, department, smtpConfig } = req.body;
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Missing required parameters: email, name' });
+    }
+
+    const host = smtpConfig?.host || process.env.SMTP_HOST;
+    const port = smtpConfig?.port || process.env.SMTP_PORT;
+    const user = smtpConfig?.user || process.env.SMTP_USER;
+    const pass = smtpConfig?.pass || process.env.SMTP_PASS;
+    const fromName = smtpConfig?.fromName || "Rathi LMS Support";
+    const fromEmail = smtpConfig?.fromEmail || "lms@rathibuildmart.com";
+    const from = smtpConfig?.fromName ? `"${fromName}" <${fromEmail}>` : (process.env.SMTP_FROM || `"${fromName}" <${fromEmail}>`);
+
+    if (!host || !user || !pass) {
+      return res.json({ 
+        sent: false, 
+        error: 'SMTP_NOT_CONFIGURED',
+        message: 'SMTP Host/User/Pass environment variables are not configured. Running in secure simulated environment.' 
+      });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: host,
+      port: parseInt(port || '587', 10),
+      secure: port === '465',
+      auth: {
+        user: user,
+        pass: pass,
+      },
+    });
+
+    const emailSubject = `🚀 Welcome to Rathi's LMS - Registration Received`;
+    const emailBodyText = `Dear ${name},
+
+Welcome to Rathi Build Mart's Learning Management System (LMS)!
+
+Your enrollment request has been successfully registered under the "${department || 'General'}" department for the role of "${roleName || 'Trainee'}".
+
+Our Admin and HR team will review your profile shortly. Once approved, you will receive another email containing your access passkey and portal link.
+
+Best regards,
+Rathi Build Mart Administration & HR Team`;
+
+    const emailBodyHtml = `
+      <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <div style="display: inline-block; background-color: #f0fdf4; padding: 12px; border-radius: 12px; margin-bottom: 10px;">
+            <span style="font-size: 28px;">🚀</span>
+          </div>
+          <h2 style="margin: 0; font-size: 20px; color: #0f172a; font-weight: 800;">Welcome to Rathi's LMS!</h2>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Rathi Build Mart Learning Management System</p>
+        </div>
+        
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">Dear <strong>${name}</strong>,</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">We are pleased to inform you that your registration request on <strong>Rathi LMS</strong> has been successfully received.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 20px; margin: 20px 0;">
+          <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em;">Enrollment Summary:</h4>
+          <table style="width: 100%; font-size: 13px; text-align: left; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b; width: 40%;">Selected Role:</td>
+              <td style="padding: 4px 0; font-weight: bold; color: #0f172a;">${roleName || 'Trainee'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Department:</td>
+              <td style="padding: 4px 0; font-weight: bold; color: #0f172a;">${department || 'Accounts'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;">Status:</td>
+              <td style="padding: 4px 0;"><span style="background-color: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold;">Pending Approval ⏳</span></td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="font-size: 13px; line-height: 1.6; color: #334155;">
+          Our administration team is currently verifying your profile details. You will be sent a second notification email containing your login details and secure security passkey once your enrollment is approved and active.
+        </p>
+
+        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; font-size: 12px; color: #1e3a8a; margin-top: 15px;">
+          ℹ️ <strong>About Rathi Build Mart LMS:</strong> Your account logs all of your training milestones, SOP reviews, and assessments automatically to ensure full compliance.
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
+        
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+          This is an automated system notification from Rathi Build Mart PLC. Please do not reply directly.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from,
+      to: email,
+      subject: emailSubject,
+      text: emailBodyText,
+      html: emailBodyHtml,
+    });
+
+    console.log(`Real welcome email sent successfully to ${email}`);
+    res.json({ sent: true, provider: 'smtp' });
+  } catch (error: any) {
+    console.error('Error sending welcome email:', error);
+    res.json({ sent: false, error: 'SMTP_SEND_FAILED', message: error.message });
+  }
+});
+
+// REST API for sending credentials on enrollment approval
+app.post('/api/send-credentials-email', async (req, res) => {
+  try {
+    const { email, name, roleName, password, smtpConfig } = req.body;
+    if (!email || !name || !password) {
+      return res.status(400).json({ error: 'Missing required parameters: email, name, password' });
+    }
+
+    const host = smtpConfig?.host || process.env.SMTP_HOST;
+    const port = smtpConfig?.port || process.env.SMTP_PORT;
+    const user = smtpConfig?.user || process.env.SMTP_USER;
+    const pass = smtpConfig?.pass || process.env.SMTP_PASS;
+    const fromName = smtpConfig?.fromName || "Rathi LMS Support";
+    const fromEmail = smtpConfig?.fromEmail || "lms@rathibuildmart.com";
+    const from = smtpConfig?.fromName ? `"${fromName}" <${fromEmail}>` : (process.env.SMTP_FROM || `"${fromName}" <${fromEmail}>`);
+
+    if (!host || !user || !pass) {
+      return res.json({ 
+        sent: false, 
+        error: 'SMTP_NOT_CONFIGURED',
+        message: 'SMTP Host/User/Pass environment variables are not configured. Running in secure simulated environment.' 
+      });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: host,
+      port: parseInt(port || '587', 10),
+      secure: port === '465',
+      auth: {
+        user: user,
+        pass: pass,
+      },
+    });
+
+    const emailSubject = `🔐 Rathi LMS: Your Enrollment has been Approved!`;
+    const emailBodyText = `Dear ${name},
+
+Congratulations! Your enrollment request on the Rathi Build Mart LMS platform has been approved.
+
+You can now log into your account using the credentials below:
+
+- Email / User ID: ${email}
+- Security Passkey / Password: ${password}
+- Assigned Job Role: ${roleName || 'Trainee'}
+
+Please do not share your security passkey with anyone. Ensure you log in from an authorized device.
+
+Best regards,
+Rathi Build Mart Administration & HR Team`;
+
+    const emailBodyHtml = `
+      <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <div style="display: inline-block; background-color: #f0fdf4; padding: 12px; border-radius: 12px; margin-bottom: 10px;">
+            <span style="font-size: 28px;">🔐</span>
+          </div>
+          <h2 style="margin: 0; font-size: 20px; color: #0f172a; font-weight: 800;">Enrollment Request Approved!</h2>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Rathi Build Mart LMS Credentials</p>
+        </div>
+        
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">Dear <strong>${name}</strong>,</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">We are delighted to inform you that your corporate training account is now fully approved and active.</p>
+        
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 15px 20px; margin: 20px 0;">
+          <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">Your Login Credentials:</h4>
+          <table style="width: 100%; font-size: 13px; text-align: left; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #1e293b; font-weight: 600; width: 40%;">User Email ID:</td>
+              <td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #0f172a;">${email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #1e293b; font-weight: 600;">Security Passkey:</td>
+              <td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #16a34a;">${password}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #1e293b; font-weight: 600;">Assigned Role:</td>
+              <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${roleName || 'Trainee'}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="font-size: 13px; line-height: 1.6; color: #334155;">
+          You can now proceed to the <strong>LMS Portal</strong>, select the <strong>Corporate ID / Credentials tab</strong>, enter your email and passkey, and begin your scheduled compliance chapters.
+        </p>
+
+        <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px; font-size: 11px; color: #d97706; margin-top: 15px;">
+          ⚠️ <strong>Security Advisory:</strong> Do not share your login credentials or security passkey with other department members. Your account logs IP logs and browser activity to comply with audit security standards.
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
+        
+        <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+          This is an automated system credentials notification. Please do not reply directly.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from,
+      to: email,
+      subject: emailSubject,
+      text: emailBodyText,
+      html: emailBodyHtml,
+    });
+
+    console.log(`Real credentials email sent successfully to ${email}`);
+    res.json({ sent: true, provider: 'smtp' });
+  } catch (error: any) {
+    console.error('Error sending credentials email:', error);
+    res.json({ sent: false, error: 'SMTP_SEND_FAILED', message: error.message });
   }
 });
 

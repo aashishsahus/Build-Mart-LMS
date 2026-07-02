@@ -193,23 +193,65 @@ export default function LoginScreen({
       return;
     }
     
+    const regName = newUserName;
+    const regEmail = newUserEmail;
+    const regRole = newUserRole;
+    const regDept = newUserDept;
+    const regFocus = newUserFocus;
+    const regPass = newUserPassword || 'rathi123';
+
     // Create new profile with password
     onAddUser({
-      name: newUserName,
-      email: newUserEmail,
-      roleId: newUserRole,
-      department: newUserDept,
-      focusEntity: newUserFocus,
-      password: newUserPassword || 'rathi123',
+      name: regName,
+      email: regEmail,
+      roleId: regRole,
+      department: regDept,
+      focusEntity: regFocus,
+      password: regPass,
       avatarUrl: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 500000)}?w=120&auto=format&fit=crop&q=80`,
       status: 'Pending Approval'
     });
 
+    const roleName = roles.find(r => r.id === regRole)?.name || 'Trainee';
+
+    // Send Welcome Email
+    try {
+      const smtpConfig = getSmtpConfig();
+      fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: regEmail,
+          name: regName,
+          roleName: roleName,
+          department: regDept,
+          smtpConfig: smtpConfig
+        })
+      }).then(res => res.json()).then(data => {
+        console.log('Welcome email API response:', data);
+      }).catch(err => {
+        console.error('Failed welcome email API:', err);
+      });
+
+      // Always show simulation notification in sandbox environment so user is notified visually
+      setSimulatedMailPopup({
+        id: Math.random().toString(),
+        sender: smtpConfig.fromName ? `"${smtpConfig.fromName}" <${smtpConfig.fromEmail || 'lms@rathibuildmart.com'}>` : '"Rathi LMS Support" <lms@rathibuildmart.com>',
+        receiver: regEmail,
+        subject: `🚀 Welcome to Rathi's LMS - Registration Received`,
+        otp: '',
+        body: `Dear ${regName},\n\nWelcome to Rathi Build Mart's Learning Management System (LMS)!\n\nYour enrollment request has been successfully registered under the "${regDept || 'General'}" department for the role of "${roleName}".\n\nOur Admin and HR team will review your profile shortly. Once approved, you will receive another email containing your access passkey and portal link.\n\nBest regards,\nRathi Build Mart Administration & HR Team`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      });
+    } catch (err) {
+      console.error('Welcome email handler error:', err);
+    }
+
     // Provide user feedback and redirect to credentials tab without auto-logging in
-    setCredEmail(newUserEmail);
-    setCredPassword(newUserPassword);
+    setCredEmail(regEmail);
+    setCredPassword(regPass);
     setCredError('');
-    setSuccessMsg(`✓ Registration Submitted Successfully for ${newUserName}! Your enrollment is now awaiting job role verification and approval by HR or Admin. You will be able to log in once they authorize your account.`);
+    setSuccessMsg(`✓ Registration Submitted Successfully for ${regName}! Your enrollment is now awaiting job role verification and approval by HR or Admin. A welcome email has been sent to ${regEmail}.`);
     setActiveTab('credentials');
 
     // Clear registration fields
@@ -418,12 +460,12 @@ export default function LoginScreen({
           <p className="mt-1.5 text-xs text-slate-550 text-slate-500 font-medium font-sans">
             {activeBranding?.companyTagline || 'Corporate Learning Management System'}
           </p>
-          <div className="mt-3.5 inline-flex items-center gap-2 bg-green-50 rounded-full px-4 py-1.5 shadow-sm transition hover:bg-green-100">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
+          <div className="mt-3.5 inline-flex items-center gap-2">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)]"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span className="text-[10px] font-mono text-green-700 font-extrabold tracking-widest uppercase">Active Security Matrix</span>
+            <span className="text-[10px] font-sans text-slate-800 font-bold uppercase tracking-wider">Active Security Matrix</span>
           </div>
         </div>
 
@@ -852,7 +894,7 @@ export default function LoginScreen({
                 ) : (
                   <>
                     <h3 className="text-base font-bold text-slate-900 font-sans">Sign in with Google</h3>
-                    <p className="text-xs text-slate-500 mt-1">to continue to <strong className="text-emerald-750 text-emerald-700">{activeBranding?.companyName || 'Rathi Accounts'} {activeBranding?.companyAbbreviation || 'LMS'}</strong></p>
+                    <p className="text-xs text-slate-500 mt-1">to continue to <strong className="text-emerald-750 text-emerald-700">{activeBranding?.companyName || 'Rathi Build Mart'} {activeBranding?.companyAbbreviation || 'LMS'}</strong></p>
                     
                     {/* Simulated Google Tab Bar */}
                     <div className="flex mt-4 border-t border-slate-100 pt-3 text-xs gap-4 justify-center">
@@ -1477,7 +1519,7 @@ export default function LoginScreen({
                 New Security Email Delivered
               </p>
 
-              {lockScreenPrivacy ? (
+              {lockScreenPrivacy && simulatedMailPopup.subject.includes('OTP') ? (
                 /* Privacy Mode Enabled - REDACTED Notification */
                 <div className="space-y-3">
                   <div className="space-y-0.5">
@@ -1720,7 +1762,7 @@ export default function LoginScreen({
 
                         <div className="space-y-3 text-xs text-slate-600 leading-relaxed font-sans">
                           <p>Dear <strong>{otpTargetUser?.name || selectedGoogleUser?.name || 'Employee'}</strong>,</p>
-                          <p>A secure identity verification request was received for your Rathi Accounts Learning Management System account.</p>
+                          <p>A secure identity verification request was received for your Rathi Build Mart Learning Management System account.</p>
                           
                           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 my-4 text-center max-w-sm mx-auto">
                             <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Your 6-Digit Verification Code</span>

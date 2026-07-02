@@ -69,3 +69,39 @@ body {
   background: var(--color-navy-450);
 }
 
+/* Premium Spreadsheet Grid Table Utilities */
+.premium-grid-table {
+  border: 1px solid #cbd5e1;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+}
+.premium-grid-table th {
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 2px solid #94a3b8;
+  background-color: #f1f5f9;
+  padding: 10px 14px;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.premium-grid-table th:last-child {
+  border-right: none;
+}
+.premium-grid-table td {
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+.premium-grid-table td:last-child {
+  border-right: none;
+}
+.premium-grid-table tr:hover {
+  background-color: #f8fafc;
+}
+.premium-grid-table tr:last-child td {
+  border-bottom: none;
+}
+

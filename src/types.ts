@@ -152,6 +152,19 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
+export interface HelpdeskTicket {
+  id: string; // Document ID
+  ticketNo: string; // e.g. TKT-20260702-0001
+  userId?: string;
+  name: string;
+  email: string;
+  phone: string;
+  category: string;
+  description: string;
+  timestamp: string;
+  status: 'Open' | 'Resolved' | 'Closed';
+}
+
 
 
 

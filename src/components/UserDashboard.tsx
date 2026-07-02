@@ -27,7 +27,8 @@ import {
   Sparkles,
   Trash2,
   Check,
-  Database
+  Database,
+  BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CertificateGenerator from './CertificateGenerator';
@@ -138,6 +139,7 @@ export default function UserDashboard({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [expandedUnitIdForHistory, setExpandedUnitIdForHistory] = useState<string | null>(null);
   const [reportStatusFilter, setReportStatusFilter] = useState<string>('All');
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
 
   // Notification system states
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -216,6 +218,7 @@ export default function UserDashboard({
 
   // Synchronously update form input values when user changes active video unit
   const [isTrackingActive, setIsTrackingActive] = useState(true);
+  const [activeMediaTab, setActiveMediaTab] = useState<'pdf' | 'video'>('pdf');
 
   useEffect(() => {
     if (selectedUnit) {
@@ -223,6 +226,17 @@ export default function UserDashboard({
       setSubmissionNotes(prog?.notes || '');
       setSubmittingStatus(prog?.status || 'Not Started');
       setIsTrackingActive(true); // Auto track starts on new unit load
+
+      // Set default media tab according to the rules:
+      const hasPdf = !!(selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '');
+      const hasVideo = !!(selectedUnit.videoUrl && selectedUnit.videoUrl.trim() !== '');
+      if (hasPdf && hasVideo) {
+        setActiveMediaTab('pdf');
+      } else if (!hasPdf && hasVideo) {
+        setActiveMediaTab('video');
+      } else {
+        setActiveMediaTab('pdf');
+      }
     }
   }, [selectedUnitId]);
 
@@ -525,92 +539,183 @@ export default function UserDashboard({
     }
 
     return { type: 'none', url: '' };
-  };
+  }  // Centralised Combined Media Stage (PDF SOP Viewer & Video Player Switcher)
+  const renderCombinedMediaStage = (isMobile: boolean) => {
+    if (!selectedUnit) return null;
 
-  // Centralised PDF Reader Stage
-  const renderPdfStage = (isMobile: boolean) => {
-    // If selectedUnit has a pdfUrl, use it. Otherwise, use the global pdfUrl state.
+    // Resolve PDF URL
     const activePdfUrl = (selectedUnit && selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '') 
       ? selectedUnit.pdfUrl.trim() 
       : pdfUrl.trim();
-    const cleanPdfUrl = activePdfUrl;
     
-    // Resolve Drive or standard URL
-    let resolvedUrl = cleanPdfUrl;
-    if (cleanPdfUrl.includes('drive.google.com')) {
-      const match = cleanPdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    let resolvedPdfUrl = activePdfUrl;
+    if (activePdfUrl.includes('drive.google.com')) {
+      const match = activePdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
-        resolvedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+        resolvedPdfUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
       }
     }
 
+    // Resolve Video Source
+    const { type, url } = resolveVideoSource(selectedUnit.videoUrl);
+
+    // Determine presence of both
+    const unitHasPdf = !!(selectedUnit && selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '');
+    const unitHasVideo = !!(selectedUnit && selectedUnit.videoUrl && selectedUnit.videoUrl.trim() !== '');
+
+    // Dynamic stream type badges
+    const getStreamBadge = () => {
+      switch (type) {
+        case 'embed':
+          if (url.includes('drive.google.com')) {
+            return <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Drive Stream</span>;
+          }
+          return <span className="bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Tube Embed</span>;
+        case 'direct':
+          return <span className="bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Direct MP4 Stream</span>;
+        case 'custom':
+          return <span className="bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase font-medium">External Stream</span>;
+        default:
+          return <span className="bg-slate-100 text-slate-500 text-[9px] font-mono px-2 py-0.5 rounded-full uppercase">SOP Guide</span>;
+      }
+    };
+
     return (
       <div 
-        id={isMobile ? "mobile-pdf-reader" : "desktop-pdf-reader"}
-        className={`bg-white rounded-3xl border-2 border-indigo-200 shadow-xs overflow-hidden transition-all duration-200 ${
-          isMobile ? 'mb-6 block lg:hidden ring-4 ring-indigo-50/60' : 'mb-6 hidden lg:block'
+        id={isMobile ? "mobile-combined-player" : "desktop-combined-player"}
+        className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden transition-all duration-200 ${
+          activeMediaTab === 'pdf' ? 'border-indigo-200' : 'border-slate-200/90'
+        } ${
+          isMobile ? 'mb-6 block lg:hidden ring-4 ring-slate-100/60' : 'mb-6 hidden lg:block'
         }`}
       >
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/30">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
-              <FileText className="w-4 h-4 shrink-0" />
+        {/* Dynamic Header */}
+        <div className={`px-5 py-3.5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+          activeMediaTab === 'pdf' ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-150 bg-slate-50/50'
+        }`}>
+          {/* Active Tab Branding Header Info */}
+          {activeMediaTab === 'pdf' ? (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl shrink-0">
+                <FileText className="w-4 h-4 shrink-0" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] text-indigo-500 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
+                  Corporate Curriculum Architecture
+                </span>
+                <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
+                  📄 Lesson SOP Document (PDF)
+                </span>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="text-[9px] text-indigo-500 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
-                Corporate Curriculum Architecture
-              </span>
-              <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[200px] sm:max-w-md md:max-w-xl">
-                📄 Lesson SOP Document (PDF)
-              </span>
+          ) : (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse shrink-0"></span>
+              <div className="min-w-0">
+                <span className="text-[10px] text-slate-400 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
+                  NOW STREAMING LESSON
+                </span>
+                <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
+                  {selectedUnit.videoTitle || "Standard Walkthrough Demonstration"}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {/* Quick Presets Dropdown - Admin only */}
-            {isAdminUser && (
-              <select
-                value={cleanPdfUrl}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setPdfUrl(val);
-                  setCustomPdfInput(val);
-                  localStorage.setItem('lms_corporate_curriculum_pdf', val);
-                }}
-                className="bg-white border border-indigo-200 rounded-xl px-2.5 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer max-w-[170px]"
-              >
-                <option value="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf">📄 Preset: Operations Manual</option>
-                <option value="https://unstats.un.org/unsd/nationalaccount/docs/SNA2008.pdf">📄 Preset: Ledger Audits</option>
-                <option value="https://www.mca.gov.in/Ministry/pdf/CompaniesAct2013.pdf">📄 Preset: Compliance Act</option>
-              </select>
-            )}
-
-            {isAdminUser && (
+          {/* Combined Switch Tabs inside Header */}
+          {unitHasPdf && unitHasVideo && (
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5 select-none shrink-0 mx-auto md:mx-0">
               <button
                 type="button"
-                onClick={() => setIsEditingPdf(!isEditingPdf)}
-                className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 border-indigo-200 px-2.5 py-1 rounded-xl transition cursor-pointer"
+                onClick={() => setActiveMediaTab('pdf')}
+                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                  activeMediaTab === 'pdf'
+                    ? 'bg-white text-indigo-700 shadow-3xs font-black border border-slate-200/20'
+                    : 'text-slate-500 hover:text-slate-850'
+                }`}
               >
-                {isEditingPdf ? 'Close Editor' : 'Edit PDF Link'}
+                <FileText className="w-2.5 h-2.5 shrink-0 text-indigo-600" />
+                <span>SOP PDF</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveMediaTab('video')}
+                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                  activeMediaTab === 'video'
+                    ? 'bg-white text-rose-700 shadow-3xs font-black border border-slate-200/20'
+                    : 'text-slate-500 hover:text-slate-850'
+                }`}
+              >
+                <Play className="w-2.5 h-2.5 shrink-0 text-rose-600 fill-rose-600" />
+                <span>Video</span>
+              </button>
+            </div>
+          )}
+
+          {/* Context Actions (Presets dropdown, watch links, collapse button) */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 justify-end md:justify-start">
+            {activeMediaTab === 'pdf' ? (
+              <>
+                {/* PDF Presets & Admin Tools */}
+                {isAdminUser && (
+                  <select
+                    value={activePdfUrl}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPdfUrl(val);
+                      setCustomPdfInput(val);
+                      localStorage.setItem('lms_corporate_curriculum_pdf', val);
+                    }}
+                    className="bg-white border border-indigo-200 rounded-xl px-2.5 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500 cursor-pointer max-w-[150px] md:max-w-[170px]"
+                  >
+                    <option value="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf">Preset: Operations Manual</option>
+                    <option value="https://unstats.un.org/unsd/nationalaccount/docs/SNA2008.pdf">Preset: Ledger Audits</option>
+                    <option value="https://www.mca.gov.in/Ministry/pdf/CompaniesAct2013.pdf">Preset: Compliance Act</option>
+                  </select>
+                )}
+
+                {isAdminUser && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPdf(!isEditingPdf)}
+                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-xl transition cursor-pointer shrink-0"
+                  >
+                    {isEditingPdf ? 'Close Editor' : 'Edit PDF Link'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Video Badges & Direct Watch External Link */}
+                {getStreamBadge()}
+                {type !== 'none' && (
+                  <a 
+                    href={selectedUnit.videoUrl} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-slate-400 hover:text-rose-600 flex items-center gap-1.5 text-[10px] font-mono hover:underline tracking-tight transition-all shrink-0"
+                  >
+                    Watch Link <ExternalLink className="w-3 h-3 text-rose-500" />
+                  </a>
+                )}
+              </>
             )}
 
             <button
               type="button"
               onClick={() => setPdfReaderCollapsed(!pdfReaderCollapsed)}
               className="text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-              title={pdfReaderCollapsed ? "Expand PDF Reader" : "Collapse PDF Reader"}
+              title={pdfReaderCollapsed ? "Expand Media Frame" : "Collapse Media Frame"}
             >
               <ChevronDown className={`w-4 h-4 transform transition-transform duration-200 ${pdfReaderCollapsed ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Custom Input */}
-        {isEditingPdf && (
+        {/* Custom Input for PDF URL (visible only if isEditingPdf is active and we are currently on the PDF tab) */}
+        {activeMediaTab === 'pdf' && isEditingPdf && (
           <div className="p-4 bg-slate-50 border-b border-indigo-100 flex flex-col gap-2.5 text-left">
-            <span className="text-[9px] font-bold text-slate-500 uppercase font-mono tracking-wider">
+            <span className="text-[9px] font-bold text-slate-505 text-slate-500 uppercase font-mono tracking-wider">
               Configure Corporate Curriculum PDF Link (Direct PDF, Google Drive Link, OneDrive link):
             </span>
             <div className="flex items-center gap-2">
@@ -640,218 +745,168 @@ export default function UserDashboard({
           </div>
         )}
 
-        {/* Iframe stage */}
+        {/* Media Frame Main Canvas Content Body */}
         {!pdfReaderCollapsed && (
-          <div className="w-full bg-slate-900 relative shadow-inner" style={{ height: '480px' }}>
-            <iframe
-              src={resolvedUrl}
-              title="Corporate Curriculum Architecture PDF Frame"
-              className="absolute inset-0 w-full h-full border-none bg-slate-800"
-              referrerPolicy="no-referrer"
-              allow="autoplay"
-            ></iframe>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Centralised Tube Video rendering engine
-  const renderVideoStage = (isMobile: boolean) => {
-    if (!selectedUnit) return null;
-    const { type, url } = resolveVideoSource(selectedUnit.videoUrl);
-
-    // Dynamic stream type badges
-    const getStreamBadge = () => {
-      switch (type) {
-        case 'embed':
-          if (url.includes('drive.google.com')) {
-            return <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Drive Stream</span>;
-          }
-          return <span className="bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Tube Embed</span>;
-        case 'direct':
-          return <span className="bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">Direct MP4 Stream</span>;
-        case 'custom':
-          return <span className="bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase font-medium">External Stream</span>;
-        default:
-          return <span className="bg-slate-100 text-slate-500 text-[9px] font-mono  px-2 py-0.5 rounded-full uppercase">SOP Guide</span>;
-      }
-    };
-
-    return (
-      <div 
-        id={isMobile ? "mobile-tube-player" : "desktop-tube-player"}
-        className={`bg-white rounded-3xl border-2 border-slate-200/90 shadow-sm overflow-hidden transition-all duration-200 ${
-          isMobile ? 'mb-6 block lg:hidden ring-4 ring-slate-100/60' : 'mb-0 hidden lg:block'
-        }`}
-      >
-        <div className="px-5 py-4 border-b border-slate-150 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse shrink-0"></span>
-            <div className="min-w-0">
-              <span className="text-[10px] text-slate-400 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">NOW STREAMING LESSON</span>
-              <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[200px] sm:max-w-md md:max-w-xl">
-                {selectedUnit.videoTitle || "Standard Walkthrough Demonstration"}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 shrink-0">
-            {getStreamBadge()}
-            {type !== 'none' && (
-              <a 
-                href={selectedUnit.videoUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-slate-400 hover:text-rose-600 flex items-center gap-1.5 text-[10px] font-mono hover:underline tracking-tight transition-all shrink-0"
-              >
-                Watch Link <ExternalLink className="w-3 h-3 text-rose-500" />
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Video Player Main Canvas */}
-        <div className="aspect-video w-full bg-slate-950 relative shadow-inner">
-          {type === 'embed' ? (
-            <iframe
-              src={url}
-              title={selectedUnit.videoTitle}
-              className="absolute inset-0 w-full h-full border-none"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="no-referrer"
-            ></iframe>
-          ) : type === 'direct' ? (
-            <video
-              src={url}
-              controls
-              className="absolute inset-0 w-full h-full object-contain"
-              preload="metadata"
-              playsInline
-            />
-          ) : type === 'custom' ? (
-            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 font-mono text-xs">
-              <Play className="w-12 h-12 text-rose-500 mb-3 animate-pulse" />
-              <span className="font-bold text-slate-200 text-sm">Custom Platform Stream Ready</span>
-              <p className="text-[10px] text-slate-500 max-w-xs mt-1 leading-relaxed">This streaming media is hosted on a secure cloud network. Click below to play in full screen dashboard.</p>
-              <a 
-                href={url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="bg-rose-600 px-4 py-2 rounded-xl text-white font-bold shrink-0 mt-3.5 hover:bg-rose-500 transition-all antialiased text-xs shadow-md shadow-rose-950/40 tracking-wider"
-              >
-                🎥 LAUNCH STREAM PLAYER
-              </a>
-            </div>
-          ) : (
-            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 font-mono text-xs bg-[#0b0f19]">
-              <Play className="w-10 h-10 text-slate-700 mb-3" />
-              <span className="font-bold text-slate-400">Compliance Lesson SOP Guide</span>
-              <p className="text-[10px] text-slate-500 mt-1 max-w-xs">There is no additional training model content for this checklist unit. Read the action layout steps below.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Stream Progress Console Widget */}
-        {type !== 'none' && (
-          <div id="video-stream-tracker-console" className="border-t border-slate-150 bg-slate-50/70 p-4 sm:p-5 flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-150 shadow-sm">
-              <div className="space-y-1">
-                <span className="text-[9px] font-mono font-bold text-slate-400 block uppercase tracking-wider">Stream Duration & Progress Engine</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-800">
-                    Video Watch Progress: <span className="text-emerald-600 font-mono font-black">{(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%</span>
-                  </h4>
-                  {(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100 ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-750 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase">
-                      ✓ Completed
-                    </span>
-                  ) : isTrackingActive ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full animate-pulse uppercase">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
-                      Auto-tracking active (+4%/2.5s)
-                    </span>
+          <div>
+            {activeMediaTab === 'pdf' ? (
+              /* PDF iframe stage */
+              <div className="w-full bg-slate-900 relative shadow-inner" style={{ height: '380px' }}>
+                <iframe
+                  src={resolvedPdfUrl}
+                  title="Corporate Curriculum Architecture PDF Frame"
+                  className="absolute inset-0 w-full h-full border-none bg-slate-800"
+                  referrerPolicy="no-referrer"
+                  allow="autoplay"
+                ></iframe>
+              </div>
+            ) : (
+              /* Video stage */
+              <>
+                <div className="aspect-video w-full bg-slate-950 relative shadow-inner">
+                  {type === 'embed' ? (
+                    <iframe
+                      src={url}
+                      title={selectedUnit.videoTitle}
+                      className="absolute inset-0 w-full h-full border-none"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      referrerPolicy="no-referrer"
+                    ></iframe>
+                  ) : type === 'direct' ? (
+                    <video
+                      src={url}
+                      controls
+                      className="absolute inset-0 w-full h-full object-contain"
+                      preload="metadata"
+                      playsInline
+                    />
+                  ) : type === 'custom' ? (
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 font-mono text-xs bg-slate-950">
+                      <Play className="w-12 h-12 text-rose-500 mb-3 animate-pulse" />
+                      <span className="font-bold text-slate-200 text-sm">Custom Platform Stream Ready</span>
+                      <p className="text-[10px] text-slate-500 max-w-xs mt-1 leading-relaxed">This streaming media is hosted on a secure cloud network. Click below to play in full screen dashboard.</p>
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="bg-rose-600 px-4 py-2 rounded-xl text-white font-bold shrink-0 mt-3.5 hover:bg-rose-500 transition-all antialiased text-xs shadow-md shadow-rose-950/40 tracking-wider"
+                      >
+                        🎥 LAUNCH STREAM PLAYER
+                      </a>
+                    </div>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase">
-                      ⏱ Tracker Paused
-                    </span>
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 font-mono text-xs bg-[#0b0f19]">
+                      <Play className="w-10 h-10 text-slate-700 mb-3" />
+                      <span className="font-bold text-slate-400">Compliance Lesson SOP Guide</span>
+                      <p className="text-[10px] text-slate-500 mt-1 max-w-xs">There is no additional training model content for this checklist unit. Read the action layout steps below.</p>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              {/* Elegant Toggle Switch */}
-              <div className="flex items-center gap-3 bg-slate-50 border border-slate-150 px-3 py-2 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-650 text-slate-600">🎥 Active Watch Tracker:</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={isTrackingActive} 
-                    onChange={(e) => setIsTrackingActive(e.target.checked)} 
-                    className="sr-only peer"
-                    disabled={(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100}
-                  />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 disabled:opacity-50"></div>
-                </label>
-                <span className={`text-[10px] font-mono font-bold ${isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`}>
-                  {isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'Active' : 'Paused'}
-                </span>
-              </div>
-            </div>
+                {/* Video Stream Progress Console Tracker Widget */}
+                {type !== 'none' && (
+                  <div id="video-stream-tracker-console" className="border-t border-slate-150 bg-slate-50/70 p-4 sm:p-5 flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-150 shadow-sm">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-mono font-bold text-slate-400 block uppercase tracking-wider">Stream Duration & Progress Engine</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-xs font-bold text-slate-800">
+                            Video Watch Progress: <span className="text-emerald-600 font-mono font-black">{(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%</span>
+                          </h4>
+                          {(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100 ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-750 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase">
+                              ✓ Completed
+                            </span>
+                          ) : isTrackingActive ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full animate-pulse uppercase">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                              Auto-tracking active (+4%/2.5s)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase">
+                              ⏱ Tracker Paused
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-            {/* Premium Progress Bar */}
-            <div className="space-y-1">
-              <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative shadow-inner">
-                <div 
-                  className="bg-gradient-to-r from-teal-500 via-emerald-505 to-emerald-600 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
-                  style={{ width: `${(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-[9px] font-mono font-bold text-slate-400">
-                <span>0% Start</span>
-                <span>25% Complete</span>
-                <span>50% Mid</span>
-                <span>75% Audit Ready</span>
-                <span>100% Mastered</span>
-              </div>
-            </div>
+                      {/* Watch Tracker switch toggle */}
+                      <div className="flex items-center gap-3 bg-slate-50 border border-slate-150 px-3 py-2 rounded-xl">
+                        <span className="text-[10px] font-bold text-slate-650 text-slate-600">🎥 Active Watch Tracker:</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isTrackingActive} 
+                            onChange={(e) => setIsTrackingActive(e.target.checked)} 
+                            className="sr-only peer"
+                            disabled={(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100}
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 disabled:opacity-50"></div>
+                        </label>
+                        <span className={`text-[10px] font-mono font-bold ${isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`}>
+                          {isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'Active' : 'Paused'}
+                        </span>
+                      </div>
+                    </div>
 
-            {/* Quick Segment Jump Options */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-150/50">
-              <span className="text-[10px] font-bold text-slate-505 text-slate-500">Manual Segment Override:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {[0, 25, 50, 75, 100].map(pct => {
-                  const log = getUnitProgress(selectedUnit.id);
-                  const isCurrent = (log?.watchPercent || 0) === pct;
-                  return (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => {
-                        const status = pct === 100 ? 'Verified & Mastered' : (log?.status || 'In Progress');
-                        onUpdateProgress(selectedUnit.id, status, log?.notes || '', pct);
-                      }}
-                      className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                        isCurrent
-                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm font-extrabold'
-                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none'
-                      }`}
-                    >
-                      {pct}%
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="text-[10px] text-slate-500 bg-white border border-slate-150 rounded-xl p-3 space-y-1.5 leading-snug">
-              <p className="font-bold text-slate-700">⏱ YouTube Video Play/Pause Auto-Sync:</p>
-              <p>
-                ✅ <strong>Fully Automated Tracking:</strong> The tracker is fully integrated with the video player. When you click <strong>Play</strong> on the YouTube video, the tracker starts automatically. When you <strong>Pause</strong> the video, the tracking is instantly paused to match your exact speed.
-              </p>
-              <p className="text-slate-450 text-[9.5px] border-t border-slate-100 pt-1.5 italic">
-                ✅ <strong>पूरी तरह से स्वचालित ट्रैकिंग:</strong> जब आप YouTube वीडियो पर <strong>Play</strong> दबाएंगे, टाइमर अपने आप चालू हो जाएगा। वीडियो को <strong>Pause</strong> करने पर टाइमर भी रुक जाएगा ताकि सटीक प्रोग्रेस दर्ज हो सके।
-              </p>
-            </div>
+                    {/* Progress Slider representation */}
+                    <div className="space-y-1">
+                      <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative shadow-inner">
+                        <div 
+                          className="bg-gradient-to-r from-teal-500 via-emerald-505 to-emerald-600 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
+                          style={{ width: `${(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-[9px] font-mono font-bold text-slate-400">
+                        <span>0% Start</span>
+                        <span>25% Complete</span>
+                        <span>50% Mid</span>
+                        <span>75% Audit Ready</span>
+                        <span>100% Mastered</span>
+                      </div>
+                    </div>
+
+                    {/* Fast Jump Override selectors */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-150/50">
+                      <span className="text-[10px] font-bold text-slate-550 text-slate-500">Manual Segment Override:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[0, 25, 50, 75, 100].map(pct => {
+                          const log = getUnitProgress(selectedUnit.id);
+                          const isCurrent = (log?.watchPercent || 0) === pct;
+                          return (
+                            <button
+                              key={pct}
+                              type="button"
+                              onClick={() => {
+                                const status = pct === 100 ? 'Verified & Mastered' : (log?.status || 'In Progress');
+                                onUpdateProgress(selectedUnit.id, status, log?.notes || '', pct);
+                              }}
+                              className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm font-extrabold'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none'
+                              }`}
+                            >
+                              {pct}%
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div className="text-[10px] text-slate-500 bg-white border border-slate-150 rounded-xl p-3 space-y-1.5 leading-snug">
+                      <p className="font-bold text-slate-700">⏱ YouTube Video Play/Pause Auto-Sync:</p>
+                      <p>
+                        ✅ <strong>Fully Automated Tracking:</strong> The tracker is fully integrated with the video player. When you click <strong>Play</strong> on the YouTube video, the tracker starts automatically. When you <strong>Pause</strong> the video, the tracking is instantly paused to match your exact speed.
+                      </p>
+                      <p className="text-slate-455 text-[9.5px] border-t border-slate-100 pt-1.5 italic">
+                        ✅ <strong>पूरी तरह से स्वचालित ट्रैकिंग:</strong> जब आप YouTube वीडियो पर <strong>Play</strong> दबाएंगे, टाइमर अपने आप चालू हो जाएगा। वीडियो को <strong>Pause</strong> करने पर टाइमर भी रुक जाएगा ताकि सटीक प्रोग्रेस दर्ज हो सके।
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -915,410 +970,410 @@ export default function UserDashboard({
           )}
         </AnimatePresence>
 
-        {/* Modern, Aesthetic Welcome Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-8 mb-6 lg:mb-12">
-          <div className="space-y-3.5">
-            <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-100/50">
+        {/* Modern, Highly Compact Welcome Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3 pb-2.5 border-b border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[9px] font-mono font-extrabold uppercase tracking-widest text-emerald-600">
-                Active Training Pathway
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-3.5 flex-wrap">
-              <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-3 flex-wrap">
+              <h1 className="font-display text-base sm:text-lg lg:text-xl font-black text-slate-900 tracking-tight leading-none">
                 Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
-                <PremiumBadge userId={currentUser.id} userName={currentUser.name} roleId={currentUser.roleId} department={currentUser.department} size="md" className="py-1" />
               </h1>
-
-              {/* Advanced Interactive Notification Center */}
-              <div className="relative">
-                <button
-                  type="button"
-                  id="notifications-bell-btn"
-                  onClick={() => setShowNotificationCenter(!showNotificationCenter)}
-                  className={`p-2 rounded-xl border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
-                    showNotificationCenter
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200'
-                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
-                  }`}
-                  aria-label="Notification Center"
-                  title="Notification Center"
-                >
-                  <Bell className="w-4 h-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-rose-600 text-[8px] font-black text-white rounded-full flex items-center justify-center border border-white animate-bounce">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {/* Notifications Panel Box */}
-                {showNotificationCenter && (
-                  <div className="absolute left-0 mt-2 z-40 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-0 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* Header */}
-                    <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>Corporate Notifications Center</span>
-                      </div>
-                      {unreadCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleMarkAllRead}
-                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-black hover:underline cursor-pointer"
-                        >
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Notification List */}
-                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-8 text-center text-slate-400 text-xs">
-                          <p className="text-xl mb-1">📭</p>
-                          <p className="font-medium text-slate-500">All clear! No current updates.</p>
-                          <p className="text-[10px] text-slate-400 mt-1">Admin alerts or enrollment approvals will appear inside this feed.</p>
-                        </div>
-                      ) : (
-                        notifications.map((notif) => {
-                          const isRead = notif.isReadBy ? notif.isReadBy.includes(currentUser.id) : false;
-                          // Select icon based on type
-                          let icon = '🔔';
-                          if (notif.type === 'user_add') icon = '🤝';
-                          else if (notif.type === 'user_remove') icon = '🔐';
-                          else if (notif.type === 'chapter_add') icon = '📚';
-                          else if (notif.type === 'chapter_remove') icon = '📁';
-                          else if (notif.type === 'unit_add') icon = '🎥';
-                          else if (notif.type === 'unit_remove') icon = '🎬';
-                          else if (notif.type === 'approval') icon = '✅';
-
-                          return (
-                            <div 
-                              key={notif.id} 
-                              className={`p-3 transition flex gap-3 ${!isRead ? 'bg-emerald-50/30' : 'bg-white hover:bg-slate-50/40'}`}
-                            >
-                              <span className="text-base shrink-0 mt-0.5 select-none">
-                                {icon}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className={`text-xs font-bold leading-tight ${!isRead ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>
-                                    {notif.title}
-                                  </p>
-                                  <span className="text-[8px] font-mono font-bold text-slate-400 shrink-0">
-                                    {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                                  {notif.message}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  {!isRead && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMarkAsRead(notif.id)}
-                                      className="text-[8px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-wider bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
-                                    >
-                                      <Check className="w-2 h-2" />
-                                      Mark Read
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteNotif(notif.id)}
-                                    className="text-[8px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-wider hover:bg-rose-50 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer ml-auto"
-                                  >
-                                    <Trash2 className="w-2 h-2" />
-                                    Dismiss
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 text-center">
-                      <p className="text-[9px] font-mono text-slate-400 uppercase">
-                        Aashish Sahu Buildmart • Training Compliance Console
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PremiumBadge userId={currentUser.id} userName={currentUser.name} roleId={currentUser.roleId} department={currentUser.department} size="sm" className="py-0.2 px-1 text-[7.5px]" />
             </div>
             
-            <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-xs lg:text-sm text-slate-500 font-medium">
-              <span className="flex items-center gap-1.5 text-slate-750">
-                <span className="inline-block w-2 h-2 rounded-sm bg-emerald-600"></span>
-                <span className="font-bold text-slate-800 text-[11px] lg:text-xs">
-                  {activeRoleView === 'all' ? 'All Assigned Roles' : userRole?.name}
-                </span>
-                {assignedRoleIds.length > 1 && (
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono px-1.5 py-0.5 rounded-full font-bold ml-1">
-                    {assignedRoleIds.length} Profiles
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+              <span className="font-bold text-slate-700">{activeRoleView === 'all' ? 'All Assigned Roles' : userRole?.name}</span>
+              <span className="mx-1 text-slate-300">|</span>
+              <span>{currentUser.department}</span>
+              <span className="mx-1 text-slate-300">|</span>
+              <span className="text-emerald-600 font-bold bg-emerald-50 px-1 py-0.2 rounded text-[8.5px]">{currentUser.focusEntity}</span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 select-none">
+            {/* Advanced Interactive Notification Center */}
+            <div className="relative">
+              <button
+                type="button"
+                id="notifications-bell-btn"
+                onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                className={`p-1.5 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
+                  showNotificationCenter
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-650 hover:text-slate-900'
+                }`}
+                aria-label="Notification Center"
+                title="Notification Center"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] bg-rose-600 text-[7px] font-black text-white rounded-full flex items-center justify-center border border-white">
+                    {unreadCount}
                   </span>
                 )}
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-[11px] lg:text-xs">{currentUser.department}</span>
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-emerald-600 font-bold tracking-tight bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] lg:text-xs">
-                {currentUser.focusEntity}
-              </span>
-            </div>
+              </button>
 
-            {/* Multiple Job Profiles switcher for Trainee */}
-            {assignedRoleIds.length > 1 && (
-              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 space-y-1.5 max-w-2xl mt-2 animate-in slide-in-from-top-1 duration-200">
-                <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-mono font-black text-indigo-600">
-                  <span>🔄 CUSTOM MULTI-ROLE HUB SWITCHER</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                  <button
-                    onClick={() => setActiveRoleView('all')}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition duration-150 border cursor-pointer ${
-                      activeRoleView === 'all'
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                        : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
-                    }`}
-                  >
-                    All Roles Combined 🌐
-                  </button>
-                  {assignedRoles.map((role) => (
-                    <button
-                      key={role.id}
-                      onClick={() => setActiveRoleView(role.id)}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition duration-150 border cursor-pointer ${
-                        activeRoleView === role.id
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                          : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-205'
-                      }`}
-                    >
-                      {role.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+              {/* Notifications Panel Box */}
+              {showNotificationCenter && (
+                <div className="absolute right-0 mt-2 z-40 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-0 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Header */}
+                  <div className="bg-slate-50 border-b border-slate-100 px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>Corporate Notifications Center</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="text-[10px] text-emerald-600 hover:text-emerald-700 font-black hover:underline cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
 
-          {/* Minimalist Visual Milestone Progress Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 lg:p-6 shadow-sm flex items-center gap-4 lg:gap-6 min-w-0 sm:min-w-[280px]">
-            <div className="relative flex items-center justify-center shrink-0">
-              {/* Circular progress path */}
-              <svg className="w-14 h-14 lg:w-16 lg:h-16 transform -rotate-90">
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="22"
-                  className="stroke-slate-100 lg:cx-32 lg:cy-32 lg:r-26"
-                  strokeWidth="4"
-                  fill="transparent"
-                />
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="22"
-                  className="stroke-emerald-500 transition-all duration-500 lg:cx-32 lg:cy-32 lg:r-26"
-                  strokeWidth="4"
-                  fill="transparent"
-                  strokeDasharray={2 * Math.PI * 22}
-                  strokeDashoffset={2 * Math.PI * 22 * (1 - stats.overallPercent / 100)}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span className="absolute text-xs lg:text-sm font-mono font-black text-slate-900">
-                {stats.overallPercent}%
-              </span>
-            </div>
-            <div className="space-y-0.5">
-              <h4 className="font-display text-[9px] lg:text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                CURRICULUM SYLLABUS
-              </h4>
-              <p className="text-[11px] lg:text-sm font-bold text-slate-800">
-                Verified Mastery: <span className="text-emerald-600 font-mono font-extrabold">{stats.masteryPercent}%</span>
-              </p>
-              <p className="text-xs text-slate-500 font-mono">
-                {stats.completedCount + stats.verifiedCount} of {stats.totalUnits} Units Done
-              </p>
-              {userUnits.length > 0 && (
-                <p className="text-[10px] text-emerald-600 font-mono font-bold mt-1 block">
-                  🎥 Overall Stream Progress: {Math.round(userUnits.reduce((sum, u) => {
-                    const p = getUnitProgress(u.id);
-                    const isDone = p && (p.status === 'Verified & Mastered' || p.status === 'Completed (Pending Review)');
-                    return sum + (isDone ? 100 : (p?.watchPercent || 0));
-                  }, 0) / userUnits.length)}% Finished
-                </p>
+                  {/* Notification List */}
+                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 text-xs">
+                        <p className="text-xl mb-1">📭</p>
+                        <p className="font-medium text-slate-500">All clear! No current updates.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">Admin alerts or enrollment approvals will appear inside this feed.</p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => {
+                        const isRead = notif.isReadBy ? notif.isReadBy.includes(currentUser.id) : false;
+                        let icon = '🔔';
+                        if (notif.type === 'user_add') icon = '🤝';
+                        else if (notif.type === 'user_remove') icon = '🔐';
+                        else if (notif.type === 'chapter_add') icon = '📚';
+                        else if (notif.type === 'chapter_remove') icon = '📁';
+                        else if (notif.type === 'unit_add') icon = '🎥';
+                        else if (notif.type === 'unit_remove') icon = '🎬';
+                        else if (notif.type === 'approval') icon = '✅';
+
+                        return (
+                          <div 
+                            key={notif.id} 
+                            className={`p-2.5 transition flex gap-2.5 ${!isRead ? 'bg-emerald-50/30' : 'bg-white hover:bg-slate-50/40'}`}
+                          >
+                            <span className="text-xs shrink-0 mt-0.5 select-none">
+                              {icon}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-1.5">
+                                <p className={`text-[11px] font-bold leading-tight ${!isRead ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>
+                                  {notif.title}
+                                </p>
+                                <span className="text-[7.5px] font-mono font-bold text-slate-400 shrink-0">
+                                  {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[9.5px] text-slate-500 leading-normal mt-0.5">
+                                {notif.message}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                {!isRead && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAsRead(notif.id)}
+                                    className="text-[7.5px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-wider bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.2 rounded flex items-center gap-0.5 cursor-pointer"
+                                  >
+                                    <Check className="w-1.5 h-1.5" />
+                                    Mark Read
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteNotif(notif.id)}
+                                  className="text-[7.5px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-wider hover:bg-rose-50 px-1.5 py-0.2 rounded flex items-center gap-0.5 cursor-pointer ml-auto"
+                                >
+                                  <Trash2 className="w-1.5 h-1.5" />
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 border-t border-slate-100 px-3 py-1.5 text-center">
+                    <p className="text-[8px] font-mono text-slate-400 uppercase">
+                      Rathi's Build Mart • Training Compliance Console
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Certificate Section for mastery claims */}
-        <CertificateGenerator
-          currentUser={currentUser}
-          userRole={userRole}
-          progress={progress}
-          stats={stats}
-        />
-
-        {/* Modern Tab Bar for switching between Curriculum Workspace & Audit Trail */}
-        <div className="flex justify-center my-8">
-          <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50 shadow-3xs gap-1.5 w-full max-w-xl">
-            <button
-              type="button"
-              onClick={() => setUserActiveTab('workspace')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                userActiveTab === 'workspace'
-                  ? 'bg-white text-emerald-700 shadow-xs font-black border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-850 hover:bg-white/40 font-bold'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-              <span>Syllabus Workspace</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserActiveTab('audit')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                userActiveTab === 'audit'
-                  ? 'bg-white text-indigo-700 shadow-xs font-black border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-850 hover:bg-white/40 font-bold'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
-              <span>Compliance Audit Trail</span>
-              <span className="px-1.5 py-0.5 text-[9px] bg-slate-100 text-slate-500 rounded-md font-mono font-bold">
-                {userUnits.length}
-              </span>
-            </button>
+            {/* Syllabus Workspace & Compliance Audit Trail tab switcher integrated next to bell icon */}
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5">
+              <button
+                type="button"
+                onClick={() => setUserActiveTab('workspace')}
+                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                  userActiveTab === 'workspace'
+                    ? 'bg-white text-emerald-700 shadow-3xs border border-slate-200/10 font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <BookOpen className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                <span>Syllabus Workspace</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserActiveTab('audit')}
+                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                  userActiveTab === 'audit'
+                    ? 'bg-white text-indigo-700 shadow-3xs border border-slate-200/10 font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Database className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                <span>Compliance Audit Trail</span>
+                <span className="px-1 py-0.2 text-[7.5px] bg-slate-200 text-slate-600 rounded font-mono font-bold">
+                  {userUnits.length}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
         {userActiveTab === 'workspace' ? (
           <>
-            {/* Visual Syllabus Smart Analytics Card */}
-            {(() => {
-              const { nextUnit, lowestChapter, highestChapter } = getSyllabusInsights();
-              return (
-                <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {/* Next Recommended Task */}
-                  <div className="bg-gradient-to-tr from-emerald-50/60 to-teal-50/20 border border-emerald-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
-                    <div>
-                      <span className="text-[8px] font-mono font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full tracking-wider">
-                        Next Recommended Task
+            {/* Super Compact Collapsible Dashboard Stats, Profile Switcher & Certificate Panel */}
+            <div className="mb-3 bg-white hover:bg-slate-50/50 border border-slate-200 rounded-xl p-1.5 shadow-3xs transition duration-150">
+              <div 
+                onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                className="flex items-center justify-between cursor-pointer select-none px-1"
+              >
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span className="p-1 bg-indigo-50 text-indigo-700 rounded-md shrink-0">
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-650" />
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">
+                    📊 Trainee Insights & Custom Profiles Console
+                  </span>
+                  {/* Quick summary badges to prevent scrolling but keep data visible */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[8.5px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-100/60 px-1.5 py-0.2 rounded font-bold">
+                      Mastery: {stats.masteryPercent}%
+                    </span>
+                    <span className="text-[8.5px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-100/50 px-1.5 py-0.2 rounded font-bold">
+                      Units: {stats.completedCount + stats.verifiedCount}/{stats.totalUnits} Done
+                    </span>
+                    {assignedRoleIds.length > 1 && (
+                      <span className="text-[8.5px] font-mono bg-amber-50 text-amber-700 border border-amber-100/50 px-1.5 py-0.2 rounded font-bold">
+                        {activeRoleView === 'all' ? 'All Roles Combined' : `${userRole?.name}`}
                       </span>
-                      {nextUnit ? (
-                        <div className="mt-2.5">
-                          <h5 className="font-bold text-slate-900 text-xs truncate">
-                            {nextUnit.code}: {nextUnit.taskName}
-                          </h5>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Frequency: <strong className="text-slate-700">{nextUnit.frequency}</strong> · Difficulty: <strong className="text-slate-700">{nextUnit.skillRequired}</strong>
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-emerald-700 font-bold mt-3">
-                          🎉 All mapped checklist units are fully mastered!
-                        </p>
-                      )}
-                    </div>
-                    {nextUnit && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedUnitId(nextUnit.id);
-                          // Auto expand corresponding chapter in sidebar accordion
-                          setExpandedChapters(prev => ({ ...prev, [nextUnit.chapterId]: true }));
-                          // Scroll to player stage if on mobile
-                          if (window.innerWidth < 1024) {
-                            setMobileTab('player');
-                          }
-                          setToastMsg(`🎯 Selected: ${nextUnit.code} to continue your workspace journey.`);
-                        }}
-                        className="mt-3.5 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] py-1.5 px-3 rounded-xl transition-all uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98] shadow-3xs"
-                      >
-                        <span>Start Work Now</span>
-                        <span>➔</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Weakest Area (Focus Chapter) */}
-                  <div className="bg-gradient-to-tr from-rose-50/60 to-amber-50/10 border border-rose-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
-                    <div>
-                      <span className="text-[8px] font-mono font-black uppercase bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full tracking-wider">
-                        Recommended Focus Area
-                      </span>
-                      {lowestChapter ? (
-                        <div className="mt-2.5">
-                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
-                            {lowestChapter.name}
-                          </h5>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Current Mastery: <strong className="text-rose-600 font-mono">{lowestChapter.masteryRate}%</strong> ({lowestChapter.done} of {lowestChapter.total} tasks)
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-emerald-700 font-bold mt-3">
-                          ✨ 100% mastery rate achieved across all chapters!
-                        </p>
-                      )}
-                    </div>
-                    {lowestChapter && (
-                      <div className="mt-3.5">
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${lowestChapter.masteryRate}%` }} />
-                        </div>
-                        <p className="text-[9px] text-slate-400 mt-1 font-mono text-right">Focus target for today</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Best Performance Chapter */}
-                  <div className="bg-gradient-to-tr from-indigo-50/60 to-blue-50/10 border border-indigo-100 rounded-2xl p-4.5 flex flex-col justify-between shadow-3xs">
-                    <div>
-                      <span className="text-[8px] font-mono font-black uppercase bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full tracking-wider">
-                        Highest Mastery Chapter
-                      </span>
-                      {highestChapter ? (
-                        <div className="mt-2.5">
-                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
-                            {highestChapter.name}
-                          </h5>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Current Mastery: <strong className="text-indigo-600 font-mono">{highestChapter.masteryRate}%</strong> ({highestChapter.done} of {highestChapter.total} tasks)
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-slate-400 italic mt-3">No mapped chapters found.</p>
-                      )}
-                    </div>
-                    {highestChapter && (
-                      <div className="mt-3.5">
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${highestChapter.masteryRate}%` }} />
-                        </div>
-                        <p className="text-[9px] text-indigo-600 font-bold mt-1 font-mono text-right">Excellent progress!</p>
-                      </div>
                     )}
                   </div>
                 </div>
-              );
-            })()}
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <span className="text-[8.5px] font-bold uppercase tracking-wide text-indigo-600 hover:underline">
+                    {isStatsExpanded ? 'Hide Console' : 'Expand Console'}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transform transition-transform duration-200 ${isStatsExpanded ? 'rotate-180' : ''}`} />
+                </div>
+              </div>
 
-            {/* Mobile Corporate Curriculum PDF Reader */}
-            {mobileTab === 'player' && renderPdfStage(true)}
+              <AnimatePresence>
+                {isStatsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="overflow-hidden border-t border-slate-100 mt-1.5 pt-2 space-y-2.5"
+                  >
+                    {/* Switcher & Syllabus Circular Progress inside a 2-column flexbox to save height */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-stretch">
+                      
+                      {/* Left: Role Switcher */}
+                      <div className={`p-2 bg-slate-50/50 border border-slate-150 rounded-lg flex flex-col justify-center ${assignedRoleIds.length > 1 ? 'md:col-span-8' : 'md:col-span-12'}`}>
+                        <div className="flex items-center gap-1 text-[7.5px] uppercase tracking-wider font-mono font-black text-indigo-650">
+                          <span>🔄 CUSTOM MULTI-ROLE HUB SWITCHER</span>
+                        </div>
+                        {assignedRoleIds.length > 1 ? (
+                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                            <button
+                              onClick={() => setActiveRoleView('all')}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition duration-150 border cursor-pointer ${
+                                activeRoleView === 'all'
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white hover:bg-slate-100 text-slate-655 border-slate-200'
+                              }`}
+                            >
+                              All Roles Combined 🌐
+                            </button>
+                            {assignedRoles.map((role) => (
+                              <button
+                                key={role.id}
+                                onClick={() => setActiveRoleView(role.id)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold transition duration-150 border cursor-pointer ${
+                                  activeRoleView === role.id
+                                    ? 'bg-emerald-650 bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white hover:bg-slate-100 text-slate-655 border-slate-200'
+                                }`}
+                              >
+                                {role.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Standard Assigned Profile: <strong className="text-slate-850 text-slate-800">{userRole?.name || 'Trainee'}</strong>
+                          </p>
+                        )}
+                      </div>
 
-            {/* Mobile Persistent Video Stream Player ("All-Type Tube Player") */}
-            {mobileTab === 'player' && renderVideoStage(true)}
+                      {/* Right: Circular Progress */}
+                      {assignedRoleIds.length > 1 && (
+                        <div className="md:col-span-4 bg-white border border-slate-150 rounded-lg p-2 flex items-center gap-2 justify-center">
+                          <div className="relative flex items-center justify-center shrink-0">
+                            <svg className="w-8 h-8 transform -rotate-90">
+                              <circle cx="16" cy="16" r="12" className="stroke-slate-100" strokeWidth="2.5" fill="transparent" />
+                              <circle cx="16" cy="16" r="12" className="stroke-emerald-500 transition-all duration-500" strokeWidth="2.5" fill="transparent" strokeDasharray={2 * Math.PI * 12} strokeDashoffset={2 * Math.PI * 12 * (1 - stats.overallPercent / 100)} strokeLinecap="round" />
+                            </svg>
+                            <span className="absolute text-[8px] font-mono font-black text-slate-900">
+                              {stats.overallPercent}%
+                            </span>
+                          </div>
+                          <div className="text-left leading-none">
+                            <h4 className="text-[7px] font-black uppercase tracking-wider text-slate-400">SYLLABUS PROGRESS</h4>
+                            <p className="text-[9px] font-bold text-slate-700 mt-0.5">Mastery: {stats.masteryPercent}%</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Analytics Insights (3 small cards) */}
+                    {(() => {
+                      const { nextUnit, lowestChapter, highestChapter } = getSyllabusInsights();
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-left">
+                          {/* Next Recommended Task */}
+                          <div className="bg-gradient-to-tr from-emerald-50/60 to-teal-50/20 border border-emerald-100 rounded-lg p-2 flex items-center justify-between shadow-3xs gap-2 min-h-[44px]">
+                            <div className="min-w-0">
+                              <span className="text-[7px] font-mono font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 px-1 py-0.2 rounded tracking-wider">
+                                Next Recommended Task
+                              </span>
+                              {nextUnit ? (
+                                <div className="mt-0.5">
+                                  <h5 className="font-bold text-slate-900 text-[10px] leading-tight truncate">
+                                    {nextUnit.code}: {nextUnit.taskName}
+                                  </h5>
+                                  <p className="text-[8px] text-slate-500 mt-0.5 leading-none">
+                                    Freq: <strong>{nextUnit.frequency}</strong> · Diff: <strong>{nextUnit.skillRequired}</strong>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[8.5px] text-emerald-700 font-bold mt-0.5">
+                                  🎉 All tasks fully mastered!
+                                </p>
+                              )}
+                            </div>
+                            {nextUnit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedUnitId(nextUnit.id);
+                                  setExpandedChapters(prev => ({ ...prev, [nextUnit.chapterId]: true }));
+                                  if (window.innerWidth < 1024) {
+                                    setMobileTab('player');
+                                  }
+                                  setToastMsg(`🎯 Selected: ${nextUnit.code} to continue your workspace journey.`);
+                                }}
+                                className="bg-slate-900 hover:bg-slate-800 text-white font-black text-[8px] py-1 px-2 rounded transition-all uppercase tracking-wider flex items-center justify-center gap-0.5 cursor-pointer shrink-0 shadow-3xs"
+                              >
+                                <span>Start</span>
+                                <span>➔</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Focus Area */}
+                          <div className="bg-gradient-to-tr from-rose-50/60 to-amber-50/10 border border-rose-100 rounded-lg p-2 flex items-center justify-between shadow-3xs gap-2 min-h-[44px]">
+                            <div className="min-w-0">
+                              <span className="text-[7px] font-mono font-black uppercase bg-rose-100 text-rose-700 border border-rose-200 px-1 py-0.2 rounded tracking-wider">
+                                Recommended Focus Area
+                              </span>
+                              {lowestChapter ? (
+                                <div className="mt-0.5">
+                                  <h5 className="font-bold text-slate-900 text-[10px] leading-tight truncate">
+                                    {lowestChapter.name}
+                                  </h5>
+                                  <p className="text-[8px] text-slate-500 mt-0.5 leading-none">
+                                    Mastery: <strong className="text-rose-650 font-mono">{lowestChapter.masteryRate}%</strong>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[8.5px] text-emerald-700 font-bold mt-0.5">
+                                  ✨ 100% mastery rate achieved!
+                                </p>
+                              )}
+                            </div>
+                            {lowestChapter && (
+                              <div className="w-12 shrink-0 text-right">
+                                <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                                  <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${lowestChapter.masteryRate}%` }} />
+                                </div>
+                                <p className="text-[6px] text-slate-400 mt-0.5 font-mono leading-none">Target</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Highest Mastery */}
+                          <div className="bg-gradient-to-tr from-indigo-50/60 to-blue-50/10 border border-indigo-100 rounded-lg p-2 flex items-center justify-between shadow-3xs gap-2 min-h-[44px]">
+                            <div className="min-w-0">
+                              <span className="text-[7px] font-mono font-black uppercase bg-indigo-100 text-indigo-700 border border-indigo-200 px-1 py-0.2 rounded tracking-wider">
+                                Highest Mastery Chapter
+                              </span>
+                              {highestChapter ? (
+                                <div className="mt-0.5">
+                                  <h5 className="font-bold text-slate-900 text-[10px] leading-tight truncate">
+                                    {highestChapter.name}
+                                  </h5>
+                                  <p className="text-[8px] text-slate-500 mt-0.5 leading-none">
+                                    Mastery: <strong className="text-indigo-650 font-mono">{highestChapter.masteryRate}%</strong>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[8.5px] text-slate-400 italic mt-0.5">No chapters found.</p>
+                              )}
+                            </div>
+                            {highestChapter && (
+                              <div className="w-12 shrink-0 text-right">
+                                <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                                  <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${highestChapter.masteryRate}%` }} />
+                                </div>
+                                <p className="text-[6px] text-indigo-600 font-bold mt-0.5 font-mono leading-none">Excellent!</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Certificate Generator */}
+                    <div className="bg-slate-50/30 p-1 rounded-lg border border-slate-150">
+                      <CertificateGenerator
+                        currentUser={currentUser}
+                        userRole={userRole}
+                        progress={progress}
+                        stats={stats}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Mobile Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
+            {mobileTab === 'player' && renderCombinedMediaStage(true)}
 
             {/* Mobile-Friendly Sub-Tab Selector (only visible on mobile/tablet screens to prevent scrolling fatigue) */}
             <div className="lg:hidden flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 mb-4 select-none">
@@ -1351,47 +1406,47 @@ export default function UserDashboard({
               </button>
             </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left Column: Premium Soft Light Curriculum Sidebar */}
-          <div className={`lg:col-span-5 space-y-6 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white text-slate-800 rounded-3xl border-2 border-slate-200/90 shadow-sm overflow-hidden select-none">
+          <div className={`lg:col-span-5 space-y-4 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-3xs overflow-hidden select-none">
             {/* Sidebar Brand Header */}
-            <div className="p-5 border-b border-slate-205 border-slate-200 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center font-display text-base font-black text-white shadow-sm border border-emerald-400/20">
+            <div className="p-3.5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center font-display text-sm font-black text-white shadow-sm border border-emerald-400/20">
                   {branding?.companyName ? branding.companyName.charAt(0).toUpperCase() : 'B'}
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-black text-slate-900 tracking-tight">
+                  <h3 className="font-display text-xs font-black text-slate-900 tracking-tight leading-tight">
                     {currentUser.focusEntity || branding?.companyName || "Rathi's Build Mart"}
                   </h3>
-                  <p className="text-[10px] text-slate-500 font-mono font-semibold tracking-wider uppercase">
+                  <p className="text-[9px] text-slate-500 font-mono font-semibold tracking-wider uppercase leading-none">
                     Learning Path Workspace
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+              <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></span>
-                <span className="text-[9px] font-mono font-bold text-slate-650 text-slate-600">{userChapters.length} Ch</span>
+                <span className="text-[8px] font-mono font-bold text-slate-600">{userChapters.length} Ch</span>
               </div>
             </div>
 
             {/* Sidebar Search & Schedule Filters */}
-            <div className="p-5 border-b border-slate-200 bg-slate-50/20 space-y-4">
+            <div className="p-3.5 border-b border-slate-200 bg-slate-50/20 space-y-2.5">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search syllabus tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 text-xs text-slate-850 text-slate-800 bg-white border border-slate-250 border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 outline-none transition-all placeholder:text-slate-400"
                 />
-                <span className="absolute left-3 top-3.5 text-xs text-slate-400">🔍</span>
+                <span className="absolute left-2.5 top-2.5 text-xs text-slate-400">🔍</span>
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-lg font-bold transition-colors"
+                    className="absolute right-2.5 top-1 text-slate-400 hover:text-slate-600 text-base font-bold transition-colors"
                   >
                     ×
                   </button>
@@ -1399,16 +1454,16 @@ export default function UserDashboard({
               </div>
               
               {/* Frequency Filtering Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none pb-0.5">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none select-none pb-0.5">
                 {(['All', 'Daily', 'Weekly', 'Monthly'] as const).map((freq) => (
                   <button
                     key={freq}
                     type="button"
                     onClick={() => setSelectedFreqFilter(freq as any)}
-                    className={`px-3 py-1.5 text-[9px] uppercase tracking-wider font-extrabold rounded-lg border transition-all duration-150 shrink-0 cursor-pointer ${
+                    className={`px-2.5 py-1 text-[8px] uppercase tracking-wider font-extrabold rounded-md border transition-all duration-150 shrink-0 cursor-pointer ${
                       selectedFreqFilter === freq
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-705 border-slate-200/90'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-3xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 border-slate-200/90'
                     }`}
                   >
                     {freq}
@@ -1418,7 +1473,7 @@ export default function UserDashboard({
             </div>
 
             {/* Chapters and Stepper Timelines - Styled Sidebar List */}
-            <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto scrollbar-thin">
+            <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto scrollbar-thin">
               {userChapters.length === 0 ? (
                 <div className="text-center py-12 text-slate-405 text-slate-400 text-xs italic p-6 font-mono">
                   No chapters added for this training track yet.
@@ -1468,29 +1523,29 @@ export default function UserDashboard({
                       <button
                         onClick={() => toggleChapter(chap.id, isUnlocked)}
                         type="button"
-                        className={`w-full text-left px-5 py-4 flex items-center justify-between transition-colors ${
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
                           isUnlocked 
                             ? 'hover:bg-slate-50 cursor-pointer bg-transparent text-slate-700' 
                             : 'cursor-not-allowed bg-slate-50/50 text-slate-400'
                         }`}
                         id={`chapter-header-${chap.id}`}
                       >
-                        <div className="flex items-start gap-3 min-w-0 flex-1 pr-2">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
                           <div className={`mt-0.5 shrink-0 ${isUnlocked ? 'text-emerald-600' : 'text-slate-350'}`}>
                             {getChapterIcon()}
                           </div>
                           <div className="min-w-0">
-                            <span className={`text-[8px] font-mono font-bold tracking-wider uppercase block ${
+                            <span className={`text-[7.5px] font-mono font-bold tracking-wider uppercase block ${
                               isUnlocked ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
                               CHAPTER {chapIdx + 1}
                               {!isUnlocked && " (LOCKED)"}
                             </span>
-                            <h4 className="font-sans text-[12px] font-extrabold text-slate-800 tracking-tight truncate">
+                            <h4 className="font-sans text-[11px] font-extrabold text-slate-800 tracking-tight truncate leading-tight">
                               {chap.name}
                             </h4>
                             {isUnlocked && (
-                              <span className="text-[10px] font-mono text-emerald-700 font-bold block mt-0.5">
+                              <span className="text-[9px] font-mono text-emerald-700 font-bold block mt-0.5 leading-none">
                                 {chapPercent}% Core Mastery · {chapUnits.length} tasks
                               </span>
                             )}
@@ -1499,12 +1554,12 @@ export default function UserDashboard({
                         <div className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
                           {isUnlocked ? (
                             isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-slate-500" />
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                             )
                           ) : (
-                            <Lock className="w-3.5 h-3.5 text-slate-300" />
+                            <Lock className="w-3 h-3 text-slate-300" />
                           )}
                         </div>
                       </button>
@@ -1518,7 +1573,7 @@ export default function UserDashboard({
                             exit={{ height: 0, opacity: 0 }}
                             className="bg-slate-50/30 border-t border-slate-100 overflow-hidden"
                           >
-                            <div className="py-2.5 space-y-1">
+                            <div className="py-1.5 space-y-0.5">
                               {chapUnits.map((unit) => {
                                 const prog = getUnitProgress(unit.id);
                                 const isSelected = selectedUnit?.id === unit.id;
@@ -1527,7 +1582,7 @@ export default function UserDashboard({
                                   <div
                                     key={unit.id}
                                     id={`unit-item-${unit.id}`}
-                                    className={`w-full flex items-center justify-between px-5 py-2.5 transition-all duration-200 border-l-4 outline-none select-none relative group ${
+                                    className={`w-full flex items-center justify-between px-4 py-1.5 transition-all duration-200 border-l-4 outline-none select-none relative group ${
                                       isSelected
                                         ? 'bg-emerald-50/90 text-emerald-950 font-extrabold border-l-emerald-600'
                                         : 'hover:bg-slate-100/70 text-slate-600 hover:text-slate-800 border-l-transparent'
@@ -1587,13 +1642,13 @@ export default function UserDashboard({
                                       return (
                                         <div className="shrink-0 flex items-center gap-1.5 z-10">
                                           <span
-                                            className={`text-[9.5px] font-mono font-bold rounded-lg px-2.5 py-1 border transition-all uppercase ${
+                                            className={`text-[8px] font-mono font-bold rounded-md px-1.5 py-0.5 border transition-all uppercase ${
                                               statusVal === 'Verified & Mastered'
-                                                ? 'bg-emerald-100 border-emerald-200 text-emerald-850 text-emerald-850 text-emerald-800'
+                                                ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
                                                 : statusVal === 'Completed (Pending Review)'
-                                                ? 'bg-amber-100 border-amber-200 text-amber-850 text-amber-800'
+                                                ? 'bg-amber-100 border-amber-200 text-amber-800'
                                                 : statusVal === 'In Progress'
-                                                ? 'bg-blue-105 bg-blue-100 border-blue-200 text-blue-800'
+                                                ? 'bg-blue-100 border-blue-200 text-blue-800'
                                                 : 'bg-slate-100 border-slate-200 text-slate-500'
                                             }`}
                                           >
@@ -1631,25 +1686,25 @@ export default function UserDashboard({
           </div>
 
           {/* Sidebar Navigation Footer Helper block (matching bottom panel) */}
-          <div className="bg-white text-slate-655 text-slate-600 rounded-3xl border-2 border-slate-205 border-slate-205 border-slate-200 shadow-sm p-5 space-y-3">
-            <div className="flex items-center gap-2 text-slate-805 text-slate-800">
+          <div className="bg-white text-slate-600 rounded-2xl border border-slate-200 shadow-3xs p-3.5 space-y-2.5">
+            <div className="flex items-center gap-2 text-slate-800">
               <CheckSquare className="w-4 h-4 text-emerald-600" />
               <h3 className="font-display text-xs font-extrabold uppercase tracking-tight">
                 Execution Standings
               </h3>
             </div>
-            <p className="text-[11px] text-slate-505 text-slate-500 leading-normal font-sans">
+            <p className="text-[10px] text-slate-500 leading-normal font-sans">
               Complete each nested lesson sequentially to unlock subsequent workspace chapters. Keep track of your verification statuses.
             </p>
 
-             <div className="grid grid-cols-2 gap-3 pt-1">
-               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                 <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-wider">Mastered</span>
-                 <span className="text-sm font-mono font-bold text-emerald-700">{stats.verifiedCount} / {stats.totalUnits}</span>
+             <div className="grid grid-cols-2 gap-2.5 pt-1">
+               <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
+                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Mastered</span>
+                 <span className="text-xs font-mono font-bold text-emerald-700">{stats.verifiedCount} / {stats.totalUnits}</span>
                </div>
-               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                 <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-wider">Stream Watched</span>
-                 <span className="text-sm font-mono font-bold text-blue-600">
+               <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
+                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Stream Watched</span>
+                 <span className="text-xs font-mono font-bold text-blue-600">
                    {userUnits.length ? Math.round(userUnits.reduce((sum, u) => {
                      const p = getUnitProgress(u.id);
                      return sum + ((p && p.status === 'Verified & Mastered') ? 100 : (p?.watchPercent || 0));
@@ -1661,25 +1716,27 @@ export default function UserDashboard({
         </div>
 
         {/* Right Column: Player & Active Details (7/12 cols) */}
-        <div className={`lg:col-span-7 space-y-6 ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
+        <div className={`lg:col-span-7 space-y-4 ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
           {selectedUnit ? (
-            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="space-y-4 animate-in fade-in duration-200">
               
               {/* Core Unit Workspace Header Card */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-8 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6 border-b border-slate-100 pb-4 sm:pb-5">
-                  <div className="space-y-1.5 min-w-0">
-                    <span className="inline-block text-[9px] font-mono font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                      Unit Code: {selectedUnit.code}
-                    </span>
-                    <h3 className="font-display text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-none truncate">
+              <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-3xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="inline-block text-[7px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        {selectedUnit.code}
+                      </span>
+                    </div>
+                    <h3 className="font-display text-sm sm:text-base font-black text-slate-900 tracking-tight leading-tight truncate">
                       {selectedUnit.taskName}
                     </h3>
                   </div>
                   
                   {/* Modern Status Pill */}
                   <div className="shrink-0 self-start sm:self-auto">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-mono font-extrabold tracking-wide shadow-2xs border ${
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-extrabold tracking-wide border ${
                       getStatusColor(getUnitProgress(selectedUnit.id)?.status)
                     }`}>
                       {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
@@ -1687,53 +1744,53 @@ export default function UserDashboard({
                   </div>
                 </div>
 
-                {/* Highly Spacious Metadata Grid (Removing cluttered box-in-box wraps) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 py-1 border-b border-slate-100 pb-4 sm:pb-5 text-[11px] sm:text-xs text-slate-500 mb-4 sm:mb-6">
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-mono uppercase font-bold tracking-wider block mb-0.5">Schedule</span>
-                    <span className="font-bold text-slate-800 text-xs sm:text-sm">{selectedUnit.frequency}</span>
+                {/* Highly Compact Metadata Row (1 single line) */}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5 text-[9.5px] text-slate-500 border-b border-slate-100 pb-1.5 mb-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Schedule:</span>
+                    <span className="font-bold text-slate-800">{selectedUnit.frequency}</span>
                   </div>
-                  <div className="border-l border-slate-200/60 pl-3 sm:pl-5">
-                    <span className="text-[9px] text-slate-400 font-mono uppercase font-bold tracking-wider block mb-0.5">Required Skill</span>
-                    <span className="font-bold text-slate-800 text-xs sm:text-sm block truncate">{selectedUnit.skillRequired}</span>
+                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Required Skill:</span>
+                    <span className="font-bold text-slate-800 block truncate max-w-[120px]">{selectedUnit.skillRequired}</span>
                   </div>
-                  <div className="border-l border-slate-200/60 pl-3 sm:pl-5">
-                    <span className="text-[9px] text-slate-400 font-mono uppercase font-bold tracking-wider block mb-0.5">Standard</span>
-                    <span className="font-bold text-slate-800 text-xs sm:text-sm">Dual Verification</span>
+                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Standard:</span>
+                    <span className="font-bold text-slate-800">Dual Verification</span>
                   </div>
-                  <div className="border-l border-slate-200/60 pl-3 sm:pl-5">
-                    <span className="text-[9px] text-slate-400 font-mono uppercase font-bold tracking-wider block mb-0.5">Lesson Scope</span>
-                    <span className="font-bold text-emerald-600 text-xs sm:text-sm block truncate">Active Master</span>
+                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Scope:</span>
+                    <span className="font-bold text-emerald-600">Active Master</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] sm:text-sm text-slate-400 leading-relaxed font-sans font-medium">
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-500 leading-normal font-sans font-medium">
                   {selectedUnit.description}
                 </p>
               </div>
 
-              {/* Desktop Corporate Curriculum PDF Reader */}
-              {renderPdfStage(false)}
-
-              {/* Desktop Theater Mode Video Lesson Panel */}
-              {renderVideoStage(false)}
+              {/* Desktop Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
+              {renderCombinedMediaStage(false)}
 
               {/* SOP Checklist Card Wrapper */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
 
                 {/* SOP Best Practices Block (Interactive Checklist) */}
-                <div className="p-4 sm:p-7 border-t border-slate-100 bg-slate-50/25">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-3 sm:mb-4">
-                    <h4 className="text-[10px] sm:text-xs font-mono font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/25">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
+                    <h4 className="text-[9px] sm:text-[10.5px] font-mono font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 text-emerald-600" />
                       Essential Best Practices & SOP Checklist
                     </h4>
-                    <span className="text-[9px] font-sans font-semibold text-slate-400 italic">
+                    <span className="text-[8.5px] font-sans font-semibold text-slate-400 italic">
                       (Click items to complete standard audit checklist)
                     </span>
                   </div>
                   
-                  <ul className="text-xs text-slate-600 space-y-2.5">
+                  <ul className="text-xs text-slate-600 space-y-2">
                     {[
                       {
                         title: "Mandatory Lesson Review",
@@ -1782,56 +1839,56 @@ export default function UserDashboard({
               </div>
 
               {/* Clean Trainee Submission Form */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-slate-100 pb-4">
-                  <h4 className="font-display text-sm sm:text-base font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
+                  <h4 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
                     <CheckSquare className="w-4 h-4 text-emerald-600" />
                     Update Progress & Sign-Off
                   </h4>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">
                     Audit Sign-Off Workflow
                   </span>
                 </div>
 
                 {toastMsg && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100/80 text-xs text-emerald-800 font-semibold mb-6 flex items-center gap-2.5 animate-in slide-in-from-top-2 duration-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100/80 text-xs text-emerald-800 font-semibold mb-4 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>{toastMsg}</span>
                   </div>
                 )}
 
                 {getUnitProgress(selectedUnit.id)?.status === 'Verified & Mastered' ? (
-                  <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-800 space-y-2 mb-4 animate-in fade-in duration-150">
-                    <p className="font-extrabold flex items-center gap-1.5 text-emerald-800 text-sm">
-                      <Award className="w-5 h-5 text-emerald-600" />
+                  <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100 text-xs text-emerald-800 space-y-1.5 mb-4 animate-in fade-in duration-150">
+                    <p className="font-extrabold flex items-center gap-1.5 text-emerald-800 text-xs sm:text-sm">
+                      <Award className="w-4.5 h-4.5 text-emerald-600" />
                       Task Verified & Mastered!
                     </p>
-                    <p className="font-mono text-[10px] text-emerald-700">
+                    <p className="font-mono text-[9px] text-emerald-700">
                       Standard execution mastery marked successfully. You can still adjust status below.
                     </p>
                   </div>
                 ) : getUnitProgress(selectedUnit.id)?.status === 'Completed (Pending Review)' ? (
-                  <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100 text-xs text-amber-800 space-y-2 mb-4 animate-in fade-in duration-150">
-                    <p className="font-extrabold flex items-center gap-1.5 text-amber-800 text-sm">
-                      <CheckCircle2 className="w-5 h-5 text-amber-600" />
+                  <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100 text-xs text-amber-800 space-y-1.5 mb-4 animate-in fade-in duration-150">
+                    <p className="font-extrabold flex items-center gap-1.5 text-amber-800 text-xs sm:text-sm">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-amber-600" />
                       Completed (Pending Review)
                     </p>
-                    <p className="font-mono text-[10px] text-amber-700">
+                    <p className="font-mono text-[9px] text-amber-700">
                       Task has been submitted and is currently pending verification sign-off.
                     </p>
                   </div>
                 ) : null}
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] text-slate-400 uppercase font-mono font-bold tracking-wider">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider">
                         Training Action Status
                       </label>
                       <select
                         value={submittingStatus}
                         onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
-                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl py-2.5 px-4 text-xs text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all"
+                        className="w-full bg-slate-50/60 border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all"
                       >
                         <option value="Not Started">Not Started</option>
                         <option value="In Progress">In Progress (Active Training)</option>
@@ -1840,8 +1897,8 @@ export default function UserDashboard({
                       </select>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] text-slate-400 uppercase font-mono font-bold tracking-wider flex items-center gap-1">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider flex items-center gap-1">
                         <MessageSquare className="w-3.5 h-3.5" />
                         Compliance Observations
                       </label>
@@ -1849,7 +1906,7 @@ export default function UserDashboard({
                         placeholder="Summarize lessons or observations (e.g., matching bookkeeping tools)..."
                         value={submissionNotes}
                         onChange={(e) => setSubmissionNotes(e.target.value)}
-                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl py-2 px-4 text-xs text-slate-700 outline-none focus:bg-white focus:border-emerald-500 min-h-[45px] max-h-[90px] transition-all leading-relaxed"
+                        className="w-full bg-slate-50/60 border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-700 outline-none focus:bg-white focus:border-emerald-500 min-h-[40px] max-h-[80px] transition-all leading-relaxed"
                       />
                     </div>
                   </div>
@@ -1857,7 +1914,7 @@ export default function UserDashboard({
                   <button
                     onClick={handleSubmitProgress}
                     id="user-submit-progress-btn"
-                    className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-3 px-4 rounded-xl shadow-xs transition-all text-xs flex items-center justify-center gap-1.5"
+                    className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-2.5 px-4 rounded-lg shadow-3xs transition-all text-xs flex items-center justify-center gap-1.5"
                   >
                     Update My Progress Record
                   </button>
@@ -1878,27 +1935,27 @@ export default function UserDashboard({
           </>
         ) : (
           /* 📊 ENTERPRISE TRAINING COMPLIANCE LOGBOOK & SUMMARY REPORT */
-          <div className="mt-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 animate-in fade-in duration-300">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
+          <div className="mt-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 animate-in fade-in duration-300">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] uppercase font-mono font-bold tracking-wider">
+              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8.5px] uppercase font-mono font-bold tracking-wider">
                 Audit Trail
               </span>
-              <p className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-widest">
+              <p className="text-[9px] font-mono text-slate-400 font-bold uppercase tracking-widest">
                 Real-time Sync
               </p>
             </div>
-            <h4 className="font-display text-lg sm:text-xl font-bold text-slate-950 mt-1">
+            <h4 className="font-display text-base sm:text-lg font-bold text-slate-950 mt-1">
               📋 Syllabus Compliance & Progress Summary Report
             </h4>
-            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed font-sans">
+            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed font-sans">
               Complete chronological ledger of task interactions, start dates, and master verifications.
             </p>
           </div>
 
           {/* Filter pills inside report */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1">
             {(['All', 'Not Started', 'In Progress', 'Completed (Pending Review)', 'Verified & Mastered'] as const).map(statusFilter => {
               const label = statusFilter === 'All' ? 'All' : statusFilter === 'Completed (Pending Review)' ? 'Pending' : statusFilter === 'Verified & Mastered' ? 'Verified' : statusFilter;
               const count = userUnits.filter(u => {
@@ -1912,10 +1969,10 @@ export default function UserDashboard({
                   key={statusFilter}
                   type="button"
                   onClick={() => setReportStatusFilter(statusFilter)}
-                  className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  className={`px-2 py-1 rounded-md border text-[9px] font-bold font-mono uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                     reportStatusFilter === statusFilter
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                      : 'bg-slate-50 border-slate-150 text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-3xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                   }`}
                 >
                   {label} ({count})
@@ -1959,24 +2016,24 @@ export default function UserDashboard({
           }
 
           return (
-            <div className="overflow-hidden border border-slate-150 rounded-2xl bg-white shadow-3xs">
+            <div className="overflow-hidden border border-slate-150 rounded-xl bg-white shadow-3xs">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-150">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
+                      <th scope="col" className="px-3.5 py-2 text-left text-[9.5px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Task / Syllabus Unit
                       </th>
-                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
+                      <th scope="col" className="px-3.5 py-2 text-left text-[9.5px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Started On
                       </th>
-                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
+                      <th scope="col" className="px-3.5 py-2 text-left text-[9.5px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Completed On
                       </th>
-                      <th scope="col" className="px-5 py-3.5 text-left text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800">
+                      <th scope="col" className="px-3.5 py-2 text-left text-[9.5px] font-display font-extrabold uppercase tracking-wider text-slate-800">
                         Current Status
                       </th>
-                      <th scope="col" className="px-5 py-3.5 text-center text-[10px] font-display font-extrabold uppercase tracking-wider text-slate-800 w-36">
+                      <th scope="col" className="px-3.5 py-2 text-center text-[9.5px] font-display font-extrabold uppercase tracking-wider text-slate-800 w-32">
                         Actions
                       </th>
                     </tr>
@@ -1990,9 +2047,9 @@ export default function UserDashboard({
                       return (
                         <React.Fragment key={u.id}>
                           <tr className={`hover:bg-slate-50/50 transition-all ${isHistoryExpanded ? 'bg-slate-50/40' : ''}`}>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-3">
-                                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold font-mono ${
+                            <td className="px-3.5 py-1.5">
+                              <div className="flex items-center gap-2.5">
+                                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold font-mono ${
                                   status === 'Verified & Mastered'
                                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                     : status === 'Completed (Pending Review)'
@@ -2007,40 +2064,40 @@ export default function UserDashboard({
                                   <h6 className="font-semibold text-xs text-slate-900 truncate">
                                     {u.taskName}
                                   </h6>
-                                  <p className="text-[10px] mt-0.5 text-slate-400">
+                                  <p className="text-[9.5px] mt-0.5 text-slate-400">
                                     Category: Chapter {chapters.find(c => c.id === u.chapterId)?.name || '—'} · {u.frequency} Schedule
                                   </p>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-4 text-xs font-mono text-slate-600">
+                            <td className="px-3.5 py-1.5 text-xs font-mono text-slate-600">
                               {p?.startedAt ? (
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-blue-500 shrink-0" />
                                   <span>{formatDate(p.startedAt)}</span>
                                 </div>
                               ) : (
                                 <span className="text-slate-350">—</span>
                               )}
                             </td>
-                            <td className="px-5 py-4 text-xs font-mono text-slate-600">
+                            <td className="px-3.5 py-1.5 text-xs font-mono text-slate-600">
                               {p?.completedAt ? (
-                                <div className="flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <div className="flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
                                   <span>{formatDate(p.completedAt)}</span>
                                 </div>
                               ) : (
                                 <span className="text-slate-350">—</span>
                               )}
                             </td>
-                            <td className="px-5 py-4">
-                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wide border uppercase ${
+                            <td className="px-3.5 py-1.5">
+                              <span className={`inline-block px-1.5 py-0.2 rounded text-[8px] font-bold font-mono tracking-wide border uppercase ${
                                 getStatusColor(status)
                               }`}>
                                 {getStatusLabelText(status)}
                               </span>
                             </td>
-                            <td className="px-5 py-4 text-center">
+                            <td className="px-3.5 py-1.5 text-center">
                               <button
                                 type="button"
                                 onClick={() => setExpandedUnitIdForHistory(isHistoryExpanded ? null : u.id)}
@@ -2058,19 +2115,19 @@ export default function UserDashboard({
                           {/* Extended chronological audit timeline */}
                           {isHistoryExpanded && (
                             <tr>
-                              <td colSpan={5} className="px-5 py-5 bg-slate-50/70 border-t border-slate-150">
-                                <div className="max-w-4xl mx-auto space-y-4">
-                                  <h6 className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                              <td colSpan={5} className="px-3.5 py-3.5 bg-slate-50/70 border-t border-slate-150">
+                                <div className="max-w-4xl mx-auto space-y-2.5">
+                                  <h6 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                                     <span>📜 Action Log & Audit History trail for {u.code}</span>
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                                   </h6>
                                   
                                   {p?.history && p.history.length > 0 ? (
-                                    <div className="relative border-l border-slate-200 ml-3 mt-4 space-y-5">
+                                    <div className="relative border-l border-slate-200 ml-3 mt-2.5 space-y-3.5">
                                       {p.history.map((h, hIdx) => (
                                         <div key={hIdx} className="relative pl-6">
                                           {/* Colored bullet reflecting historical status transition page */}
-                                          <div className={`absolute -left-1.5 top-1 w-3 h-3 rounded-full border border-white ${
+                                          <div className={`absolute -left-1.5 top-1 w-2.5 h-2.5 rounded-full border border-white ${
                                             h.status === 'Verified & Mastered'
                                               ? 'bg-emerald-500 shadow-[0_0_6px_#10b981]'
                                               : h.status === 'Completed (Pending Review)'
@@ -2080,19 +2137,19 @@ export default function UserDashboard({
                                               : 'bg-slate-400'
                                           }`} />
                                           
-                                          <div className="text-xs bg-white border border-slate-200/85 rounded-xl p-3.5 shadow-3xs max-w-2xl">
+                                          <div className="text-xs bg-white border border-slate-200/85 rounded-xl p-2.5 shadow-3xs max-w-2xl">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-100 pb-1.5 mb-1.5">
                                               <div className="flex items-center gap-2">
-                                                <span className="font-bold text-slate-800 text-[11px]">
+                                                <span className="font-bold text-slate-800 text-[10px]">
                                                   {h.changedBy} updated Status to:
                                                 </span>
-                                                <span className={`px-2 py-0.5 rounded text-[8.5px] font-bold font-mono tracking-wide ${
+                                                <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold font-mono tracking-wide ${
                                                   getStatusColor(h.status)
                                                 }`}>
                                                   {getStatusLabelText(h.status)}
                                                 </span>
                                               </div>
-                                              <span className="text-[10px] text-slate-400 font-mono">
+                                              <span className="text-[9px] text-slate-400 font-mono">
                                                 {formatDate(h.timestamp)}
                                               </span>
                                             </div>

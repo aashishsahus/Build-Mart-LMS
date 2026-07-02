@@ -47,6 +47,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Helpdesk support tickets rules
+    match /help_tickets/{ticketId} {
+      allow read, write: if true;
+    }
+
     // Test connection probe rules
     match /test-connection-probe/{probeId} {
       allow read, write: if true;

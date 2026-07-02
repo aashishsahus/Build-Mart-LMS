@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification, HelplineContact, SmtpConfig } from '../types';
+import { Role, User, Chapter, Unit, ProgressLog, ProgressStatus, CertificateTemplate, CompanyBranding, ExamQuestion, ExamConfig, GlobalNotification, HelplineContact, SmtpConfig, HelpdeskTicket } from '../types';
 import { initialRoles, initialUsers, initialChapters, initialUnits, initialProgress, initialDepartments } from './initialRecords';
 import { setCollectionData, setDocumentData, getCollectionData, isFirebasePlaceholder, deleteDocumentsBatch } from './firebase';
 
@@ -22,7 +22,8 @@ const KEYS = {
   EXAM_CONFIG: 'lms_exam_config_v1',
   NOTIFICATIONS: 'lms_notifications_v1',
   HELPLINE_CONTACTS: 'lms_helpline_contacts_v1',
-  SMTP_CONFIG: 'lms_smtp_config_v1'
+  SMTP_CONFIG: 'lms_smtp_config_v1',
+  HELP_TICKETS: 'lms_help_tickets_v1'
 };
 
 export const defaultSmtpConfig: SmtpConfig = {
@@ -33,6 +34,31 @@ export const defaultSmtpConfig: SmtpConfig = {
   fromName: 'Rathi LMS Security',
   fromEmail: 'security@rathibuildmart.com'
 };
+
+export const initialTickets: HelpdeskTicket[] = [
+  {
+    id: 'tkt_1',
+    ticketNo: 'TKT-20260630-0001',
+    name: 'Aashish Sahu',
+    email: 'aashish@rathibuildmart.com',
+    phone: '9876543210',
+    category: 'broken_video',
+    description: 'The SOP video walkthrough link for GRN-002 shows a private video / unavailable message.',
+    timestamp: '2026-06-30T10:15:00.000Z',
+    status: 'Open'
+  },
+  {
+    id: 'tkt_2',
+    ticketNo: 'TKT-20260701-0002',
+    name: 'Dhaneshwari Sahu',
+    email: 'dhane@rathibuildmart.com',
+    phone: '8765432109',
+    category: 'missing_pdf',
+    description: 'Billing Chapter 2 unit PDF manual is missing the latest tax updates Annexure B.',
+    timestamp: '2026-07-01T14:30:00.000Z',
+    status: 'Resolved'
+  }
+];
 
 export const defaultCertificateTemplate: CertificateTemplate = {
   focusEntity: "Rathi's Buildmart Ltd",
@@ -394,6 +420,9 @@ export function initializeStorage() {
       }
     ];
     localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(initialNotifs));
+  }
+  if (!localStorage.getItem(KEYS.HELP_TICKETS)) {
+    localStorage.setItem(KEYS.HELP_TICKETS, JSON.stringify(initialTickets));
   }
 }
 
@@ -1117,6 +1146,14 @@ export async function syncAllWithCloud(): Promise<boolean> {
       await setCollectionData('notifications', getGlobalNotifications());
     }
 
+    // 6.6. Helpdesk Tickets
+    const cloudTickets = await getCollectionData('help_tickets');
+    if (cloudTickets && cloudTickets.length > 0) {
+      localStorage.setItem(KEYS.HELP_TICKETS, JSON.stringify(cloudTickets));
+    } else {
+      await setCollectionData('help_tickets', getHelpdeskTickets());
+    }
+
     // 7. Configs (Departments, Branding, Cert Template, Exam Config)
     const cloudConfigs = await getCollectionData('configs');
     if (cloudConfigs && cloudConfigs.length > 0) {
@@ -1222,5 +1259,57 @@ export function addGlobalNotification(
   const updated = [newNotif, ...current];
   saveGlobalNotifications(updated);
   return newNotif;
+}
+
+export function getHelpdeskTickets(): HelpdeskTicket[] {
+  initializeStorage();
+  const data = localStorage.getItem(KEYS.HELP_TICKETS);
+  try {
+    return data ? JSON.parse(data) : initialTickets;
+  } catch (e) {
+    return initialTickets;
+  }
+}
+
+export function saveHelpdeskTickets(tickets: HelpdeskTicket[]) {
+  localStorage.setItem(KEYS.HELP_TICKETS, JSON.stringify(tickets));
+  setCollectionData('help_tickets', tickets);
+}
+
+export function addHelpdeskTicket(
+  ticket: Omit<HelpdeskTicket, 'id' | 'ticketNo' | 'timestamp' | 'status'>
+): HelpdeskTicket {
+  const current = getHelpdeskTickets();
+  const now = new Date();
+  
+  // Format Date for Ticket Number: TKT-YYYYMMDD-XXXX
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}${mm}${dd}`;
+  
+  // Find the next increment number for tickets from today
+  const ticketsToday = current.filter(t => t.ticketNo.startsWith(`TKT-${dateStr}-`));
+  let nextNum = 1;
+  if (ticketsToday.length > 0) {
+    const numbers = ticketsToday.map(t => {
+      const parts = t.ticketNo.split('-');
+      return parseInt(parts[parts.length - 1], 10) || 0;
+    });
+    nextNum = Math.max(...numbers) + 1;
+  }
+  const ticketNo = `TKT-${dateStr}-${String(nextNum).padStart(4, '0')}`;
+  
+  const newTicket: HelpdeskTicket = {
+    ...ticket,
+    id: `tkt_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+    ticketNo,
+    timestamp: now.toISOString(),
+    status: 'Open'
+  };
+  
+  const updated = [newTicket, ...current];
+  saveHelpdeskTickets(updated);
+  return newTicket;
 }
 

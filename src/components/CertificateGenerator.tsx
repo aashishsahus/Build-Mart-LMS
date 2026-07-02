@@ -236,39 +236,41 @@ export default function CertificateGenerator({
         </div>
       ) : (
         /* Progress Indicator banner shown if incomplete */
-        <div className="bg-white text-slate-700 rounded-2xl border-2 border-slate-200/95 p-4 sm:p-6 mb-6 lg:mb-12 shadow-xs relative overflow-hidden animate-in fade-in duration-200">
-          <div className="absolute top-1/2 -right-4 w-32 h-32 bg-slate-50 rounded-full blur-2xl pointer-events-none transform -translate-y-1/2" />
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
-            <div className="flex items-start gap-3 sm:gap-4 min-w-0 w-full md:w-auto">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-500 shrink-0 shadow-inner">
-                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 animate-pulse" />
+        <div className="bg-white text-slate-700 rounded-xl border border-slate-200 p-3 sm:p-4 mb-4 lg:mb-5 shadow-3xs relative overflow-hidden animate-in fade-in duration-150">
+          <div className="absolute top-1/2 -right-4 w-24 h-24 bg-slate-50 rounded-full blur-xl pointer-events-none transform -translate-y-1/2" />
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
+            <div className="flex items-center gap-2.5 min-w-0 w-full md:w-auto">
+              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-500 shrink-0">
+                <Trophy className="w-4 h-4 text-amber-500 animate-pulse" />
               </div>
               <div className="min-w-0">
-                <h4 className="font-display text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-tight">
+                <h4 className="font-display text-xs font-extrabold text-slate-800 uppercase tracking-tight">
                   Certificate of Mastery
                 </h4>
-                <p className="text-[11px] sm:text-xs text-slate-505 text-slate-500 leading-normal max-w-xl font-sans mt-0.5">
-                  Master all configured required lessons (<span className="text-emerald-700 font-extrabold">{stats.verifiedCount}</span> of <span className="text-slate-700 font-bold">{stats.totalUnits}</span> completed) to unlock your verified credentials.
+                <p className="text-[10px] sm:text-[11px] text-slate-505 text-slate-500 leading-tight max-w-xl font-sans mt-0.5">
+                  Master all configured required lessons (<span className="text-emerald-700 font-extrabold">{stats.verifiedCount}</span> of <span className="text-slate-700 font-bold">{stats.totalUnits}</span> completed) to unlock credentials.
                 </p>
               </div>
             </div>
             
-            <div className="w-full md:w-auto overflow-hidden shrink-0 mt-2 md:mt-0">
-              <div className="bg-slate-50 rounded-xl border border-slate-200 px-3.5 py-2.5 text-center min-w-[140px] sm:min-w-[160px]">
-                <span className="block text-[8px] font-mono text-slate-400 uppercase font-black tracking-widest">
-                  Unlock Progress
-                </span>
-                <div className="flex items-center justify-center gap-1.5 mt-1 font-mono text-sm">
-                  <span className="text-emerald-700 font-black">
-                    {stats.verifiedCount}
+            <div className="w-full md:w-auto overflow-hidden shrink-0 mt-1.5 md:mt-0">
+              <div className="bg-slate-50 rounded-lg border border-slate-150 px-2.5 py-1.5 text-center min-w-[120px] sm:min-w-[140px] flex items-center justify-between gap-4">
+                <div>
+                  <span className="block text-[7px] font-mono text-slate-400 uppercase font-black tracking-wider">
+                    Unlock Progress
                   </span>
-                  <span className="text-slate-400">/</span>
-                  <span className="text-slate-500 font-bold">
-                    {stats.totalUnits}
-                  </span>
+                  <div className="flex items-center justify-center gap-1 font-mono text-xs mt-0.5">
+                    <span className="text-emerald-700 font-black">
+                      {stats.verifiedCount}
+                    </span>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-slate-500 font-bold">
+                      {stats.totalUnits}
+                    </span>
+                  </div>
                 </div>
-                {/* Horizontal Progress bar inside badge */}
-                <div className="w-16 mx-auto h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                {/* Mini Horizontal Progress bar inside badge */}
+                <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all duration-300" 
                     style={{ width: `${stats.masteryPercent}%` }}
