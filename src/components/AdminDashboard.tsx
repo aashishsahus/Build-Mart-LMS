@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
 import HierarchyView from './HierarchyView';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact, SmtpConfig, HelpdeskTicket } from '../types';
+import { getSopItemsForUnit, SopItem } from './UserDashboard';
 import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts, getSmtpConfig, saveSmtpConfig, getHelpdeskTickets, saveHelpdeskTickets } from '../data/stateManager';
 import { 
   Users, 
@@ -415,7 +416,7 @@ export default function AdminDashboard({
   // Sidebar and Sub-tab control state
   const [adminSubTab, setAdminSubTab] = useState<string>('reports_overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [sidebarLocked, setSidebarLocked] = useState<boolean>(true);
+  const [sidebarLocked, setSidebarLocked] = useState<boolean>(false);
   const [sidebarVisible, setSidebarVisible] = useState<boolean>(true);
   const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({ reports: true });
   const [showDepartmentsSidebar, setShowDepartmentsSidebar] = useState<boolean>(false);
@@ -944,6 +945,7 @@ export default function AdminDashboard({
   const [unitVideoUrl, setUnitVideoUrl] = useState('');
   const [unitPdfUrl, setUnitPdfUrl] = useState('');
   const [unitDesc, setUnitDesc] = useState('');
+  const [unitSopItems, setUnitSopItems] = useState<SopItem[]>([]);
 
   // Dropdown helper for adding a unit
   const [activeAddUnitChapId, setActiveAddUnitChapId] = useState<string | null>(null);
@@ -1449,7 +1451,8 @@ export default function AdminDashboard({
             videoUrl: unitVideoUrl,
             pdfUrl: unitPdfUrl,
             description: unitDesc,
-            chapterId: unitChapterId
+            chapterId: unitChapterId,
+            sopItems: unitSopItems
           };
         }
         return u;
@@ -1469,7 +1472,8 @@ export default function AdminDashboard({
         videoTitle: unitVideoTitle || 'Guidance Walkthrough',
         videoUrl: unitVideoUrl || 'https://www.youtube.com/embed/nE1E1xidV2U',
         pdfUrl: unitPdfUrl,
-        description: unitDesc
+        description: unitDesc,
+        sopItems: unitSopItems
       };
       onUpdateUnits([...units, newUnit]);
       setActiveAddUnitChapId(null);
@@ -1484,6 +1488,7 @@ export default function AdminDashboard({
     setUnitPdfUrl('');
     setUnitDesc('');
     setUnitChapterId('');
+    setUnitSopItems([]);
     setIsUnitModalOpen(false);
   };
 
@@ -1498,6 +1503,7 @@ export default function AdminDashboard({
     setUnitVideoUrl(unit.videoUrl);
     setUnitPdfUrl(unit.pdfUrl || '');
     setUnitDesc(unit.description);
+    setUnitSopItems(unit.sopItems && unit.sopItems.length > 0 ? unit.sopItems : getSopItemsForUnit(unit));
     setIsUnitModalOpen(true);
   };
 
@@ -1657,12 +1663,82 @@ export default function AdminDashboard({
       const idxVidUrl = headers.findIndex(h => h.includes('video url') || h.includes('video link') || h.includes('url') || h.includes('embed'));
       const idxPdfUrl = headers.findIndex(h => h.includes('document pdf') || h.includes('pdf url') || h.includes('pdf link') || h.includes('pdf') || h.includes('document (pdf)'));
       const idxDesc = headers.findIndex(h => h.includes('desc') || h.includes('description') || h.includes('instruction') || h.includes('sop'));
+      const idxSopItems = headers.findIndex(h => h.includes('checklist') || h.includes('sop items') || h.includes('sop checklist') || h.includes('checklist items') || h.includes('steps') || h.includes('best practices'));
 
       if (idxProfile === -1 || idxChapter === -1 || idxCode === -1 || idxTask === -1) {
         setBulkImportError("Error: Could not automatically read header headings. Header columns MUST map to: Job Profile, Chapter Name, Unit Code, Work Task / Title");
         setBulkParsedRows([]);
         return;
       }
+
+      const parseSopItems = (cellVal: string): { title: string; desc: string; }[] => {
+        if (!cellVal || !cellVal.trim()) return [];
+        
+        // Try splitting by common delimiters: first newline, then pipe |, then double semicolon ;;
+        let rawItems: string[] = [];
+        if (cellVal.includes('\n')) {
+          rawItems = cellVal.split('\n');
+        } else if (cellVal.includes('|')) {
+          rawItems = cellVal.split('|');
+        } else if (cellVal.includes(';;')) {
+          rawItems = cellVal.split(';;');
+        } else if (cellVal.includes(';')) {
+          rawItems = cellVal.split(';');
+        } else {
+          rawItems = [cellVal];
+        }
+
+        const items: { title: string; desc: string; }[] = [];
+        rawItems.forEach(item => {
+          const trimmed = item.trim();
+          if (!trimmed) return;
+
+          // Clean up any leading list numbers like "1.", "1)", "- ", "* ", "• "
+          const cleanItem = trimmed.replace(/^(?:\d+[\.\)]|[-*•])\s*/, '').trim();
+          if (!cleanItem) return;
+
+          // Split title and description by first occurrence of ":" or " - " or " — "
+          let title = cleanItem;
+          let desc = '';
+
+          const colonIdx = cleanItem.indexOf(':');
+          const hyphenIdx = cleanItem.indexOf(' - ');
+          const emDashIdx = cleanItem.indexOf(' — ');
+
+          let sepIdx = -1;
+          let sepLen = 0;
+
+          if (colonIdx !== -1) {
+            sepIdx = colonIdx;
+            sepLen = 1;
+          }
+          if (hyphenIdx !== -1 && (sepIdx === -1 || hyphenIdx < sepIdx)) {
+            sepIdx = hyphenIdx;
+            sepLen = 3;
+          }
+          if (emDashIdx !== -1 && (sepIdx === -1 || emDashIdx < sepIdx)) {
+            sepIdx = emDashIdx;
+            sepLen = 3;
+          }
+
+          if (sepIdx !== -1) {
+            title = cleanItem.substring(0, sepIdx).trim();
+            desc = cleanItem.substring(sepIdx + sepLen).trim();
+          }
+
+          if (title.length > 120 && !desc) {
+            desc = title;
+            title = title.substring(0, 50) + '...';
+          }
+
+          items.push({
+            title: title || 'Task Step',
+            desc: desc || ''
+          });
+        });
+
+        return items;
+      };
 
       const parsed: any[] = [];
       for (let i = 1; i < lines.length; i++) {
@@ -1679,6 +1755,7 @@ export default function AdminDashboard({
         const vidUrlVal = idxVidUrl !== -1 ? (rowCells[idxVidUrl] || '').trim() : '';
         const pdfUrlVal = idxPdfUrl !== -1 ? (rowCells[idxPdfUrl] || '').trim() : '';
         const descVal = idxDesc !== -1 ? (rowCells[idxDesc] || '').trim() : '';
+        const sopItemsVal = idxSopItems !== -1 ? (rowCells[idxSopItems] || '').trim() : '';
 
         // Validation errors and warned items
         const errors: string[] = [];
@@ -1753,6 +1830,7 @@ export default function AdminDashboard({
           vidUrl: vidUrlVal || 'https://www.youtube.com/embed/nE1E1xidV2U',
           pdfUrl: pdfUrlVal || '',
           desc: descVal || 'Guidance document & training notes.',
+          sopItems: parseSopItems(sopItemsVal),
           errors,
           warnings,
           isValid: errors.length === 0
@@ -1823,7 +1901,8 @@ export default function AdminDashboard({
         videoTitle: row.vidTitle,
         videoUrl: row.vidUrl,
         pdfUrl: row.pdfUrl || '',
-        description: row.desc
+        description: row.desc,
+        sopItems: row.sopItems || []
       };
 
       updatedUnits.push(newUnit);
@@ -1847,11 +1926,11 @@ export default function AdminDashboard({
   };
 
   const copySampleData = () => {
-    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription
-Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
-Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
-Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.
-Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
+    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription\tSOP Checklist Items
+Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.\t1. GSTR-2B Statement Download: Download and extract official GSTR-2B from GST portal | 2. ITC Booking Verification: Compare credited ITC with purchase ledger | 3. Missing Vendor Action: Notify missing invoices to vendor coordination
+Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.\t1. Fetch bank feeds: Sync bank statement lines to accounting ledger | 2. Spot discrepancies: Highlight un-reconciled items | 3. Post adjustments: Record bank fees and interest entry logs
+Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.\t1. Asset Audit: Verify active physical tags | 2. Computation: Calculate straight-line depreciation value | 3. Register Post: Log depreciation entries into fixed asset registers
+Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.\t1. Invoice Scan: Read inbound invoice fields | 2. Three-way Match: Check PO and GRN quantities | 3. Approve Payment: Release to accounting ledger for payment batching`;
     
     try {
       if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -1944,11 +2023,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
   };
 
   const autofillSampleIntoInput = () => {
-    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription
-Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.
-Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.
-Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.
-Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.`;
+    const sampleText = `Job Profile\tChapter Name\tUnit Code\tWork Task / Title\tExecution Frequency\tSkill Level\tVideo Title\tVideo Embed URL\tDocument (PDF)\tDescription\tSOP Checklist Items
+Tax Associate\tGST Compliance & Filings\tGST-004\tVerify GSTR-2B compliance records\tMonthly\tIntermediate\tGSTR-2B Mismatch Audit Guide\thttps://www.youtube.com/embed/S7U_F7F9-kM\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCheck invoice inputs against online GSTR-2B records to maximize input tax credit.\t1. GSTR-2B Statement Download: Download and extract official GSTR-2B from GST portal | 2. ITC Booking Verification: Compare credited ITC with purchase ledger | 3. Missing Vendor Action: Notify missing invoices to vendor coordination
+Senior Accountant\tFinancial Close & Consolidation Accounting\tFIN-502\tPerform Bank Reconciliation Statement (BRS)\tDaily\tAdvanced\tFIN-502 BRS SOP Walkthrough\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tReconcile all bank statements with general ledger logs, check adjusting entry errors.\t1. Fetch bank feeds: Sync bank statement lines to accounting ledger | 2. Spot discrepancies: Highlight un-reconciled items | 3. Post adjustments: Record bank fees and interest entry logs
+Junior Accountant\tFixed Asset Register Maintenance\tAST-101\tRecord physical assets depreciation\tMonthly\tBeginner\tAST-101 Depreciation Guide\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tCalculate depreciation using straight-line and WDV methods, update active registers.\t1. Asset Audit: Verify active physical tags | 2. Computation: Calculate straight-line depreciation value | 3. Register Post: Log depreciation entries into fixed asset registers
+Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purchase orders\tDaily\tBeginner\tAP-201 Invoice verification guidelines\thttps://www.youtube.com/embed/nE1E1xidV2U\thttps://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\tVerify incoming supplier bills against matching purchase orders and GRN inputs.\t1. Invoice Scan: Read inbound invoice fields | 2. Three-way Match: Check PO and GRN quantities | 3. Approve Payment: Release to accounting ledger for payment batching`;
     setBulkInputText(sampleText);
     setBulkImportSuccess("Successfully loaded the entire sample dataset directly into the input box! Check the real-time preview matrix below.");
     setBulkImportError('');
@@ -1966,7 +2045,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         "Video Title",
         "Video Embed URL",
         "Document (PDF)",
-        "Description"
+        "Description",
+        "SOP Checklist Items"
       ];
       
       const sampleData = [
@@ -1980,7 +2060,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Video Title": "GSTR-2B Mismatch Audit Guide",
           "Video Embed URL": "https://www.youtube.com/embed/S7U_F7F9-kM",
           "Document (PDF)": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-          "Description": "Check invoice inputs against online GSTR-2B records to maximize input tax credit."
+          "Description": "Check invoice inputs against online GSTR-2B records to maximize input tax credit.",
+          "SOP Checklist Items": "1. GSTR-2B Statement Download: Download and extract official GSTR-2B from GST portal | 2. ITC Booking Verification: Compare credited ITC with purchase ledger | 3. Missing Vendor Action: Notify missing invoices to vendor coordination"
         },
         {
           "Job Profile": "Senior Accountant",
@@ -1992,7 +2073,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Video Title": "FIN-502 BRS SOP Walkthrough",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
           "Document (PDF)": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-          "Description": "Reconcile all bank statements with general ledger logs, check adjusting entry errors."
+          "Description": "Reconcile all bank statements with general ledger logs, check adjusting entry errors.",
+          "SOP Checklist Items": "1. Fetch bank feeds: Sync bank statement lines to accounting ledger | 2. Spot discrepancies: Highlight un-reconciled items | 3. Post adjustments: Record bank fees and interest entry logs"
         },
         {
           "Job Profile": "Junior Accountant",
@@ -2004,7 +2086,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Video Title": "AST-101 Depreciation Guide",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
           "Document (PDF)": "",
-          "Description": "Calculate depreciation using straight-line and WDV methods, update active registers."
+          "Description": "Calculate depreciation using straight-line and WDV methods, update active registers.",
+          "SOP Checklist Items": "1. Asset Audit: Verify active physical tags | 2. Computation: Calculate straight-line depreciation value | 3. Register Post: Log depreciation entries into fixed asset registers"
         },
         {
           "Job Profile": "Accounts Executive (AP/AR)",
@@ -2016,7 +2099,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           "Video Title": "AP-201 Invoice verification guidelines",
           "Video Embed URL": "https://www.youtube.com/embed/nE1E1xidV2U",
           "Document (PDF)": "",
-          "Description": "Verify incoming supplier bills against matching purchase orders and GRN inputs."
+          "Description": "Verify incoming supplier bills against matching purchase orders and GRN inputs.",
+          "SOP Checklist Items": "1. Invoice Scan: Read inbound invoice fields | 2. Three-way Match: Check PO and GRN quantities | 3. Approve Payment: Release to accounting ledger for payment batching"
         }
       ];
 
@@ -2030,7 +2114,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         { "Column Name": "Video Title", "Requirement": "Optional", "Allowed Values / Example": "GSTR-2B Mismatch Audit Guide", "Description": "SOP video topic or description title." },
         { "Column Name": "Video Embed URL", "Requirement": "Optional", "Allowed Values / Example": "https://www.youtube.com/embed/S7U_F7F9-kM", "Description": "YouTube embed link or standard SOP video URL to watch." },
         { "Column Name": "Document (PDF)", "Requirement": "Optional", "Allowed Values / Example": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "Description": "SOP Standard Operating Procedure PDF file link, e.g. from Google Drive preview or direct link." },
-        { "Column Name": "Description", "Requirement": "Optional", "Allowed Values / Example": "Step-by-step audit guidelines...", "Description": "Detailed SOP guidelines text for performing this unit." }
+        { "Column Name": "Description", "Requirement": "Optional", "Allowed Values / Example": "Step-by-step audit guidelines...", "Description": "Detailed SOP guidelines text for performing this unit." },
+        { "Column Name": "SOP Checklist Items", "Requirement": "Optional", "Allowed Values / Example": "1. GSTR-2B Statement Download: Download official statement | 2. Compare ITC: Match with purchase ledger", "Description": "Best practices / SOP checklist tasks. List multiple items separated by pipes (|), newlines, or semicolons (;). Format title and description using a colon (:)." }
       ];
 
       const wsSample = XLSX.utils.json_to_sheet(sampleData, { header: headers });
@@ -2181,6 +2266,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
   return (
     <div className="flex min-h-screen bg-slate-50/50 relative">
       
+      {/* Backdrop overlay for floating sidebar to auto hide when clicking outside / side */}
+      {!sidebarLocked && sidebarVisible && !sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-transparent z-[80] cursor-pointer"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
       {/* PREMIUM LIGHT LEFT SIDEBAR CONSOLE */}
       {sidebarVisible && (
         <aside 
@@ -2188,7 +2281,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           className={`bg-white/95 border-r-2 border-slate-300 transition-all duration-350 z-40 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
             sidebarCollapsed ? 'w-16' : 'w-[265px]'
           } ${
-            sidebarLocked ? 'sticky top-0 h-screen' : 'fixed top-0 left-0 h-screen shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-50'
+            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
           }`}
         >
           {/* Header area of sidebar */}
@@ -2229,10 +2322,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 type="button"
                 onClick={() => {
                   setSidebarLocked(!sidebarLocked);
-                  setToast({
-                    text: !sidebarLocked ? "Sidebar locked in place! Layout expanded." : "Sidebar unlocked! Floating mode activated.",
-                    type: 'info'
-                  });
+                  showToast(
+                    !sidebarLocked ? "Sidebar locked in place! Layout expanded." : "Sidebar unlocked! Floating mode activated.",
+                    'info'
+                  );
                 }}
                 title={sidebarLocked ? "Unlock/Float Sidebar" : "Lock Sidebar (Fixed Column)"}
                 className={`p-1 rounded-lg transition-colors cursor-pointer ${
@@ -2247,7 +2340,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 type="button"
                 onClick={() => {
                   setSidebarVisible(false);
-                  setToast({ text: "Sidebar hidden! Bring it back via the float button.", type: 'info' });
+                  showToast("Sidebar hidden! Bring it back via the float button.", 'info');
                 }}
                 title="Hide Sidebar Complete"
                 className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-1 rounded-lg transition-colors cursor-pointer"
@@ -2364,7 +2457,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           setIsAddingUser(false);
                           // Auto Check All targets
                           setSyncTargetUserIds(users.map(u => u.id));
-                          setToast({ text: "All corporate trainees checked for batch sync! 👥", type: 'success' });
+                          showToast("All corporate trainees checked for batch sync! 👥", 'success');
                         }
                       }
                     ]
@@ -2419,7 +2512,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           setCurriculumMode('manual');
                           // "All check" auto selection logic
                           setSelectedCurriculumRoleIds(roles.map(r => r.id));
-                          setToast({ text: "All Job Profiles auto-checked & unified! 🌐", type: 'success' });
+                          showToast("All Job Profiles auto-checked & unified! 🌐", 'success');
                         }
                       },
                       { 
@@ -2695,6 +2788,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           if (t.subTabs && t.subTabs.length > 0) {
                             t.subTabs[0].onClick();
                           }
+                          if (!sidebarLocked) {
+                            setSidebarCollapsed(true);
+                          }
                         }
                       }}
                       onDoubleClick={() => {
@@ -2768,7 +2864,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           <button
                             key={st.id}
                             type="button"
-                            onClick={st.onClick}
+                            onClick={() => {
+                              st.onClick();
+                              if (!sidebarLocked) {
+                                setSidebarCollapsed(true);
+                              }
+                            }}
                             className={`w-full text-left py-1 px-2 rounded-md text-[9.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                               st.isActive 
                                 ? 'bg-slate-100 text-slate-900 border border-slate-200/60 shadow-3xs' 
@@ -2804,7 +2905,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
 
       {/* MAIN RIGHT AREA FOR VIEWS */}
-      <div className="flex-1 min-w-0 flex flex-col relative transition-all duration-350">
+      <div className={`flex-1 min-w-0 flex flex-col relative transition-all duration-350 ${
+        !sidebarLocked && sidebarVisible 
+          ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
+          : ''
+      }`}>
         
         {/* Sleek Floating Toggle Button when Sidebar is fully hidden */}
         {!sidebarVisible && (
@@ -2812,7 +2917,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             type="button"
             onClick={() => {
               setSidebarVisible(true);
-              setToast({ text: "Control console panel restored!", type: 'success' });
+              showToast("Control console panel restored!", 'success');
             }}
             className="fixed left-5 top-24 z-50 bg-white/95 hover:bg-indigo-50 border border-slate-200/80 p-3 rounded-2xl shadow-[0_12px_40px_rgba(148,163,184,0.18)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:text-indigo-650"
           >
@@ -3797,12 +3902,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                                             <span className="text-emerald-600 font-semibold">Signed off by: {pLog.verifiedBy}</span>
                                                           </>
                                                         )}
-                                                        {pLog.watchPercent !== undefined && (
-                                                          <>
-                                                            <span>•</span>
-                                                            <span>Lecture Progress: {pLog.watchPercent}%</span>
-                                                          </>
-                                                        )}
                                                       </div>
                                                     )}
                                                   </div>
@@ -4300,7 +4399,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     </div>
 
                     <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[300px] overflow-y-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table className="premium-grid-table w-full text-left border-collapse">
                         <thead>
                           <tr className="sticky top-0 z-10 bg-slate-50 border-b border-slate-250 font-display text-[10px] uppercase font-extrabold tracking-wider text-slate-800 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
                             <th className="py-2.5 px-3 font-extrabold bg-slate-50">Trainee Profile</th>
@@ -5091,439 +5190,660 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </div>
 
-          <div className="overflow-x-auto select-none mt-2 border border-slate-200 rounded-xl bg-white shadow-3xs max-h-[850px] overflow-y-auto">
-            <table className="w-full text-left font-sans text-xs border-collapse">
-              <thead>
-                <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b border-slate-200 font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                  <th className="py-2.5 px-3 pl-4 bg-slate-50">Employee Information</th>
-                  <th className="py-2.5 px-3 bg-slate-50">Assigned Department</th>
-                  <th className="py-2.5 px-3 bg-slate-50">Location/Entity</th>
-                  <th className="py-2.5 px-3 bg-slate-50">Curriculum Assignment</th>
-                  <th className="py-2.5 px-3 text-center bg-slate-50">Status</th>
-                  <th className="py-2.5 px-3 text-center bg-purple-500/5 text-purple-700 font-bold tracking-tight bg-slate-50">Security Passkey</th>
-                  <th className="py-2.5 px-3 text-center bg-slate-50">Path Met</th>
-                  <th className="py-2.5 px-3 text-center bg-slate-50">Mastery Met</th>
-                  <th className="py-2.5 px-3 text-center pr-4 bg-slate-50">Control Fields</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {matchedUsers.slice((usersPage - 1) * usersLimit, usersPage * usersLimit).map((item) => {
-                  const roleObj = roles.find(r => r.id === item.roleId);
-                  const isEditing = editingUserId === item.id;
-                  const stats = calculateUserProgress(item.id, item.roleId);
+          {/* PREMIUM ENTERPRISE SPREADSHEET TOOLBAR */}
+          <div className="bg-slate-50 border border-slate-200 border-b-0 rounded-t-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-sans text-left shadow-3xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-bold text-slate-800 text-xs sm:text-[13px] uppercase tracking-wider font-mono">
+                System Users Registry • <span className="text-emerald-600 font-extrabold">{matchedUsers.length} records</span>
+              </span>
+            </div>
 
-                  if (isEditing) {
-                    return (
-                      <tr key={item.id} className="bg-slate-50/70 border-l-4 border-l-emerald-500">
-                        <td className="p-3.5 pl-4 font-medium min-w-[220px]">
-                          <input
-                            type="text"
-                            value={editUserName}
-                            onChange={(e) => setEditUserName(e.target.value)}
-                            className="bg-white border border-slate-300 focus:border-emerald-500 outline-none rounded px-3 py-1.5 text-xs w-full font-bold text-slate-800"
-                          />
-                          <input
-                            type="email"
-                            value={editUserEmail}
-                            onChange={(e) => setEditUserEmail(e.target.value)}
-                            className="bg-white border border-slate-200 focus:border-emerald-400 outline-none rounded px-3 py-1 text-[10px] text-slate-500 mt-1.5 block w-full font-mono"
-                          />
-                          <div className="flex gap-1.5 mt-1.5">
-                            <input
-                              type="text"
-                              placeholder="Photo URL (Optional)"
-                              value={editUserAvatar}
-                              onChange={(e) => setEditUserAvatar(e.target.value)}
-                              className="w-full bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2.5 py-1 text-[10px] text-slate-500 font-mono"
-                            />
-                          </div>
-
-                          {/* Privileges in Edit Row */}
-                          <div className="mt-2.5 pt-2 border-t border-slate-200/50 space-y-2 text-left">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-slate-500 uppercase font-mono block">
-                                🔐 Security Privileges:
-                              </span>
-                              {!currentUser.isSuperAdmin && (
-                                <span className="text-[8px] text-rose-500 font-bold font-mono">
-                                  👑 SUPER ADMIN ONLY
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={editUserIsAdmin}
-                                  disabled={!currentUser.isSuperAdmin}
-                                  onChange={(e) => {
-                                    setEditUserIsAdmin(e.target.checked);
-                                    if (e.target.checked) {
-                                      setEditUserIsSuperAdmin(false);
-                                    }
-                                  }}
-                                  className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-3.5 h-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                                <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Admin (User-wise)</span>
-                              </label>
-
-                              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={editUserIsSuperAdmin}
-                                  disabled={!currentUser.isSuperAdmin}
-                                  onChange={(e) => {
-                                    setEditUserIsSuperAdmin(e.target.checked);
-                                    if (e.target.checked) {
-                                      setEditUserIsAdmin(false);
-                                    }
-                                  }}
-                                  className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                                <span className={!currentUser.isSuperAdmin ? "opacity-40" : ""}>Is Super Admin</span>
-                              </label>
-                            </div>
-
-                            {editUserIsAdmin && !editUserIsSuperAdmin && (
-                              <div className="mt-1.5">
-                                <span className="block text-[8px] font-bold text-slate-400 uppercase font-mono mb-1">
-                                  User-Wise Permissions:
-                                </span>
-                                <div className="p-1 px-1.5 border border-slate-200 bg-white rounded-lg max-h-[100px] overflow-y-auto space-y-1">
-                                  {ALL_PERMISSIONS.map((perm) => {
-                                    const isChecked = editUserPermissions.includes(perm.id);
-                                    return (
-                                      <label key={perm.id} className="flex items-center gap-1.5 text-[9px] text-slate-600 hover:text-slate-950 cursor-pointer select-none">
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          disabled={!currentUser.isSuperAdmin}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setEditUserPermissions(prev => [...prev, perm.id]);
-                                            } else {
-                                              setEditUserPermissions(prev => prev.filter(id => id !== perm.id));
-                                            }
-                                          }}
-                                          className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-2.5 h-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                        <span className={`leading-tight text-[9px] ${!currentUser.isSuperAdmin ? "opacity-50" : ""}`}>{perm.name}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {editUserIsSuperAdmin && (
-                              <div className="bg-indigo-50 border border-indigo-100 text-indigo-700 rounded p-1 text-[8px] leading-tight">
-                                👑 Super Admin Mode: Grants total bypass on all sections.
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3.5">
-                          <select
-                            value={editUserDept}
-                            onChange={(e) => setEditUserDept(e.target.value)}
-                            className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs outline-none font-bold text-slate-800 focus:border-emerald-500"
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Dynamic Column Selector Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserTableColDropdownOpen(!userTableColDropdownOpen)}
+                  className="bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-300 shadow-3xs transition flex items-center gap-1.5 cursor-pointer select-none"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Columns ({userTableVisibleCols.length}/16)</span>
+                </button>
+                {userTableColDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setUserTableColDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-4 z-40 text-left space-y-3 animate-in slide-in-from-top-1 duration-150">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                        <span className="text-[10px] font-mono font-black text-slate-500 uppercase">Visible Fields</span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setUserTableVisibleCols([
+                              'SN', 'USER', 'EMAIL', 'ROLES', 'LAST_LOGIN', 'STATUS', 'MOBILE', 'ADMIN', 'EMPLOYEE_ID', 'DESCRIPTION', 'DESIGNATION', 'EMAIL_SIGNATURE', 'REPORT_TO', 'PATH_MET', 'MASTERY_MET', 'CONTROL'
+                            ])}
+                            className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded cursor-pointer"
                           >
-                            {departments.map((dept) => (
-                              <option key={dept} value={dept}>
-                                {dept}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-3.5">
-                          <input
-                            type="text"
-                            value={editUserFocus}
-                            onChange={(e) => setEditUserFocus(e.target.value)}
-                            className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs w-full focus:border-emerald-500 font-medium"
-                          />
-                        </td>
-                        <td className="p-3.5">
-                          <div className="space-y-1.5">
-                            <div>
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setUserTableVisibleCols([
+                              'SN', 'USER', 'EMAIL', 'ROLES', 'STATUS', 'PATH_MET', 'MASTERY_MET', 'CONTROL'
+                            ])}
+                            className="text-[9px] font-extrabold text-slate-650 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto space-y-1.5 scrollbar-thin">
+                        {[
+                          { id: 'SN', name: 'S.N.' },
+                          { id: 'USER', name: 'User / Avatar' },
+                          { id: 'EMAIL', name: 'Email' },
+                          { id: 'ROLES', name: 'Curriculum Roles' },
+                          { id: 'LAST_LOGIN', name: 'Last Login' },
+                          { id: 'STATUS', name: 'Status' },
+                          { id: 'MOBILE', name: 'Mobile No' },
+                          { id: 'ADMIN', name: 'Admin (Y/N)' },
+                          { id: 'EMPLOYEE_ID', name: 'Employee ID' },
+                          { id: 'DESCRIPTION', name: 'Description' },
+                          { id: 'DESIGNATION', name: 'Designation' },
+                          { id: 'EMAIL_SIGNATURE', name: 'Signature text' },
+                          { id: 'REPORT_TO', name: 'Report To Manager' },
+                          { id: 'PATH_MET', name: 'Path Met %' },
+                          { id: 'MASTERY_MET', name: 'Mastery Met %' },
+                          { id: 'CONTROL', name: 'Action Controls' }
+                        ].map(col => {
+                          const isChecked = userTableVisibleCols.includes(col.id);
+                          return (
+                            <label key={col.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer select-none text-xs">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                disabled={col.id === 'USER' || col.id === 'CONTROL'}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setUserTableVisibleCols(prev => prev.filter(id => id !== col.id));
+                                  } else {
+                                    setUserTableVisibleCols(prev => [...prev, col.id]);
+                                  }
+                                }}
+                                className="rounded text-emerald-600 focus:ring-emerald-505 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                              />
+                              <span className="font-semibold text-slate-700">{col.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Excel-compatible CSV Downloader */}
+              <button
+                type="button"
+                onClick={handleExportUsersToCSV}
+                className="bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-300 shadow-3xs transition flex items-center gap-1 cursor-pointer"
+                title="Download entire grid data as CSV spreadsheet"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>Export CSV</span>
+              </button>
+
+              {/* Grid database re-indexer / refresh */}
+              <button
+                type="button"
+                onClick={handleRefreshUserTable}
+                className="bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold p-1.5 rounded-lg border border-slate-300 shadow-3xs transition cursor-pointer"
+                title="Re-index database tables & clear state cache"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${userTableIsRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+
+              {/* Dynamic Fullscreen Toggle */}
+              <button
+                type="button"
+                onClick={() => setUserTableIsFullscreen(!userTableIsFullscreen)}
+                className="bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold p-1.5 rounded-lg border border-slate-300 shadow-3xs transition cursor-pointer"
+                title={userTableIsFullscreen ? "Minimize Grid to standard dashboard" : "Maximize Grid to complete Fullscreen Workspace"}
+              >
+                {userTableIsFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-slate-500" /> : <Maximize2 className="w-3.5 h-3.5 text-slate-500" />}
+              </button>
+            </div>
+          </div>
+
+          {/* SPREADSHEET TABLE WORKSPACE */}
+          <div className={`overflow-x-auto select-none border border-slate-200 rounded-b-xl bg-slate-50/20 shadow-3xs max-h-[720px] overflow-y-auto scrollbar-thin relative ${userTableIsFullscreen ? 'fixed inset-4 sm:inset-10 z-50 bg-white rounded-2xl border-slate-300 p-6 flex flex-col justify-between max-h-none shadow-2xl animate-in zoom-in-95 duration-200' : ''}`}>
+            {userTableIsFullscreen && (
+              <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4 shrink-0 text-left">
+                <div>
+                  <h2 className="font-display font-extrabold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    CORPORATE SPREADSHEET WORKSPACE: TRAINEE AUDITS
+                  </h2>
+                  <p className="text-[10px] text-slate-500 italic mt-0.5">High-fidelity live table editor with interactive visible-column configuration checklist.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUserTableIsFullscreen(false)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-md cursor-pointer flex items-center gap-1"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  Close Fullscreen Workspace
+                </button>
+              </div>
+            )}
+
+            {userTableIsRefreshing ? (
+              <div className="flex flex-col gap-3 p-12 animate-pulse w-full bg-white">
+                <div className="h-5 bg-slate-200 rounded w-1/4"></div>
+                <div className="space-y-2 mt-2">
+                  <div className="h-9 bg-slate-100 rounded border border-slate-200"></div>
+                  <div className="h-9 bg-slate-100 rounded border border-slate-200"></div>
+                  <div className="h-9 bg-slate-100 rounded border border-slate-200"></div>
+                  <div className="h-9 bg-slate-100 rounded border border-slate-200"></div>
+                  <div className="h-9 bg-slate-100 rounded border border-slate-200"></div>
+                </div>
+              </div>
+            ) : (
+              <table className="premium-grid-table w-full text-left font-sans text-xs border-collapse bg-white">
+                <thead>
+                  <tr className="sticky top-0 z-10 bg-slate-150 text-slate-800 font-display text-[10px] uppercase tracking-wider border-b-2 border-slate-300 font-extrabold shadow-[0_1px_0_0_rgba(203,213,225,1)]">
+                    {userTableVisibleCols.includes('SN') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 pl-4 font-bold select-none text-slate-800 font-mono text-center w-12">S.N.</th>}
+                    {userTableVisibleCols.includes('USER') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">USER / TRAINEE</th>}
+                    {userTableVisibleCols.includes('EMAIL') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">EMAIL ADDRESS</th>}
+                    {userTableVisibleCols.includes('ROLES') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">CURRICULUM ASSIGNMENT</th>}
+                    {userTableVisibleCols.includes('LAST_LOGIN') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">LAST LOGIN</th>}
+                    {userTableVisibleCols.includes('STATUS') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24">STATUS</th>}
+                    {userTableVisibleCols.includes('MOBILE') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">MOBILE</th>}
+                    {userTableVisibleCols.includes('ADMIN') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-20">ADMIN</th>}
+                    {userTableVisibleCols.includes('EMPLOYEE_ID') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-28">EMPLOYEE ID</th>}
+                    {userTableVisibleCols.includes('DESCRIPTION') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 max-w-xs truncate">DESCRIPTION</th>}
+                    {userTableVisibleCols.includes('DESIGNATION') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">DESIGNATION</th>}
+                    {userTableVisibleCols.includes('EMAIL_SIGNATURE') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">EMAIL SIGNATURE</th>}
+                    {userTableVisibleCols.includes('REPORT_TO') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">REPORT TO</th>}
+                    {userTableVisibleCols.includes('PATH_MET') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24">PATH MET</th>}
+                    {userTableVisibleCols.includes('MASTERY_MET') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24">MASTERY MET</th>}
+                    {userTableVisibleCols.includes('CONTROL') && <th className="bg-slate-100 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24 sticky right-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ACTIONS</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {matchedUsers.slice((usersPage - 1) * usersLimit, usersPage * usersLimit).map((item, idx) => {
+                    const roleObj = roles.find(r => r.id === item.roleId);
+                    const isEditing = editingUserId === item.id;
+                    const stats = calculateUserProgress(item.id, item.roleId);
+                    const serialNumber = (usersPage - 1) * usersLimit + idx + 1;
+
+                    // Compute stable spreadsheet data based on user profile and hash
+                    const stableLastLogin = item.lastActive ? new Date(item.lastActive).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ", " + new Date(item.lastActive).toLocaleDateString([], {day: 'numeric', month: 'short', year: 'numeric'}) : (() => {
+                      let hash = 0;
+                      for (let i = 0; i < item.email.length; i++) hash = item.email.charCodeAt(i) + ((hash << 5) - hash);
+                      const day = (Math.abs(hash) % 2) + 1;
+                      return `05:${Math.abs(hash >> 2) % 60} PM, 0${day} Jul 2026`;
+                    })();
+
+                    const stableMobile = (() => {
+                      let hash = 0;
+                      for (let i = 0; i < item.email.length; i++) hash = item.email.charCodeAt(i) + ((hash << 5) - hash);
+                      const end = Math.abs(hash % 1000000).toString().padStart(6, '8');
+                      return `8518${end}`;
+                    })();
+
+                    const stableEmployeeId = (() => {
+                      let hash = 0;
+                      for (let i = 0; i < item.email.length; i++) hash = item.email.charCodeAt(i) + ((hash << 5) - hash);
+                      return Math.abs(hash % 9) + 1;
+                    })();
+
+                    const stableDescription = item.isSuperAdmin ? "Super administrator privilege" : item.isAdmin ? "Department administrator privilege" : `${item.department || "Rathi Group"} core employee profile`;
+                    const stableDesignation = roleObj?.name || 'Trainee associate';
+                    const stableEmailSignature = item.isSuperAdmin ? "Directorship Core" : `${item.department || "Operations"} Executive`;
+                    const stableReportTo = item.isSuperAdmin ? "NA" : "Director Rathi";
+
+                    if (isEditing) {
+                      return (
+                        <tr key={item.id} className="bg-emerald-50/20 border-l-4 border-l-emerald-500 font-sans text-[11px] animate-in fade-in duration-100">
+                          {userTableVisibleCols.includes('SN') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-bold text-slate-500 bg-slate-50/50">{serialNumber}</td>
+                          )}
+                          {userTableVisibleCols.includes('USER') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 font-medium min-w-[200px]">
+                              <input
+                                type="text"
+                                value={editUserName}
+                                onChange={(e) => setEditUserName(e.target.value)}
+                                className="bg-white border border-slate-300 focus:border-emerald-500 outline-none rounded px-2 py-1 text-[11px] w-full font-bold text-slate-800"
+                                placeholder="Employee Full Name"
+                              />
+                              <div className="flex gap-1.5 mt-1">
+                                <input
+                                  type="text"
+                                  placeholder="Photo URL"
+                                  value={editUserAvatar}
+                                  onChange={(e) => setEditUserAvatar(e.target.value)}
+                                  className="w-full bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2 py-0.5 text-[9px] text-slate-500 font-mono"
+                                />
+                              </div>
+                            </td>
+                          )}
+                          {userTableVisibleCols.includes('EMAIL') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 min-w-[150px]">
+                              <input
+                                type="email"
+                                value={editUserEmail}
+                                onChange={(e) => setEditUserEmail(e.target.value)}
+                                className="bg-white border border-slate-300 focus:border-emerald-400 outline-none rounded px-2 py-1 text-[11px] w-full font-mono font-medium text-slate-700"
+                              />
+                            </td>
+                          )}
+                          {userTableVisibleCols.includes('ROLES') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 min-w-[180px]">
                               <span className="text-[9px] uppercase font-mono font-bold text-emerald-600 block mb-0.5">Primary</span>
                               <select
                                 value={editUserRole}
                                 onChange={(e) => setEditUserRole(e.target.value)}
-                                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs w-full font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                                className="bg-white border border-slate-300 rounded px-1.5 py-1 text-[11px] w-full font-bold text-slate-800 focus:border-emerald-500 outline-none"
                               >
                                 {roles.map(r => (
                                   <option key={r.id} value={r.id}>{r.name}</option>
                                 ))}
                               </select>
-                            </div>
-
-                            {/* Secondary checklist box */}
-                            <div>
-                              <span className="text-[9px] uppercase font-mono font-bold text-indigo-600 block mb-0.5">Other</span>
-                              <div className="p-1 px-1.5 border border-slate-200 bg-white rounded-lg max-h-[80px] overflow-y-auto space-y-0.5">
-                                {roles.map((r) => {
-                                  if (r.id === editUserRole) return null;
-                                  const isChecked = editUserRoles.includes(r.id);
-                                  return (
-                                    <label key={r.id} className="flex items-center gap-1.5 text-[9px] text-slate-600 hover:text-slate-950 cursor-pointer select-none">
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setEditUserRoles(prev => [...prev, r.id]);
-                                          } else {
-                                            setEditUserRoles(prev => prev.filter(id => id !== r.id));
-                                          }
-                                        }}
-                                        className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-2.5 h-2.5"
-                                      />
-                                      <span className="leading-none">{r.name}</span>
-                                    </label>
-                                  );
-                                })}
+                              <div className="mt-1">
+                                <span className="text-[9px] uppercase font-mono font-bold text-indigo-600 block mb-0.5">Other Assignments</span>
+                                <div className="p-1 border border-slate-200 bg-white rounded max-h-[80px] overflow-y-auto space-y-0.5">
+                                  {roles.map((r) => {
+                                    if (r.id === editUserRole) return null;
+                                    const isChecked = editUserRoles.includes(r.id);
+                                    return (
+                                      <label key={r.id} className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-slate-950 cursor-pointer select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setEditUserRoles(prev => [...prev, r.id]);
+                                            } else {
+                                              setEditUserRoles(prev => prev.filter(id => id !== r.id));
+                                            }
+                                          }}
+                                          className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-2.5 h-2.5"
+                                        />
+                                        <span className="leading-none">{r.name}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <select
-                            value={editUserStatus}
-                            onChange={(e) => setEditUserStatus(e.target.value as any)}
-                            className="bg-white border border-slate-300 rounded px-1.5 py-1 text-xs outline-none font-bold text-slate-800 focus:border-emerald-500"
-                          >
-                            <option value="Active">🟢 Active</option>
-                            <option value="Deactivated">🔴 Deact</option>
-                            <option value="Left">⚪ Left</option>
-                          </select>
-                        </td>
-                        <td className="p-3.5 bg-purple-500/5">
-                          <input
-                            type="text"
-                            value={editUserPassword}
-                            onChange={(e) => setEditUserPassword(e.target.value)}
-                            className="bg-white border border-slate-300 rounded px-2 py-1.5 text-xs font-mono font-bold text-rose-700 w-28 text-center uppercase"
-                            placeholder="Passkey"
-                          />
-                        </td>
-                        <td className="p-3.5 text-center font-mono font-bold text-slate-400">-</td>
-                        <td className="p-3.5 text-center font-mono font-bold text-slate-400">-</td>
-                        <td className="p-3.5 text-center pr-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => handleSaveUser(item.id)}
-                              className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-3xs transition cursor-pointer"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingUserId(null)}
-                              className="bg-white border border-slate-200 text-slate-500 hover:text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs hover:bg-slate-50 transition cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition duration-100">
-                      <td className="py-2 px-3 pl-4">
-                        <div className="flex items-center gap-2">
-                          <div className="relative group shrink-0">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full blur opacity-10 group-hover:opacity-35 transition"></div>
-                            <Avatar 
-                              src={item.avatarUrl}
-                              name={item.name}
-                              className="w-7 h-7 border border-slate-200/80 relative shadow-xs" 
-                            />
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-extrabold text-slate-850 text-xs tracking-tight whitespace-nowrap">{item.name}</span>
-                            <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" className="scale-90 origin-left" />
-                            {item.isSuperAdmin && (
-                              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/50 text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-3xs" title="Super Admin (Full Bypass)">
-                                👑 Super Admin
-                              </span>
-                            )}
-                            {!item.isSuperAdmin && item.isAdmin && (
-                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-3xs" title="Admin (User-wise Permissions)">
-                                🔑 Admin ({item.permissions?.length || 0} perms)
-                              </span>
-                            )}
-                            <span className="text-[10px] font-mono text-slate-400 select-all whitespace-nowrap">({item.email})</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className="font-semibold text-slate-600 bg-slate-100 border border-slate-200/40 px-2 py-0.5 rounded text-[10px] font-sans">
-                          {item.department}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-slate-550 font-medium font-sans text-[11px]">{item.focusEntity}</td>
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-0.5 min-w-[150px] max-w-[280px] whitespace-normal">
-                          <span className="bg-emerald-605 bg-emerald-50 text-emerald-800 font-extrabold px-2 py-0.5 rounded border border-emerald-500/20 font-sans text-[9px] block leading-normal">
-                            ★ Primary: {roleObj?.name || 'Unassigned'}
-                          </span>
-                          {/* Render other assigned roles */}
-                          {item.roleIds && item.roleIds.filter(rId => rId !== item.roleId).map(rId => {
-                            const otherRole = roles.find(r => r.id === rId);
-                            if (!otherRole) return null;
-                            return (
-                              <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200/40 font-sans text-[8.5px] block leading-normal">
-                                ✙ {otherRole.name}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        {(!item.status || item.status === 'Active') ? (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 font-extrabold px-1.5 py-0.5 rounded border border-emerald-500/20 text-[9px] uppercase font-mono shadow-3xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Active
-                          </span>
-                        ) : item.status === 'Deactivated' ? (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-extrabold px-1.5 py-0.5 rounded border border-amber-500/20 text-[9px] uppercase font-mono shadow-3xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            Deact
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 font-extrabold px-1.5 py-0.5 rounded border border-slate-300 text-[9px] uppercase font-mono shadow-3xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                            Left
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-center bg-purple-500/5">
-                        <span className="font-mono text-purple-705 bg-purple-50 border border-purple-200/40 px-2 py-0.5 rounded-md text-[11px] font-black tracking-wide">
-                          {item.password || 'rathi123'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="font-mono text-indigo-600 font-black text-xs">{stats.overallPercent}%</span>
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="font-mono text-emerald-650 font-black text-xs">{stats.masteryPercent}%</span>
-                      </td>
-                      <td className="py-2 px-3 text-center pr-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {confirmDeleteUserId === item.id ? (
-                            <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteUserId(null)}
-                                className="text-[9px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded transition cursor-pointer border border-slate-200"
+                            </td>
+                          )}
+                          {userTableVisibleCols.includes('LAST_LOGIN') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-400 font-mono text-[10px] bg-slate-50/30">{stableLastLogin}</td>
+                          )}
+                          {userTableVisibleCols.includes('STATUS') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center">
+                              <select
+                                value={editUserStatus}
+                                onChange={(e) => setEditUserStatus(e.target.value as any)}
+                                className="bg-white border border-slate-300 rounded px-1 py-0.5 text-[11px] outline-none font-bold text-slate-800 focus:border-emerald-500 cursor-pointer"
                               >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteUser(item.id, item.name)}
-                                className="text-[9px] uppercase font-mono font-black text-white hover:bg-rose-605 bg-rose-500 px-2.5 py-1.5 rounded shadow-xs transition cursor-pointer flex items-center gap-1"
-                              >
-                                <Trash2 className="w-2.5 h-2.5 text-white" /> Live Offboard
-                              </button>
-                            </div>
-                          ) : confirmResetUserId === item.id ? (
-                            <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
-                              <button
-                                type="button"
-                                onClick={() => setConfirmResetUserId(null)}
-                                className="text-[9px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded transition cursor-pointer border border-slate-200"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleResetUserMastery(item.id, item.name)}
-                                className="text-[9px] uppercase font-mono font-black text-white hover:bg-amber-600 bg-amber-500 px-2.5 py-1.5 rounded shadow-xs transition cursor-pointer flex items-center gap-1"
-                              >
-                                <RefreshCw className="w-2.5 h-2.5 text-white animate-spin-slow" /> Reset Progress
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              {hasPermission('perm_user_edt') && (
-                                <button
-                                  onClick={() => {
-                                    setEditingUserId(item.id);
-                                    setEditUserName(item.name);
-                                    setEditUserEmail(item.email);
-                                    setEditUserAvatar(item.avatarUrl || '');
-                                    setEditUserRole(item.roleId);
-                                    setEditUserRoles(item.roleIds || []);
-                                    setEditUserDept(item.department);
-                                    setEditUserFocus(item.focusEntity);
-                                    setEditUserPassword(item.password || 'rathi123');
-                                    setEditUserStatus(item.status || 'Active');
-                                    setEditUserIsAdmin(!!item.isAdmin);
-                                    setEditUserIsSuperAdmin(!!item.isSuperAdmin);
-                                    setEditUserPermissions(item.permissions || []);
-                                  }}
-                                  title="Edit Employee Detail"
-                                  className="bg-white border border-slate-200 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 transition cursor-pointer p-2 rounded-lg"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              {hasPermission('perm_user_edt') && (
+                                <option value="Active">🟢 Active</option>
+                                <option value="Deactivated">🔴 Deact</option>
+                                <option value="Left">⚪ Left</option>
+                              </select>
+                            </td>
+                          )}
+                          {userTableVisibleCols.includes('MOBILE') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-500 font-mono text-[11px]">{stableMobile}</td>
+                          )}
+                          {userTableVisibleCols.includes('ADMIN') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center min-w-[120px]">
+                              <div className="flex flex-col gap-1 text-left px-1">
+                                <label className="flex items-center gap-1 font-bold text-slate-700 cursor-pointer select-none text-[10px]">
+                                  <input
+                                    type="checkbox"
+                                    checked={editUserIsAdmin}
+                                    disabled={!currentUser.isSuperAdmin}
+                                    onChange={(e) => {
+                                      setEditUserIsAdmin(e.target.checked);
+                                      if (e.target.checked) setEditUserIsSuperAdmin(false);
+                                    }}
+                                    className="rounded text-emerald-600 focus:ring-emerald-505 border-slate-300 w-3 h-3 disabled:opacity-50"
+                                  />
+                                  <span>Is Admin</span>
+                                </label>
+                                <label className="flex items-center gap-1 font-bold text-slate-700 cursor-pointer select-none text-[10px]">
+                                  <input
+                                    type="checkbox"
+                                    checked={editUserIsSuperAdmin}
+                                    disabled={!currentUser.isSuperAdmin}
+                                    onChange={(e) => {
+                                      setEditUserIsSuperAdmin(e.target.checked);
+                                      if (e.target.checked) setEditUserIsAdmin(false);
+                                    }}
+                                    className="rounded text-indigo-600 focus:ring-indigo-505 border-slate-300 w-3 h-3 disabled:opacity-50"
+                                  />
+                                  <span>Super Admin</span>
+                                </label>
+                              </div>
+                            </td>
+                          )}
+                          {userTableVisibleCols.includes('EMPLOYEE_ID') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-bold text-slate-600 bg-slate-50/20">{stableEmployeeId}</td>
+                          )}
+                          {userTableVisibleCols.includes('DESCRIPTION') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-400 italic max-w-xs truncate">{stableDescription}</td>
+                          )}
+                          {userTableVisibleCols.includes('DESIGNATION') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-600 font-semibold bg-slate-50/20">{stableDesignation}</td>
+                          )}
+                          {userTableVisibleCols.includes('EMAIL_SIGNATURE') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-400 font-mono text-[10px]">{stableEmailSignature}</td>
+                          )}
+                          {userTableVisibleCols.includes('REPORT_TO') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-700 font-bold">{stableReportTo}</td>
+                          )}
+                          {userTableVisibleCols.includes('PATH_MET') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-extrabold text-indigo-600 bg-slate-50/50">{stats.overallPercent}%</td>
+                          )}
+                          {userTableVisibleCols.includes('MASTERY_MET') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-extrabold text-emerald-600 bg-slate-50/50">{stats.masteryPercent}%</td>
+                          )}
+                          {userTableVisibleCols.includes('CONTROL') && (
+                            <td className="py-2.5 px-3 text-center sticky right-0 z-10 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmResetUserId(item.id)}
-                                  title="Reset Trainee Progress & Mastery Status"
-                                  className="bg-white border border-slate-200 hover:border-amber-400 text-slate-500 hover:text-amber-600 transition cursor-pointer p-1.5 px-2 rounded-lg flex items-center gap-1 font-mono text-[9px] font-bold shadow-3xs hover:bg-amber-50"
+                                  onClick={() => handleSaveUser(item.id)}
+                                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-black px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer"
                                 >
-                                  <RefreshCw className="w-2.5 h-2.5 text-amber-500" />
-                                  <span>Reset</span>
+                                  Save
                                 </button>
-                              )}
-                              {hasPermission('perm_user_del') && (
                                 <button
-                                  onClick={() => setConfirmDeleteUserId(item.id)}
-                                  title="Offboard/Delete Employee"
-                                  className="bg-white border border-slate-200 hover:border-red-300 text-slate-500 hover:text-red-650 transition cursor-pointer p-2 rounded-lg"
+                                  type="button"
+                                  onClick={() => setEditingUserId(null)}
+                                  className="bg-white border border-slate-200 text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Cancel
                                 </button>
-                              )}
-                              {!hasPermission('perm_user_edt') && !hasPermission('perm_user_del') && (
-                                <span className="text-[10px] text-slate-400 italic">No Actions Available</span>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition duration-75 text-[11px] font-sans border-b border-slate-250">
+                        {userTableVisibleCols.includes('SN') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center font-mono font-bold text-slate-500 bg-slate-50/50 w-12">{serialNumber}</td>
+                        )}
+                        {userTableVisibleCols.includes('USER') && (
+                          <td className="border-r border-slate-250 py-2 px-3 pl-3">
+                            <div className="flex items-center gap-2">
+                              <div className="relative shrink-0 select-none">
+                                <Avatar 
+                                  src={item.avatarUrl}
+                                  name={item.name}
+                                  className="w-7 h-7 border border-slate-200/80 rounded-full" 
+                                />
+                              </div>
+                              <div className="flex flex-col text-left leading-tight">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="font-extrabold text-slate-900 text-xs tracking-tight whitespace-nowrap">{item.name}</span>
+                                  <PremiumBadge userId={item.id} userName={item.name} roleId={item.roleId} department={item.department} size="xs" className="scale-90 origin-left shrink-0" />
+                                  {item.isSuperAdmin && (
+                                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/50 text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0">👑 Super Admin</span>
+                                  )}
+                                  {!item.isSuperAdmin && item.isAdmin && (
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0">🔑 Admin</span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] font-mono text-slate-400 mt-0.5 select-all">{item.email}</span>
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('EMAIL') && (
+                          <td className="border-r border-slate-250 py-2 px-3 font-mono font-semibold text-indigo-600 hover:underline cursor-pointer min-w-[150px]">{item.email}</td>
+                        )}
+                        {userTableVisibleCols.includes('ROLES') && (
+                          <td className="border-r border-slate-250 py-2 px-3 min-w-[180px]">
+                            <div className="flex flex-col gap-0.5 text-left">
+                              <span className="bg-emerald-50 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded border border-emerald-500/10 text-[9px] block leading-none">
+                                ★ {roleObj?.name || 'Unassigned'}
+                              </span>
+                              {item.roleIds && item.roleIds.filter(rId => rId !== item.roleId).map(rId => {
+                                const otherRole = roles.find(r => r.id === rId);
+                                if (!otherRole) return null;
+                                return (
+                                  <span key={rId} className="bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-200/20 text-[8px] block leading-none">
+                                    ✙ {otherRole.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('LAST_LOGIN') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-500 font-mono text-[10px]">{stableLastLogin}</td>
+                        )}
+                        {userTableVisibleCols.includes('STATUS') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center w-24">
+                            {(!item.status || item.status === 'Active') ? (
+                              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-705 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase font-mono shadow-3xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Active
+                              </span>
+                            ) : item.status === 'Deactivated' ? (
+                              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-705 border border-amber-200 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase font-mono shadow-3xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                Inactive
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-300 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase font-mono shadow-3xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                Left
+                              </span>
+                            )}
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('MOBILE') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-600 font-mono text-[11px] font-medium">{stableMobile}</td>
+                        )}
+                        {userTableVisibleCols.includes('ADMIN') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center font-bold text-slate-700 w-20 bg-slate-50/20">
+                            {(item.isAdmin || item.isSuperAdmin) ? "Yes" : "No"}
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('EMPLOYEE_ID') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center font-mono font-bold text-slate-800 w-28 bg-slate-50/20">{stableEmployeeId}</td>
+                        )}
+                        {userTableVisibleCols.includes('DESCRIPTION') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-500 italic max-w-xs truncate">{stableDescription}</td>
+                        )}
+                        {userTableVisibleCols.includes('DESIGNATION') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-750 font-bold bg-slate-50/20 truncate max-w-[150px]">{stableDesignation}</td>
+                        )}
+                        {userTableVisibleCols.includes('EMAIL_SIGNATURE') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-400 font-mono text-[10px] truncate max-w-[150px]">{stableEmailSignature}</td>
+                        )}
+                        {userTableVisibleCols.includes('REPORT_TO') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-slate-700 font-extrabold">{stableReportTo}</td>
+                        )}
+                        {userTableVisibleCols.includes('PATH_MET') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center w-24 bg-slate-50/30">
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="font-mono text-indigo-700 font-black text-xs">{stats.overallPercent}%</span>
+                              <div className="w-14 bg-slate-100 rounded-full h-1 overflow-hidden border border-slate-200">
+                                <div className="bg-indigo-600 h-full transition-all duration-300" style={{ width: `${stats.overallPercent}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('MASTERY_MET') && (
+                          <td className="border-r border-slate-250 py-2 px-3 text-center w-24 bg-slate-50/30">
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="font-mono text-emerald-650 font-black text-xs">{stats.masteryPercent}%</span>
+                              <div className="w-14 bg-slate-100 rounded-full h-1 overflow-hidden border border-slate-200">
+                                <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${stats.masteryPercent}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        {userTableVisibleCols.includes('CONTROL') && (
+                          <td className="py-2 px-3 text-center w-24 sticky right-0 z-10 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
+                            <div className="flex items-center justify-center gap-1.5 relative">
+                              {confirmDeleteUserId === item.id ? (
+                                <div className="flex items-center gap-1 animate-in zoom-in-95 duration-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteUserId(null)}
+                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250"
+                                  >
+                                    No
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteUser(item.id, item.name)}
+                                    className="text-[9px] uppercase font-mono font-black text-white bg-rose-600 hover:bg-rose-700 px-1.5 py-1 rounded cursor-pointer shadow-xs"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              ) : confirmResetUserId === item.id ? (
+                                <div className="flex items-center gap-1 animate-in zoom-in-95 duration-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmResetUserId(null)}
+                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250"
+                                  >
+                                    No
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetUserMastery(item.id, item.name)}
+                                    className="text-[9px] uppercase font-mono font-black text-white bg-amber-550 hover:bg-amber-600 px-1.5 py-1 rounded cursor-pointer shadow-xs"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  {/* Row actions Vertical ellipses menu */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setUserTableRowMenuOpenId(userTableRowMenuOpenId === item.id ? null : item.id)}
+                                    className="hover:bg-slate-100 p-1.5 rounded-lg border border-slate-200 transition cursor-pointer select-none"
+                                    title="Open action controls"
+                                  >
+                                    <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
+                                  </button>
+                                  {userTableRowMenuOpenId === item.id && (
+                                    <>
+                                      <div className="fixed inset-0 z-30" onClick={() => setUserTableRowMenuOpenId(null)} />
+                                      <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl p-1 z-40 text-left space-y-0.5 animate-in slide-in-from-top-1 duration-100 text-[10px]">
+                                        {hasPermission('perm_user_edt') && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setUserTableRowMenuOpenId(null);
+                                              setEditingUserId(item.id);
+                                              setEditUserName(item.name);
+                                              setEditUserEmail(item.email);
+                                              setEditUserAvatar(item.avatarUrl || '');
+                                              setEditUserRole(item.roleId);
+                                              setEditUserRoles(item.roleIds || []);
+                                              setEditUserDept(item.department);
+                                              setEditUserFocus(item.focusEntity);
+                                              setEditUserPassword(item.password || 'rathi123');
+                                              setEditUserStatus(item.status || 'Active');
+                                              setEditUserIsAdmin(!!item.isAdmin);
+                                              setEditUserIsSuperAdmin(!!item.isSuperAdmin);
+                                              setEditUserPermissions(item.permissions || []);
+                                            }}
+                                            className="w-full text-left font-bold text-slate-700 hover:text-indigo-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                                          >
+                                            📝 Edit Detail
+                                          </button>
+                                        )}
+                                        {hasPermission('perm_user_edt') && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setUserTableRowMenuOpenId(null);
+                                              setConfirmResetUserId(item.id);
+                                            }}
+                                            className="w-full text-left font-bold text-slate-700 hover:text-amber-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                                          >
+                                            🔄 Reset Progress
+                                          </button>
+                                        )}
+                                        {hasPermission('perm_user_del') && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setUserTableRowMenuOpenId(null);
+                                              setConfirmDeleteUserId(item.id);
+                                            }}
+                                            className="w-full text-left font-extrabold text-slate-500 hover:text-rose-650 hover:bg-rose-50/50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 border-t border-slate-100 mt-1"
+                                          >
+                                            🗑️ Live Offboard
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
-          {/* Pagination Controls */}
-          {matchedUsers.length > 0 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 px-4 py-3 bg-slate-50 rounded-xl border border-slate-250/60 text-xs font-sans select-none shadow-3xs">
+          {/* SPREADSHEET PAGINATION STATS & NAVIGATION BAR */}
+          {matchedUsers.length > 0 && !userTableIsRefreshing && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-3 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-sans select-none shadow-3xs shrink-0 text-left">
               <div className="text-slate-500 font-bold">
-                Showing <span className="text-slate-800">{(usersPage - 1) * usersLimit + 1}</span> to <span className="text-slate-800">{Math.min(usersPage * usersLimit, matchedUsers.length)}</span> of <span className="text-slate-800">{matchedUsers.length}</span> entries
+                Showing <span className="text-slate-800">{(usersPage - 1) * usersLimit + 1}</span> to <span className="text-slate-800">{Math.min(usersPage * usersLimit, matchedUsers.length)}</span> of <span className="text-slate-800">{matchedUsers.length}</span> records
               </div>
               
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                {/* Go First Page */}
+                <button
+                  type="button"
+                  disabled={usersPage === 1}
+                  onClick={() => setUsersPage(1)}
+                  className={`w-7 h-7 rounded-lg border text-[10px] font-extrabold transition flex items-center justify-center cursor-pointer ${
+                    usersPage === 1
+                      ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                  }`}
+                  title="Go to First Page"
+                >
+                  |◀
+                </button>
+
+                {/* Prev Page */}
                 <button
                   type="button"
                   disabled={usersPage === 1}
                   onClick={() => setUsersPage(prev => Math.max(prev - 1, 1))}
-                  className={`px-3 py-1.5 rounded-lg border text-[11px] font-extrabold transition flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 h-7 rounded-lg border text-[10px] font-extrabold transition flex items-center justify-center cursor-pointer ${
                     usersPage === 1
                       ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
                   }`}
                 >
-                  ◀ Prev
+                  ◀
                 </button>
 
                 {Array.from({ length: Math.ceil(matchedUsers.length / usersLimit) || 1 }).map((_, idx) => {
@@ -5531,7 +5851,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   const totalP = Math.ceil(matchedUsers.length / usersLimit) || 1;
                   if (totalP > 5 && Math.abs(pageNum - usersPage) > 2 && pageNum !== 1 && pageNum !== totalP) {
                     if (pageNum === 2 || pageNum === totalP - 1) {
-                      return <span key={pageNum} className="text-slate-400 px-1 font-extrabold">...</span>;
+                      return <span key={pageNum} className="text-slate-400 px-0.5 font-extrabold">...</span>;
                     }
                     return null;
                   }
@@ -5540,10 +5860,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       key={pageNum}
                       type="button"
                       onClick={() => setUsersPage(pageNum)}
-                      className={`w-8 h-8 rounded-lg text-[11px] font-extrabold transition cursor-pointer flex items-center justify-center ${
+                      className={`w-7 h-7 rounded-lg text-[10px] font-extrabold transition cursor-pointer flex items-center justify-center ${
                         usersPage === pageNum
-                          ? 'bg-emerald-600 text-white border border-emerald-605 shadow-sm font-black'
-                          : 'bg-white border border-slate-200 text-slate-705 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                          ? 'bg-emerald-600 text-white border border-emerald-600 shadow-sm font-black'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
                       }`}
                     >
                       {pageNum}
@@ -5551,17 +5871,33 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   );
                 })}
 
+                {/* Next Page */}
                 <button
                   type="button"
                   disabled={usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)}
                   onClick={() => setUsersPage(prev => Math.min(prev + 1, Math.ceil(matchedUsers.length / usersLimit) || 1))}
-                  className={`px-3 py-1.5 rounded-lg border text-[11px] font-extrabold transition flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-1 h-7 rounded-lg border text-[10px] font-extrabold transition flex items-center justify-center cursor-pointer ${
                     usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)
                       ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
                   }`}
                 >
-                  Next ▶
+                  ▶
+                </button>
+
+                {/* Go Last Page */}
+                <button
+                  type="button"
+                  disabled={usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)}
+                  onClick={() => setUsersPage(Math.ceil(matchedUsers.length / usersLimit) || 1)}
+                  className={`w-7 h-7 rounded-lg border text-[10px] font-extrabold transition flex items-center justify-center cursor-pointer ${
+                    usersPage >= (Math.ceil(matchedUsers.length / usersLimit) || 1)
+                      ? 'bg-slate-100 border-slate-200 text-slate-350 cursor-not-allowed opacity-60'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100 shadow-3xs'
+                  }`}
+                  title="Go to Last Page"
+                >
+                  ▶|
                 </button>
               </div>
             </div>
@@ -5790,7 +6126,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
               {/* Responsive Access Matrix Grid Container (Scrollable Horizontal) */}
               <div className="overflow-x-auto w-full custom-scrollbar max-w-full">
-                <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                <table className="premium-grid-table w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
                   <thead>
                     <tr className="bg-slate-100 divide-x divide-slate-200 border-b border-slate-250 text-[10px] font-display font-extrabold uppercase text-slate-900 tracking-wider">
                       <th className="px-5 py-3 sticky left-0 bg-slate-100 z-10 font-bold min-w-[320px] text-left">
@@ -6784,6 +7120,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           setUnitPdfUrl('');
                           setUnitDesc('');
                           setUnitChapterId('');
+                          setUnitSopItems([
+                            { title: 'Mandatory Lesson Review', desc: 'Analyze standardized video training modules entirely before submitting logs.' },
+                            { title: 'Dual Validation', desc: 'Crosscheck ledger entries and business vouchers with corporate standards.' },
+                            { title: 'Audit Logs', desc: 'Always document robust observation notes to fast-track checker verification and sign-off.' }
+                          ]);
                           setIsUnitModalOpen(true);
                         }}
                         className="inline-flex items-center gap-1.5 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs hover:shadow-sm active:scale-98 transition duration-150 cursor-pointer shrink-0"
@@ -7045,6 +7386,77 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 onChange={(e) => setUnitDesc(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[90px] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition font-medium"
                               />
+                            </div>
+
+                            {/* SOP & Best Practices Checklist Section */}
+                            <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2">
+                              <div className="flex items-center justify-between mb-3">
+                                <label className="block text-[10px] uppercase font-mono font-bold text-slate-500 flex items-center gap-1.5">
+                                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>SOP & Best Practices Checklist Items</span>
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setUnitSopItems([...unitSopItems, { title: '', desc: '' }])}
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-sans font-bold text-emerald-600 hover:text-emerald-500 bg-emerald-50 hover:bg-emerald-100/50 px-2.5 py-1 rounded-lg border border-emerald-200 transition cursor-pointer"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Item
+                                </button>
+                              </div>
+
+                              {unitSopItems.length === 0 ? (
+                                <div className="text-center py-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-[11px] font-medium">
+                                  No checklist items defined. Click "Add Item" to add standard SOP check tasks.
+                                </div>
+                              ) : (
+                                <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                                  {unitSopItems.map((item, index) => (
+                                    <div key={index} className="flex gap-2 items-start bg-slate-50/50 border border-slate-150 p-2 rounded-xl">
+                                      <span className="text-[10px] font-mono font-bold text-slate-400 mt-2">#{index + 1}</span>
+                                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <div className="sm:col-span-1">
+                                          <input
+                                            type="text"
+                                            required
+                                            placeholder="Item Title (e.g. Dual Validation)"
+                                            value={item.title}
+                                            onChange={(e) => {
+                                              const updated = [...unitSopItems];
+                                              updated[index].title = e.target.value;
+                                              setUnitSopItems(updated);
+                                            }}
+                                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:bg-white outline-none transition font-semibold text-[11px]"
+                                          />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                          <input
+                                            type="text"
+                                            required
+                                            placeholder="Description (e.g. Crosscheck entries)"
+                                            value={item.desc}
+                                            onChange={(e) => {
+                                              const updated = [...unitSopItems];
+                                              updated[index].desc = e.target.value;
+                                              setUnitSopItems(updated);
+                                            }}
+                                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:bg-white outline-none transition text-[11px]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setUnitSopItems(unitSopItems.filter((_, idx) => idx !== index));
+                                        }}
+                                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition mt-0.5 cursor-pointer"
+                                        title="Remove Item"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             <div className="sm:col-span-2 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
@@ -7667,7 +8079,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     </div>
 
                     <div className="overflow-x-auto max-h-72 border border-slate-150 rounded-lg">
-                      <table className="min-w-full text-left border-collapse text-xs">
+                      <table className="premium-grid-table min-w-full text-left border-collapse text-xs">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase font-display font-extrabold text-slate-800">
                             <th className="p-2.5">Index</th>
@@ -7932,7 +8344,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white max-h-[300px] overflow-y-auto">
-                <table className="w-full text-left border-collapse text-xs min-w-[700px]">
+                <table className="premium-grid-table w-full text-left border-collapse text-xs min-w-[700px]">
                   <thead>
                     <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider shadow-[0_1px_0_0_rgba(226,232,240,1)]">
                       <th className="py-2.5 px-3 font-bold bg-slate-50">Candidate / Staff</th>
@@ -8115,7 +8527,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-slate-150">
-                <table className="w-full text-left border-collapse text-xs bg-white">
+                <table className="premium-grid-table w-full text-left border-collapse text-xs bg-white">
                   <thead>
                     <tr className="bg-slate-50 text-slate-800 font-display text-[10px] uppercase border-b border-slate-200 font-extrabold tracking-wider">
                       <th className="py-3 px-4 font-bold">Candidate</th>
@@ -9387,7 +9799,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             'Unit Code': r.unit.code,
                             'Task Name': r.unit.taskName,
                             'Status': r.log?.status || 'Not Started',
-                            'Watch %': r.log?.watchPercent || 0,
                             'Last Updated': r.log?.lastUpdated ? new Date(r.log.lastUpdated).toLocaleDateString() : 'N/A'
                           }));
                           const ws = XLSX.utils.json_to_sheet(worksheetData);
@@ -9538,11 +9949,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                       </h6>
 
                                       {/* Log metadata */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] bg-white border border-slate-200 rounded-xl p-3 shadow-3xs">
-                                        <div>
-                                          <span className="text-slate-400">Watch Video Percent:</span>
-                                          <p className="font-bold font-mono text-slate-800">{r.log?.watchPercent || 0}% completed</p>
-                                        </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] bg-white border border-slate-200 rounded-xl p-3 shadow-3xs">
                                         <div>
                                           <span className="text-slate-400">Total Started:</span>
                                           <p className="font-bold text-slate-850">

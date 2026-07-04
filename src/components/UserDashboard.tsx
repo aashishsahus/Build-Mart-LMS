@@ -42,6 +42,273 @@ export interface NotificationItem {
   type: 'approval' | 'system' | 'role' | 'achievement';
 }
 
+export interface SopItem {
+  title: string;
+  desc: string;
+}
+
+export const getSopItemsForUnit = (unit: Unit): SopItem[] => {
+  if (!unit) return [];
+  if (unit.sopItems && unit.sopItems.length > 0) return unit.sopItems;
+  const id = unit.id;
+  const code = unit.code || '';
+  
+  if (id === 'u_tax_001' || code.includes('TAX-001')) {
+    return [
+      {
+        title: "GSTR-2B Statement Download",
+        desc: "Download and extract the official GSTR-2B statement from the government GST portal for the target tax period."
+      },
+      {
+        title: "ITC Booking Verification",
+        desc: "Compare credited Input Tax Credit (ITC) with internal purchase ledger books and mark matches."
+      },
+      {
+        title: "Missing Vendor Action List",
+        desc: "Identify missing seller invoices and flag them to the vendor coordination desk for quick release."
+      }
+    ];
+  }
+  
+  if (id === 'u_tax_002' || code.includes('TAX-002')) {
+    return [
+      {
+        title: "Sales Liability Assembling",
+        desc: "Assemble all tax invoices, credit/debit notes to compute gross outward tax liability accurately."
+      },
+      {
+        title: "ITC Set-off Optimization",
+        desc: "Apply correct CGST/SGST/IGST input tax credit set-off rules to legally minimize cash outflows."
+      },
+      {
+        title: "Challan Generation & Submission",
+        desc: "Generate the tax challan, perform online bank transfer, and e-file GSTR-3B before the statutory deadline."
+      }
+    ];
+  }
+  
+  if (id === 'u_tax_003' || code.includes('TAX-003')) {
+    return [
+      {
+        title: "Form 26AS & AIS Download",
+        desc: "Extract the latest Form 26AS and Annual Information Statement from the TRACES income tax portal."
+      },
+      {
+        title: "Receipt TDS Reconciliation",
+        desc: "Match customer-provided TDS certificates and ledger entries with TDS credits reflecting under Form 26AS."
+      },
+      {
+        title: "Discrepancy Correction Requests",
+        desc: "Isolate mismatched or missing credits and submit rectifications to respective clients to revise their filings."
+      }
+    ];
+  }
+  
+  if (id === 'u_tax_004' || code.includes('TAX-004')) {
+    return [
+      {
+        title: "Quarterly Deductions Consolidation",
+        desc: "Consolidate quarterly TDS payment receipts and assign correct sections (e.g., 194C, 194I, 194J)."
+      },
+      {
+        title: "NSDL RPU file compilation",
+        desc: "Compile TDS return files using NSDL Return Preparation Utility and perform mandatory PAN validations."
+      },
+      {
+        title: "NSDL FVU Validator Check",
+        desc: "Run the output file through the NSDL File Validation Utility (FVU) to correct structural and compliance errors."
+      }
+    ];
+  }
+  
+  if (id === 'u_jr_031' || code.includes('JR-031')) {
+    return [
+      {
+        title: "Ledger & Bank Statement Extraction",
+        desc: "Download complete monthly bank statements and extract the matching ERP cash-at-bank general ledger."
+      },
+      {
+        title: "Float & Timing Diff Tracking",
+        desc: "Map all unpresented checks, deposits-in-transit, interest credits, and direct bank debit charges."
+      },
+      {
+        title: "Reconciled BRS Sheet Printing",
+        desc: "Pass adjusting entries for bank fees, balance both sheets, and print the reconciled BRS report for verification."
+      }
+    ];
+  }
+  
+  if (id === 'u_jr_032' || code.includes('JR-032')) {
+    return [
+      {
+        title: "Surprise Cash Box Count",
+        desc: "Conduct physical counting of cash notes in the safe box and document immediate balance tallies."
+      },
+      {
+        title: "Voucher and Receipt Audit",
+        desc: "Examine all submitted petty expense vouchers for merchant tax invoice receipts and proper employee signatures."
+      },
+      {
+        title: "Imprest Refill Entry & Sign-off",
+        desc: "Record validated cash spend entries in the ERP and forward the reimbursement proposal to the branch manager."
+      }
+    ];
+  }
+  
+  if (id === 'u_jr_033' || code.includes('JR-033')) {
+    return [
+      {
+        title: "Acquisition Invoice Review",
+        desc: "Check asset purchase invoice details, custom clearance papers, and capitalization approvals."
+      },
+      {
+        title: "Asset Tagging Update",
+        desc: "Generate a unique company barcode, complete physical labeling, and update location records in FAR."
+      },
+      {
+        title: "Depreciation Rate Mapping",
+        desc: "Set up depreciation schedules in FAR as per SLM/WDV methods in accordance with Companies Act schedules."
+      }
+    ];
+  }
+  
+  if (id === 'u_sr_041' || code.includes('SR-041')) {
+    return [
+      {
+        title: "Accrual Provision Review",
+        desc: "Review vendor purchase patterns, utility bills, and outstanding lease contracts to map unbilled monthly expenses."
+      },
+      {
+        title: "Provisions Posting and Filing",
+        desc: "Draft standard accrual journal entries, attach calculation sheets, and post provisions in the GL."
+      },
+      {
+        title: "Auto-Reversal Setup",
+        desc: "Configure reversing entries to automatically post on the first day of the subsequent month."
+      }
+    ];
+  }
+  
+  if (id === 'u_sr_042' || code.includes('SR-042')) {
+    return [
+      {
+        title: "Inter-Entity Statement Pulling",
+        desc: "Request ledger balance sheets from the parent entity and all registered Build Mart logistics divisions."
+      },
+      {
+        title: "Variance Investigation",
+        desc: "Identify outstanding inter-entity variances caused by goods-in-transit, pricing differences, or timing."
+      },
+      {
+        title: "Consolidated Elimination Setup",
+        desc: "Issue eliminating contra-journal postings to clear matched outstanding balances in consolidated financials."
+      }
+    ];
+  }
+  
+  if (id === 'u_sr_043' || code.includes('SR-043')) {
+    return [
+      {
+        title: "Trial Balance Tally",
+        desc: "Ensure the complete trial balance is in perfect equilibrium and matches with primary ledgers."
+      },
+      {
+        title: "Lead Schedule Preparation",
+        desc: "Draft detailed Lead Schedules for equity, provisions, and taxation accounts showing opening and closing audits."
+      },
+      {
+        title: "Audit Query Logs Maintenance",
+        desc: "Set up a shared tracking sheet to log auditor queries, assign task owners, and manage document submissions."
+      }
+    ];
+  }
+  
+  if (id === 'u_cand_001' || code.includes('CAND-001')) {
+    return [
+      {
+        title: "Account Type Classification",
+        desc: "Classify general ledger accounts into Real, Personal, or Nominal classes."
+      },
+      {
+        title: "Golden Rules Application",
+        desc: "Apply: Debit what comes in / Credit what goes out; Debit receiver / Credit giver; Debit expense / Credit income."
+      },
+      {
+        title: "Dual Entry Balance Tally",
+        desc: "Verify that total debit amount matches total credit amount for the mock ledger balances."
+      }
+    ];
+  }
+  
+  if (id === 'u_cand_002' || code.includes('CAND-002')) {
+    return [
+      {
+        title: "GSTR-2B and GSTR-3B Mapping",
+        desc: "Identify how purchases logged in 2B correspond to input tax credits claimed in GSTR-3B."
+      },
+      {
+        title: "ITC Eligibility Audit",
+        desc: "Review mock invoices to flag ineligible ITC claims under blocked credit sections."
+      },
+      {
+        title: "Basic Vendor Match Execution",
+        desc: "Run a simple comparison drill of purchase vouchers with vendor compliance listings."
+      }
+    ];
+  }
+
+  const chapterId = unit.chapterId || '';
+  if (chapterId.includes('gst') || chapterId.includes('tax')) {
+    return [
+      {
+        title: "Tax Legislation Matching",
+        desc: "Check local GST or Income Tax sections to ensure current tax rates are correctly applied."
+      },
+      {
+        title: "Challan and Ledger Double-Check",
+        desc: "Reconcile tax cash ledger deposits with bank transfer receipts and online challans."
+      },
+      {
+        title: "Tax Return Draft Proofing",
+        desc: "Prepare and proofread draft tax returns for compliance before forwarding to the senior tax manager."
+      }
+    ];
+  }
+
+  if (chapterId.includes('asset') || chapterId.includes('jr')) {
+    return [
+      {
+        title: "Ledger Reconciliation",
+        desc: "Reconcile general ledger balances with subsidiary ledger records or physical counts."
+      },
+      {
+        title: "Voucher and Document Check",
+        desc: "Verify that all transactions have appropriate receipts, vouchers, and authorizing signatures."
+      },
+      {
+        title: "Control Account Verification",
+        desc: "Compare control accounts with sub-ledgers and resolve discrepancies."
+      }
+    ];
+  }
+
+  return [
+    {
+      title: "Mandatory Lesson Review",
+      desc: "Analyze standardized video training modules entirely before submitting logs."
+    },
+    {
+      title: "Dual Validation",
+      desc: "Crosscheck ledger entries and business vouchers with corporate standards."
+    },
+    {
+      title: "Audit Logs",
+      desc: "Always document robust observation notes to fast-track checker verification and sign-off."
+    }
+  ];
+};
+
+
 interface UserDashboardProps {
   currentUser: UserWithRole;
   roles: Role[];
@@ -217,7 +484,6 @@ export default function UserDashboard({
   };
 
   // Synchronously update form input values when user changes active video unit
-  const [isTrackingActive, setIsTrackingActive] = useState(true);
   const [activeMediaTab, setActiveMediaTab] = useState<'pdf' | 'video'>('pdf');
 
   useEffect(() => {
@@ -225,7 +491,6 @@ export default function UserDashboard({
       const prog = getUnitProgress(selectedUnit.id);
       setSubmissionNotes(prog?.notes || '');
       setSubmittingStatus(prog?.status || 'Not Started');
-      setIsTrackingActive(true); // Auto track starts on new unit load
 
       // Set default media tab according to the rules:
       const hasPdf = !!(selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '');
@@ -239,43 +504,6 @@ export default function UserDashboard({
       }
     }
   }, [selectedUnitId]);
-
-  // Listen to YouTube Player Play/Pause events to automatically match actual watching status
-  useEffect(() => {
-    const handleYoutubeMessage = (event: MessageEvent) => {
-      if (!event.origin || typeof event.origin !== 'string' || !event.origin.includes('youtube.com')) return;
-
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (!data) return;
-
-        let playerState: number | undefined;
-
-        // Extract playerState if it is sent in infoDelivery or onStateChange format
-        if (data.event === 'infoDelivery' && data.info && typeof data.info.playerState !== 'undefined') {
-          playerState = data.info.playerState;
-        } else if (data.event === 'onStateChange' && typeof data.info !== 'undefined') {
-          playerState = data.info;
-        }
-
-        if (typeof playerState !== 'undefined') {
-          if (playerState === 1) { // 1 = Playing
-            setIsTrackingActive(true);
-          } else if (playerState === 2 || playerState === 0 || playerState === -1 || playerState === 3) {
-            // 2 = Paused, 0 = Ended, -1 = Unstarted, 3 = Buffering
-            setIsTrackingActive(false);
-          }
-        }
-      } catch (e) {
-        // Safe to ignore non-JSON or unrelated messages
-      }
-    };
-
-    window.addEventListener('message', handleYoutubeMessage);
-    return () => {
-      window.removeEventListener('message', handleYoutubeMessage);
-    };
-  }, []);
 
   // Search and frequency filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,47 +522,6 @@ export default function UserDashboard({
   const [isEditingPdf, setIsEditingPdf] = useState(false);
   const [customPdfInput, setCustomPdfInput] = useState(pdfUrl);
   const [pdfReaderCollapsed, setPdfReaderCollapsed] = useState(false);
-
-  // Automatic watch progress tracker simulation state & effect
-  const progressRef = useRef(progress);
-  
-  useEffect(() => {
-    progressRef.current = progress;
-  }, [progress]);
-
-  useEffect(() => {
-    if (!selectedUnit) return;
-    const { type } = resolveVideoSource(selectedUnit.videoUrl);
-    if (type === 'none') return; // Only run automatic tracking simulator for actual video units
-
-    if (!isTrackingActive) return; // If paused by user/simulator, do not tick progress
-
-    // Get the initial progress log
-    const getUnitLog = () => progressRef.current.find(p => p.userId === currentUser.id && p.unitId === selectedUnit.id);
-    const initialLog = getUnitLog();
-    const initialWatch = (initialLog && initialLog.status === 'Verified & Mastered') ? 100 : (initialLog?.watchPercent || 0);
-
-    if (initialWatch >= 100) return;
-
-    // Tick every 2.5 seconds to advance the progress bar
-    const interval = setInterval(() => {
-      const activeLog = getUnitLog();
-      const currentPercent = (activeLog && activeLog.status === 'Verified & Mastered') ? 100 : (activeLog?.watchPercent || 0);
-      
-      if (currentPercent < 100) {
-        const nextPercent = Math.min(currentPercent + 4, 100);
-        // Do not automatically change status to Verified & Mastered or Completed when watch ends.
-        // It stays whatever manual status has been selected (fallback to 'In Progress' if 'Not Started')
-        const nextStatus = (activeLog?.status && activeLog.status !== 'Not Started') ? activeLog.status : 'In Progress';
-        
-        onUpdateProgress(selectedUnit.id, nextStatus, activeLog?.notes || '', nextPercent);
-      } else {
-        clearInterval(interval);
-      }
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [selectedUnitId, currentUser.id, isTrackingActive]);
 
   // Helper: check if chapter is unlocked
   const checkIsChapterUnlocked = (idx: number) => {
@@ -802,109 +989,6 @@ export default function UserDashboard({
                     </div>
                   )}
                 </div>
-
-                {/* Video Stream Progress Console Tracker Widget */}
-                {type !== 'none' && (
-                  <div id="video-stream-tracker-console" className="border-t border-slate-150 bg-slate-50/70 p-4 sm:p-5 flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-150 shadow-sm">
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-mono font-bold text-slate-400 block uppercase tracking-wider">Stream Duration & Progress Engine</span>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-800">
-                            Video Watch Progress: <span className="text-emerald-600 font-mono font-black">{(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%</span>
-                          </h4>
-                          {(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100 ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-750 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase">
-                              ✓ Completed
-                            </span>
-                          ) : isTrackingActive ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full animate-pulse uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
-                              Auto-tracking active (+4%/2.5s)
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase">
-                              ⏱ Tracker Paused
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Watch Tracker switch toggle */}
-                      <div className="flex items-center gap-3 bg-slate-50 border border-slate-150 px-3 py-2 rounded-xl">
-                        <span className="text-[10px] font-bold text-slate-650 text-slate-600">🎥 Active Watch Tracker:</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={isTrackingActive} 
-                            onChange={(e) => setIsTrackingActive(e.target.checked)} 
-                            className="sr-only peer"
-                            disabled={(getUnitProgress(selectedUnit.id)?.watchPercent || 0) >= 100}
-                          />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 disabled:opacity-50"></div>
-                        </label>
-                        <span className={`text-[10px] font-mono font-bold ${isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`}>
-                          {isTrackingActive && (getUnitProgress(selectedUnit.id)?.watchPercent || 0) < 100 ? 'Active' : 'Paused'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress Slider representation */}
-                    <div className="space-y-1">
-                      <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden relative shadow-inner">
-                        <div 
-                          className="bg-gradient-to-r from-teal-500 via-emerald-505 to-emerald-600 h-full rounded-full transition-all duration-500 ease-out shadow-sm"
-                          style={{ width: `${(getUnitProgress(selectedUnit.id)?.watchPercent || 0)}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-[9px] font-mono font-bold text-slate-400">
-                        <span>0% Start</span>
-                        <span>25% Complete</span>
-                        <span>50% Mid</span>
-                        <span>75% Audit Ready</span>
-                        <span>100% Mastered</span>
-                      </div>
-                    </div>
-
-                    {/* Fast Jump Override selectors */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-150/50">
-                      <span className="text-[10px] font-bold text-slate-550 text-slate-500">Manual Segment Override:</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[0, 25, 50, 75, 100].map(pct => {
-                          const log = getUnitProgress(selectedUnit.id);
-                          const isCurrent = (log?.watchPercent || 0) === pct;
-                          return (
-                            <button
-                              key={pct}
-                              type="button"
-                              onClick={() => {
-                                const status = pct === 100 ? 'Verified & Mastered' : (log?.status || 'In Progress');
-                                onUpdateProgress(selectedUnit.id, status, log?.notes || '', pct);
-                              }}
-                              className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                                isCurrent
-                                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm font-extrabold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none'
-                              }`}
-                            >
-                              {pct}%
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div className="text-[10px] text-slate-500 bg-white border border-slate-150 rounded-xl p-3 space-y-1.5 leading-snug">
-                      <p className="font-bold text-slate-700">⏱ YouTube Video Play/Pause Auto-Sync:</p>
-                      <p>
-                        ✅ <strong>Fully Automated Tracking:</strong> The tracker is fully integrated with the video player. When you click <strong>Play</strong> on the YouTube video, the tracker starts automatically. When you <strong>Pause</strong> the video, the tracking is instantly paused to match your exact speed.
-                      </p>
-                      <p className="text-slate-455 text-[9.5px] border-t border-slate-100 pt-1.5 italic">
-                        ✅ <strong>पूरी तरह से स्वचालित ट्रैकिंग:</strong> जब आप YouTube वीडियो पर <strong>Play</strong> दबाएंगे, टाइमर अपने आप चालू हो जाएगा। वीडियो को <strong>Pause</strong> करने पर टाइमर भी रुक जाएगा ताकि सटीक प्रोग्रेस दर्ज हो सके।
-                      </p>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -1496,14 +1580,12 @@ export default function UserDashboard({
 
                   const isExpanded = expandedChapters[chap.id];
                   
-                  // Calculate chapter progress based on active watch percentage average
-                  const totalWatchPercentForChapter = chapUnits.reduce((sum, u) => {
+                  // Calculate chapter mastery percentage based on verified units
+                  const verifiedUnitsInChapter = chapUnits.filter(u => {
                     const prog = getUnitProgress(u.id);
-                    // Explicitly count 'Verified & Mastered' as 100% watched, otherwise check progress watch percent
-                    const unitWatch = (prog && prog.status === 'Verified & Mastered') ? 100 : (prog?.watchPercent || 0);
-                    return sum + unitWatch;
-                  }, 0);
-                  const chapPercent = chapUnits.length ? Math.round(totalWatchPercentForChapter / chapUnits.length) : 0;
+                    return prog && prog.status === 'Verified & Mastered';
+                  }).length;
+                  const chapMasteryPercent = chapUnits.length ? Math.round((verifiedUnitsInChapter / chapUnits.length) * 100) : 0;
                   const isUnlocked = checkIsChapterUnlocked(chapIdx);
 
                   // Cycle through nice sidebar icons for each chapter category
@@ -1546,7 +1628,7 @@ export default function UserDashboard({
                             </h4>
                             {isUnlocked && (
                               <span className="text-[9px] font-mono text-emerald-700 font-bold block mt-0.5 leading-none">
-                                {chapPercent}% Core Mastery · {chapUnits.length} tasks
+                                {chapMasteryPercent}% Mastered · {chapUnits.length} tasks
                               </span>
                             )}
                           </div>
@@ -1626,13 +1708,6 @@ export default function UserDashboard({
                                         <h5 className="text-[11px] font-bold leading-snug truncate">
                                           {unit.taskName}
                                         </h5>
-                                        {prog?.watchPercent && prog.watchPercent > 0 ? (
-                                          <span className={`text-[9px] font-mono font-bold block mt-0.5 ${
-                                            isSelected ? 'text-emerald-800' : 'text-emerald-600'
-                                          }`}>
-                                            🎥 Watched {prog.watchPercent}%
-                                          </span>
-                                        ) : null}
                                       </div>
                                     </div>
 
@@ -1703,13 +1778,8 @@ export default function UserDashboard({
                  <span className="text-xs font-mono font-bold text-emerald-700">{stats.verifiedCount} / {stats.totalUnits}</span>
                </div>
                <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
-                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Stream Watched</span>
-                 <span className="text-xs font-mono font-bold text-blue-600">
-                   {userUnits.length ? Math.round(userUnits.reduce((sum, u) => {
-                     const p = getUnitProgress(u.id);
-                     return sum + ((p && p.status === 'Verified & Mastered') ? 100 : (p?.watchPercent || 0));
-                   }, 0) / userUnits.length) : 0}%
-                 </span>
+                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Pending Review</span>
+                 <span className="text-xs font-mono font-bold text-amber-600">{stats.completedCount}</span>
                </div>
              </div>
           </div>
@@ -1778,33 +1848,25 @@ export default function UserDashboard({
               {/* SOP Checklist Card Wrapper */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
 
-                {/* SOP Best Practices Block (Interactive Checklist) */}
+                {/* SOP Best Practices Block (Interactive Checklist - Unit & Chapter Wise) */}
                 <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/25">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
-                    <h4 className="text-[9px] sm:text-[10.5px] font-mono font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                      Essential Best Practices & SOP Checklist
-                    </h4>
-                    <span className="text-[8.5px] font-sans font-semibold text-slate-400 italic">
-                      (Click items to complete standard audit checklist)
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3.5 pb-2.5 border-b border-slate-100">
+                    <div className="space-y-1 text-left">
+                      <div className="flex items-center gap-1.5 text-[8.5px] font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-widest w-fit">
+                        Chapter: {chapters.find(c => c.id === selectedUnit.chapterId)?.name || 'General Training'}
+                      </div>
+                      <h4 className="text-[10.5px] font-sans font-bold text-slate-900 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-emerald-600" />
+                        Unit {selectedUnit.code} SOP & Best Practices Checklist
+                      </h4>
+                    </div>
+                    <span className="text-[8.5px] font-sans font-semibold text-slate-400 italic shrink-0 self-end sm:self-auto">
+                      (Complete unit-specific audit items before sign-off)
                     </span>
                   </div>
                   
                   <ul className="text-xs text-slate-600 space-y-2">
-                    {[
-                      {
-                        title: "Mandatory Lesson Review",
-                        desc: "Analyze standardized video training modules entirely before submitting logs."
-                      },
-                      {
-                        title: "Dual Validation",
-                        desc: "Crosscheck ledger entries and business vouchers with corporate standards."
-                      },
-                      {
-                        title: "Audit Logs",
-                        desc: "Always document robust observation notes to fast-track checker verification and sign-off."
-                      }
-                    ].map((item, index) => {
+                    {getSopItemsForUnit(selectedUnit).map((item, index) => {
                       const isItemChecked = getSopStatus(selectedUnit.id)[index];
                       return (
                         <li 
@@ -1823,7 +1885,7 @@ export default function UserDashboard({
                           }`}>
                             <span className="text-[10px] font-black">✓</span>
                           </span>
-                          <span className="flex-1 text-[11px] sm:text-xs">
+                          <span className="flex-1 text-[11px] sm:text-xs text-left">
                             <strong className={`font-bold font-sans transition-colors ${isItemChecked ? 'text-emerald-800' : 'text-slate-800'}`}>
                               {item.title}:
                             </strong>{" "}

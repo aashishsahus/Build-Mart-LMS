@@ -55,6 +55,7 @@ export interface Unit {
   videoUrl: string; // YouTube Embed or Vimeo or placeholder link
   pdfUrl?: string; // Optional PDF Link for this Unit SKU
   description: string;
+  sopItems?: { title: string; desc: string; }[];
 }
 
 export type ProgressStatus = 'Not Started' | 'In Progress' | 'Completed (Pending Review)' | 'Verified & Mastered';
