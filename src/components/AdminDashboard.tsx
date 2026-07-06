@@ -803,6 +803,7 @@ export default function AdminDashboard({
   const [editUserIsSuperAdmin, setEditUserIsSuperAdmin] = useState(false);
   const [editUserPermissions, setEditUserPermissions] = useState<string[]>([]);
   const [editUserMobile, setEditUserMobile] = useState('');
+  const [editUserReportsTo, setEditUserReportsTo] = useState('');
 
   // Multi-Select & Bulk Edit States
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -838,6 +839,7 @@ export default function AdminDashboard({
   const [newUserIsSuperAdmin, setNewUserIsSuperAdmin] = useState(false);
   const [newUserPermissions, setNewUserPermissions] = useState<string[]>([]);
   const [newUserMobile, setNewUserMobile] = useState('');
+  const [newUserReportsTo, setNewUserReportsTo] = useState('');
   
   // 1. Roles & Permissions Sub-Tab & Matrix States
   const [rolesSubTab, setRolesSubTab] = useState<'matrix' | 'list' | 'add'>('matrix');
@@ -1236,7 +1238,8 @@ export default function AdminDashboard({
           isAdmin: editUserIsAdmin,
           isSuperAdmin: editUserIsSuperAdmin,
           permissions: editUserIsAdmin ? editUserPermissions : [],
-          mobile: editUserMobile.trim()
+          mobile: editUserMobile.trim(),
+          reportsTo: editUserReportsTo || undefined
         };
       }
       return u;
@@ -1279,7 +1282,8 @@ export default function AdminDashboard({
       isAdmin: newUserIsAdmin,
       isSuperAdmin: newUserIsSuperAdmin,
       permissions: newUserIsAdmin ? newUserPermissions : [],
-      mobile: newUserMobile.trim()
+      mobile: newUserMobile.trim(),
+      reportsTo: newUserReportsTo || undefined
     };
 
     onUpdateUsers([...users, newUserObj]);
@@ -1298,6 +1302,7 @@ export default function AdminDashboard({
     setNewUserIsSuperAdmin(false);
     setNewUserPermissions([]);
     setNewUserMobile('');
+    setNewUserReportsTo('');
     setIsAddingUser(false);
     showToast(`✓ Registered "${newUserObj.name}" with password into the enterprise directory!`, 'success');
   };
@@ -4941,7 +4946,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Assigned Department</label>
                   <select
@@ -5037,6 +5042,25 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     <option value="Active">🟢 Active (Staff)</option>
                     <option value="Deactivated">🔴 Deactivated (Suspend)</option>
                     <option value="Left">⚪ Left / Resigned (Offboarded)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Reports To (Manager)</label>
+                  <select
+                    value={newUserReportsTo}
+                    onChange={(e) => setNewUserReportsTo(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 pr-8 focus:border-emerald-500 text-slate-800 font-sans font-medium outline-none text-xs font-bold cursor-pointer"
+                  >
+                    <option value="">Director Rathi (Absolute Top)</option>
+                    {users
+                      .filter(u => !u.isSuperAdmin)
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
               </div>
@@ -5814,7 +5838,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     const stableDescription = item.isSuperAdmin ? "Super administrator privilege" : item.isAdmin ? "Department administrator privilege" : `${item.department || "Rathi Group"} core employee profile`;
                     const stableDesignation = roleObj?.name || 'Trainee associate';
                     const stableEmailSignature = item.isSuperAdmin ? "Directorship Core" : `${item.department || "Operations"} Executive`;
-                    const stableReportTo = item.isSuperAdmin ? "NA" : "Director Rathi";
+                    const stableReportTo = (() => {
+                      if (item.isSuperAdmin) return "NA";
+                      const parentUser = users.find(u => u.id === item.reportsTo);
+                      return parentUser ? parentUser.name : "Director Rathi";
+                    })();
 
                     if (isEditing) {
                       return (
@@ -5964,7 +5992,25 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             <td className="border-r border-slate-200 py-2.5 px-3 text-slate-400 font-mono text-[10px]">{stableEmailSignature}</td>
                           )}
                           {userTableVisibleCols.includes('REPORT_TO') && (
-                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-700 font-bold">{stableReportTo}</td>
+                            <td className="border-r border-slate-200 py-2.5 px-3 min-w-[150px]">
+                              {item.isSuperAdmin ? (
+                                <span className="text-slate-400 font-bold font-mono">NA</span>
+                              ) : (
+                                <select
+                                  value={editUserReportsTo}
+                                  onChange={(e) => setEditUserReportsTo(e.target.value)}
+                                  className="bg-white border border-slate-300 rounded px-1.5 py-1 text-[11px] w-full font-bold text-slate-850 focus:border-emerald-500 outline-none cursor-pointer"
+                                >
+                                  <option value="">Director Rathi (Absolute Top)</option>
+                                  {users
+                                    .filter(u => u.id !== item.id && !u.isSuperAdmin)
+                                    .map(u => (
+                                      <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))
+                                  }
+                                </select>
+                              )}
+                            </td>
                           )}
                           {userTableVisibleCols.includes('PATH_MET') && (
                             <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-extrabold text-indigo-600 bg-slate-50/50">{stats.overallPercent}%</td>
@@ -6171,6 +6217,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                         setEditUserIsSuperAdmin(!!item.isSuperAdmin);
                                         setEditUserPermissions(item.permissions || []);
                                         setEditUserMobile(item.mobile || '');
+                                        setEditUserReportsTo(item.reportsTo || '');
                                       }}
                                       className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-2.5 py-1 rounded shadow-3xs transition hover:scale-[1.02] cursor-pointer flex items-center gap-1 text-[10px] uppercase font-mono tracking-wide whitespace-nowrap"
                                       title="Edit Trainee Inline"
@@ -6212,6 +6259,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                                 setEditUserIsSuperAdmin(!!item.isSuperAdmin);
                                                 setEditUserPermissions(item.permissions || []);
                                                 setEditUserMobile(item.mobile || '');
+                                                setEditUserReportsTo(item.reportsTo || '');
                                               }}
                                               className="w-full text-left font-bold text-slate-700 hover:text-indigo-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                                             >

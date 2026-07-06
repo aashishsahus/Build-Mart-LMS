@@ -1055,8 +1055,8 @@ export default function UserDashboard({
         </AnimatePresence>
 
         {/* Modern, Highly Compact Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-3 pb-2.5 border-b border-slate-200/80">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-slate-200/80">
+          <div className="shrink-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h1 className="font-display text-base sm:text-lg lg:text-xl font-black text-slate-900 tracking-tight leading-none">
@@ -1074,7 +1074,78 @@ export default function UserDashboard({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 select-none">
+          {/* Unified Compact Scorecard Row aligned next to user details on the left */}
+          <div className="flex flex-wrap items-center gap-2 flex-grow justify-start lg:justify-start lg:ml-5 lg:pl-5 lg:border-l lg:border-slate-200/80">
+            {/* 1. Mastery Rate */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-emerald-200 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-emerald-50 text-emerald-600 rounded-md shrink-0">
+                <Award className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERY</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.masteryPercent}%</div>
+              </div>
+            </div>
+
+            {/* 2. Overall Progress */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-indigo-200 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-indigo-50 text-indigo-600 rounded-md shrink-0">
+                <BookOpen className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PROGRESS</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.overallPercent}%</div>
+              </div>
+            </div>
+
+            {/* 3. Mastered Units */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-teal-200 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-teal-50 text-teal-600 rounded-md shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERED</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">
+                  {stats.verifiedCount}<span className="text-[9px] text-slate-450 font-semibold">/{stats.totalUnits}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Pending Review */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-amber-200 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-amber-50 text-amber-600 rounded-md shrink-0">
+                <Clock className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PENDING</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.completedCount}</div>
+              </div>
+            </div>
+
+            {/* 5. In Progress */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-cyan-200 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-cyan-50 text-cyan-600 rounded-md shrink-0">
+                <Play className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">ACTIVE</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.inProgressCount}</div>
+              </div>
+            </div>
+
+            {/* 6. Not Started */}
+            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-slate-300 hover:shadow-2xs h-9.5">
+              <span className="p-1 bg-slate-50 text-slate-500 rounded-md shrink-0">
+                <HelpCircle className="w-3.5 h-3.5" />
+              </span>
+              <div className="leading-tight">
+                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">LEFT</div>
+                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.notStartedCount}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 select-none lg:self-center self-end">
             {/* Advanced Interactive Notification Center */}
             <div className="relative">
               <button
@@ -1273,66 +1344,45 @@ export default function UserDashboard({
                     transition={{ duration: 0.15 }}
                     className="overflow-hidden border-t border-slate-100 mt-1.5 pt-2 space-y-2.5"
                   >
-                    {/* Switcher & Syllabus Circular Progress inside a 2-column flexbox to save height */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-stretch">
-                      
-                      {/* Left: Role Switcher */}
-                      <div className={`p-2 bg-slate-50/50 border border-slate-150 rounded-lg flex flex-col justify-center ${assignedRoleIds.length > 1 ? 'md:col-span-8' : 'md:col-span-12'}`}>
-                        <div className="flex items-center gap-1 text-[7.5px] uppercase tracking-wider font-mono font-black text-indigo-650">
-                          <span>🔄 CUSTOM MULTI-ROLE HUB SWITCHER</span>
-                        </div>
-                        {assignedRoleIds.length > 1 ? (
-                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                    {/* Unified Multi-Role Switcher Bar */}
+                    <div className="p-2 bg-slate-50/50 border border-slate-150 rounded-lg flex flex-col justify-center w-full">
+                      <div className="flex items-center gap-1 text-[7.5px] uppercase tracking-wider font-mono font-black text-indigo-650">
+                        <span>🔄 CUSTOM MULTI-ROLE HUB SWITCHER</span>
+                      </div>
+                      {assignedRoleIds.length > 1 ? (
+                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                          <button
+                            onClick={() => setActiveRoleView('all')}
+                            className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition duration-150 border cursor-pointer ${
+                              activeRoleView === 'all'
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-3xs'
+                                : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            All Roles Combined 🌐
+                          </button>
+                          {assignedRoles.map((role) => (
                             <button
-                              onClick={() => setActiveRoleView('all')}
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition duration-150 border cursor-pointer ${
-                                activeRoleView === 'all'
-                                  ? 'bg-slate-900 text-white border-slate-900'
-                                  : 'bg-white hover:bg-slate-100 text-slate-655 border-slate-200'
+                              key={role.id}
+                              onClick={() => setActiveRoleView(role.id)}
+                              className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition duration-150 border cursor-pointer ${
+                                activeRoleView === role.id
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-3xs'
+                                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                               }`}
                             >
-                              All Roles Combined 🌐
+                              {role.name}
                             </button>
-                            {assignedRoles.map((role) => (
-                              <button
-                                key={role.id}
-                                onClick={() => setActiveRoleView(role.id)}
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold transition duration-150 border cursor-pointer ${
-                                  activeRoleView === role.id
-                                    ? 'bg-emerald-650 bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white hover:bg-slate-100 text-slate-655 border-slate-200'
-                                }`}
-                              >
-                                {role.name}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            Standard Assigned Profile: <strong className="text-slate-850 text-slate-800">{userRole?.name || 'Trainee'}</strong>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Right: Circular Progress */}
-                      {assignedRoleIds.length > 1 && (
-                        <div className="md:col-span-4 bg-white border border-slate-150 rounded-lg p-2 flex items-center gap-2 justify-center">
-                          <div className="relative flex items-center justify-center shrink-0">
-                            <svg className="w-8 h-8 transform -rotate-90">
-                              <circle cx="16" cy="16" r="12" className="stroke-slate-100" strokeWidth="2.5" fill="transparent" />
-                              <circle cx="16" cy="16" r="12" className="stroke-emerald-500 transition-all duration-500" strokeWidth="2.5" fill="transparent" strokeDasharray={2 * Math.PI * 12} strokeDashoffset={2 * Math.PI * 12 * (1 - stats.overallPercent / 100)} strokeLinecap="round" />
-                            </svg>
-                            <span className="absolute text-[8px] font-mono font-black text-slate-900">
-                              {stats.overallPercent}%
-                            </span>
-                          </div>
-                          <div className="text-left leading-none">
-                            <h4 className="text-[7px] font-black uppercase tracking-wider text-slate-400">SYLLABUS PROGRESS</h4>
-                            <p className="text-[9px] font-bold text-slate-700 mt-0.5">Mastery: {stats.masteryPercent}%</p>
-                          </div>
+                          ))}
                         </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Standard Assigned Profile: <strong className="text-slate-800">{userRole?.name || 'Trainee'}</strong>
+                        </p>
                       )}
                     </div>
+
+                    {/* Switcher details display inside console */}
 
                     {/* Analytics Insights (3 small cards) */}
                     {(() => {

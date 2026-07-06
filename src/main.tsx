@@ -71,18 +71,26 @@ if (typeof window !== 'undefined') {
   }, true);
 
   window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason) {
-      const reasonStr = String(event.reason.message || event.reason.stack || event.reason);
-      const lower = reasonStr.toLowerCase();
+    try {
+      const reason = event.reason;
+      const reasonStr = reason 
+        ? String(reason.message || reason.stack || reason) 
+        : '';
+      const eventStr = String(event) + ' ' + (event.promise ? String(event.promise) : '');
+      const combined = (reasonStr + ' ' + eventStr).toLowerCase();
+      
       if (
-        lower.includes('script error') ||
-        lower.includes('websocket') ||
-        lower.includes('failed to connect') ||
-        lower.includes('closed without opened')
+        combined.includes('websocket') ||
+        combined.includes('failed to connect') ||
+        combined.includes('closed without opened') ||
+        combined.includes('script error')
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
+        return;
       }
+    } catch {
+      // ignore
     }
   }, true);
 }
