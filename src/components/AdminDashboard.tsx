@@ -399,7 +399,7 @@ export default function AdminDashboard({
   // Enterprise Grid Table State variables
   const [userTableIsFullscreen, setUserTableIsFullscreen] = useState<boolean>(false);
   const [userTableVisibleCols, setUserTableVisibleCols] = useState<string[]>([
-    'SN', 'USER', 'EMAIL', 'ROLES', 'LAST_LOGIN', 'STATUS', 'MOBILE', 'ADMIN', 'EMPLOYEE_ID', 'DESCRIPTION', 'DESIGNATION', 'EMAIL_SIGNATURE', 'REPORT_TO'
+    'SN', 'USER', 'EMAIL', 'ROLES', 'LAST_LOGIN', 'STATUS', 'MOBILE', 'ADMIN', 'EMPLOYEE_ID', 'DESCRIPTION', 'DESIGNATION', 'EMAIL_SIGNATURE', 'REPORT_TO', 'CONTROL'
   ]);
   const [userTableColDropdownOpen, setUserTableColDropdownOpen] = useState<boolean>(false);
   const [userTableRowMenuOpenId, setUserTableRowMenuOpenId] = useState<string | null>(null);
@@ -802,6 +802,26 @@ export default function AdminDashboard({
   const [editUserIsAdmin, setEditUserIsAdmin] = useState(false);
   const [editUserIsSuperAdmin, setEditUserIsSuperAdmin] = useState(false);
   const [editUserPermissions, setEditUserPermissions] = useState<string[]>([]);
+  const [editUserMobile, setEditUserMobile] = useState('');
+
+  // Multi-Select & Bulk Edit States
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkEditRole, setBulkEditRole] = useState('');
+  const [bulkEditRoles, setBulkEditRoles] = useState<string[]>([]);
+  const [bulkEditDept, setBulkEditDept] = useState('');
+  const [bulkEditFocus, setBulkEditFocus] = useState('Rathi Buildmart Head Office');
+  const [bulkEditStatus, setBulkEditStatus] = useState<'Active' | 'Deactivated' | 'Left'>('Active');
+  const [bulkEditIsAdmin, setBulkEditIsAdmin] = useState(false);
+  const [bulkEditIsSuperAdmin, setBulkEditIsSuperAdmin] = useState(false);
+
+  // Field toggles so they can selectively apply changes (only check field box to update it)
+  const [bulkUpdateRole, setBulkUpdateRole] = useState(false);
+  const [bulkUpdateRoles, setBulkUpdateRoles] = useState(false);
+  const [bulkUpdateDept, setBulkUpdateDept] = useState(false);
+  const [bulkUpdateFocus, setBulkUpdateFocus] = useState(false);
+  const [bulkUpdateStatus, setBulkUpdateStatus] = useState(false);
+  const [bulkUpdateIsAdmin, setBulkUpdateIsAdmin] = useState(false);
 
   // Trainee Registration State (Add User)
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -817,6 +837,7 @@ export default function AdminDashboard({
   const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
   const [newUserIsSuperAdmin, setNewUserIsSuperAdmin] = useState(false);
   const [newUserPermissions, setNewUserPermissions] = useState<string[]>([]);
+  const [newUserMobile, setNewUserMobile] = useState('');
   
   // 1. Roles & Permissions Sub-Tab & Matrix States
   const [rolesSubTab, setRolesSubTab] = useState<'matrix' | 'list' | 'add'>('matrix');
@@ -1214,7 +1235,8 @@ export default function AdminDashboard({
           status: editUserStatus,
           isAdmin: editUserIsAdmin,
           isSuperAdmin: editUserIsSuperAdmin,
-          permissions: editUserIsAdmin ? editUserPermissions : []
+          permissions: editUserIsAdmin ? editUserPermissions : [],
+          mobile: editUserMobile.trim()
         };
       }
       return u;
@@ -1256,7 +1278,8 @@ export default function AdminDashboard({
       status: newUserStatus,
       isAdmin: newUserIsAdmin,
       isSuperAdmin: newUserIsSuperAdmin,
-      permissions: newUserIsAdmin ? newUserPermissions : []
+      permissions: newUserIsAdmin ? newUserPermissions : [],
+      mobile: newUserMobile.trim()
     };
 
     onUpdateUsers([...users, newUserObj]);
@@ -1274,6 +1297,7 @@ export default function AdminDashboard({
     setNewUserIsAdmin(false);
     setNewUserIsSuperAdmin(false);
     setNewUserPermissions([]);
+    setNewUserMobile('');
     setIsAddingUser(false);
     showToast(`✓ Registered "${newUserObj.name}" with password into the enterprise directory!`, 'success');
   };
@@ -1291,6 +1315,81 @@ export default function AdminDashboard({
     onUpdateProgress(progress.filter(p => p.userId !== userId));
     showToast(`✓ Successfully offboarded and deleted employee "${userName}".`, 'success');
     setConfirmDeleteUserId(null);
+  };
+
+  const handleBulkEditSave = () => {
+    if (!hasPermission('perm_user_edt')) {
+      showToast("🔒 Permission Denied: Your designation has not been granted 'Edit Trainee Profile' permission in the Permissions Matrix!", "error");
+      return;
+    }
+    if (selectedUserIds.length === 0) {
+      showToast("No trainees selected for bulk edit", "error");
+      return;
+    }
+
+    const updated = users.map(u => {
+      if (selectedUserIds.includes(u.id)) {
+        const updatedUser = { ...u };
+        if (bulkUpdateRole) {
+          updatedUser.roleId = bulkEditRole;
+          const otherRoles = (updatedUser.roleIds || []).filter(rId => rId !== u.roleId && rId !== bulkEditRole);
+          updatedUser.roleIds = Array.from(new Set([bulkEditRole, ...otherRoles]));
+        }
+        if (bulkUpdateRoles) {
+          const currentPrimary = bulkUpdateRole ? bulkEditRole : u.roleId;
+          const otherRoles = bulkEditRoles.filter(rId => rId !== currentPrimary);
+          updatedUser.roleIds = Array.from(new Set([currentPrimary, ...otherRoles]));
+        }
+        if (bulkUpdateDept) {
+          updatedUser.department = bulkEditDept;
+        }
+        if (bulkUpdateFocus) {
+          updatedUser.focusEntity = bulkEditFocus;
+        }
+        if (bulkUpdateStatus) {
+          updatedUser.status = bulkEditStatus;
+        }
+        if (bulkUpdateIsAdmin) {
+          updatedUser.isAdmin = bulkEditIsAdmin;
+          updatedUser.isSuperAdmin = bulkEditIsSuperAdmin;
+          if (bulkEditIsAdmin) {
+            updatedUser.permissions = u.permissions || [];
+          } else {
+            updatedUser.permissions = [];
+          }
+        }
+        return updatedUser;
+      }
+      return u;
+    });
+
+    onUpdateUsers(updated);
+    setSelectedUserIds([]);
+    setIsBulkEditOpen(false);
+    showToast(`✓ Bulk updated ${selectedUserIds.length} trainees successfully!`, 'success');
+  };
+
+  const handleBulkDelete = () => {
+    if (!hasPermission('perm_user_del')) {
+      showToast("🔒 Permission Denied: Your designation has not been granted 'Delete Trainee Profile' permission!", "error");
+      return;
+    }
+    if (selectedUserIds.length === 0) return;
+    
+    // Check if current user is in selection
+    if (selectedUserIds.includes(currentUser.id)) {
+      showToast("Error: You cannot delete your own logged-in administrator account in bulk operations!", 'error');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to offboard/delete the ${selectedUserIds.length} selected trainees? This action cannot be undone.`)) {
+      const updated = users.filter(u => !selectedUserIds.includes(u.id));
+      onUpdateUsers(updated);
+      // Also clean up progress records
+      onUpdateProgress(progress.filter(p => !selectedUserIds.includes(p.userId)));
+      setSelectedUserIds([]);
+      showToast(`✓ Successfully offboarded and deleted ${selectedUserIds.length} selected trainees.`, 'success');
+    }
   };
 
   const handleResetUserMastery = (userId: string, userName: string) => {
@@ -4795,7 +4894,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </span>
                 <span className="text-[10px] text-slate-500 italic">Fields entered will write permanently to client-side localStorage</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Employee Full Name *</label>
                   <input
@@ -4815,6 +4914,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     placeholder="e.g. misrpr@rathibuildmart.com"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono mb-1">Mobile / Phone No</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 9876543210"
+                    value={newUserMobile}
+                    onChange={(e) => setNewUserMobile(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs"
                   />
                 </div>
@@ -5262,7 +5371,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                disabled={col.id === 'USER' || col.id === 'CONTROL'}
+                                disabled={col.id === 'USER'}
                                 onChange={() => {
                                   if (isChecked) {
                                     setUserTableVisibleCols(prev => prev.filter(id => id !== col.id));
@@ -5315,8 +5424,314 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </div>
 
-          {/* SPREADSHEET TABLE WORKSPACE */}
-          <div className={`overflow-x-auto select-none border border-slate-200 rounded-b-xl bg-slate-50/20 shadow-3xs max-h-[720px] overflow-y-auto scrollbar-thin relative ${userTableIsFullscreen ? 'fixed inset-4 sm:inset-10 z-50 bg-white rounded-2xl border-slate-300 p-6 flex flex-col justify-between max-h-none shadow-2xl animate-in zoom-in-95 duration-200' : ''}`}>
+          {/* Dynamic Bulk Action Floating Banner (Hidden to prioritize clean, single inline editing) */}
+          {false && selectedUserIds.length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 text-xs font-sans text-left shadow-2xs animate-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center justify-center bg-indigo-600 text-white rounded-full w-5.5 h-5.5 font-mono text-[10px] font-black shadow-sm shrink-0 animate-bounce">
+                  {selectedUserIds.length}
+                </span>
+                <div>
+                  <span className="font-extrabold text-indigo-900 block leading-tight text-xs sm:text-[13px]">
+                    Trainees selected for batch actions
+                  </span>
+                  <span className="text-[10px] text-indigo-500 italic block mt-0.5 animate-pulse">
+                    Click 'Bulk Edit Selected' to perform selective multi-record updates concurrently.
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkEditRole(roles && roles.length > 0 ? roles[0].id : '');
+                    setBulkEditRoles([]);
+                    setBulkEditDept(departments && departments.length > 0 ? departments[0] : '');
+                    setBulkEditFocus('Rathi Buildmart Head Office');
+                    setBulkEditStatus('Active');
+                    setBulkEditIsAdmin(false);
+                    setBulkEditIsSuperAdmin(false);
+                    setBulkUpdateRole(false);
+                    setBulkUpdateRoles(false);
+                    setBulkUpdateDept(false);
+                    setBulkUpdateFocus(false);
+                    setBulkUpdateStatus(false);
+                    setBulkUpdateIsAdmin(false);
+                    
+                    setIsBulkEditOpen(true);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer text-xs uppercase tracking-wider font-mono"
+                >
+                  📝 Bulk Edit Selected
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold px-3 py-2 rounded-lg transition cursor-pointer text-xs uppercase tracking-wider font-mono"
+                >
+                  🗑️ Delete Selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserIds([])}
+                  className="text-slate-500 hover:text-slate-700 font-bold px-3 py-2 rounded-lg transition cursor-pointer text-xs font-mono"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bulk Edit Modal */}
+          <AnimatePresence>
+            {isBulkEditOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsBulkEditOpen(false)}
+                  className="fixed inset-0"
+                />
+
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                  transition={{ type: 'spring', duration: 0.3 }}
+                  className="relative bg-white text-slate-800 rounded-3xl border border-slate-200 shadow-2xl p-6 md:p-8 w-full max-w-lg z-10 my-8 max-h-[90vh] overflow-y-auto text-left"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkEditOpen(false)}
+                    className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition cursor-pointer"
+                    title="Close Modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2 mb-1 font-display">
+                    <span>📝 Bulk Edit Trainees</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mb-6 font-sans">
+                    Updating <span className="font-bold text-indigo-600">{selectedUserIds.length} selected trainees</span> at once. Check the fields you want to update to make the change.
+                  </p>
+
+                  <div className="space-y-4 text-xs font-sans">
+                    {/* 1. Primary Curriculum Role */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateRole}
+                          onChange={(e) => {
+                            setBulkUpdateRole(e.target.checked);
+                            if (e.target.checked && !bulkEditRole && roles.length > 0) {
+                              setBulkEditRole(roles[0].id);
+                            }
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Primary Curriculum Role</span>
+                      </label>
+                      {bulkUpdateRole && (
+                        <select
+                          value={bulkEditRole}
+                          onChange={(e) => setBulkEditRole(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 outline-none text-xs"
+                        >
+                          {roles.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* 2. Secondary/Other Assignments */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateRoles}
+                          onChange={(e) => setBulkUpdateRoles(e.target.checked)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Secondary Assignments</span>
+                      </label>
+                      {bulkUpdateRoles && (
+                        <div className="max-h-32 overflow-y-auto p-2 bg-white border border-slate-200 rounded space-y-1.5">
+                          {roles.map((r) => {
+                            if (bulkUpdateRole && r.id === bulkEditRole) return null;
+                            const isChecked = bulkEditRoles.includes(r.id);
+                            return (
+                              <label key={r.id} className="flex items-center gap-2 text-slate-700 font-medium select-none cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setBulkEditRoles(prev => prev.filter(id => id !== r.id));
+                                    } else {
+                                      setBulkEditRoles(prev => [...prev, r.id]);
+                                    }
+                                  }}
+                                  className="rounded text-indigo-600 border-slate-300 w-3 h-3 cursor-pointer"
+                                />
+                                <span>{r.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Division/Department */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateDept}
+                          onChange={(e) => {
+                            setBulkUpdateDept(e.target.checked);
+                            if (e.target.checked && !bulkEditDept && departments.length > 0) {
+                              setBulkEditDept(departments[0]);
+                            }
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Division / Department</span>
+                      </label>
+                      {bulkUpdateDept && (
+                        <select
+                          value={bulkEditDept}
+                          onChange={(e) => setBulkEditDept(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 outline-none text-xs"
+                        >
+                          {departments.map((dept) => (
+                            <option key={dept} value={dept}>{dept}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* 4. Branch / Location Focus */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateFocus}
+                          onChange={(e) => setBulkUpdateFocus(e.target.checked)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Branch / Location Focus</span>
+                      </label>
+                      {bulkUpdateFocus && (
+                        <input
+                          type="text"
+                          value={bulkEditFocus}
+                          onChange={(e) => setBulkEditFocus(e.target.value)}
+                          placeholder="e.g. Rathi Buildmart Head Office"
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 outline-none text-xs focus:border-indigo-500"
+                        />
+                      )}
+                    </div>
+
+                    {/* 5. Status */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateStatus}
+                          onChange={(e) => setBulkUpdateStatus(e.target.checked)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Status</span>
+                      </label>
+                      {bulkUpdateStatus && (
+                        <select
+                          value={bulkEditStatus}
+                          onChange={(e) => setBulkEditStatus(e.target.value as any)}
+                          className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-slate-800 outline-none text-xs"
+                        >
+                          <option value="Active">🟢 Active</option>
+                          <option value="Deactivated">🔴 Deactivated</option>
+                          <option value="Left">⚪ Left</option>
+                        </select>
+                      )}
+                    </div>
+
+                    {/* 6. Admin Roles */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={bulkUpdateIsAdmin}
+                          onChange={(e) => setBulkUpdateIsAdmin(e.target.checked)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Update Security/Admin Privilege</span>
+                      </label>
+                      {bulkUpdateIsAdmin && (
+                        <div className="flex gap-4 p-1">
+                          <label className="flex items-center gap-1.5 text-slate-700 font-bold select-none cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={bulkEditIsAdmin}
+                              disabled={!currentUser.isSuperAdmin}
+                              onChange={(e) => {
+                                setBulkEditIsAdmin(e.target.checked);
+                                if (e.target.checked) setBulkEditIsSuperAdmin(false);
+                              }}
+                              className="rounded text-emerald-600 focus:ring-emerald-505 border-slate-300 w-3.5 h-3.5 cursor-pointer disabled:opacity-50"
+                            />
+                            <span>Is Admin</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 text-slate-700 font-bold select-none cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={bulkEditIsSuperAdmin}
+                              disabled={!currentUser.isSuperAdmin}
+                              onChange={(e) => {
+                                setBulkEditIsSuperAdmin(e.target.checked);
+                                if (e.target.checked) setBulkEditIsAdmin(false);
+                              }}
+                              className="rounded text-indigo-600 focus:ring-indigo-505 border-slate-300 w-3.5 h-3.5 cursor-pointer disabled:opacity-50"
+                            />
+                            <span>Super Admin</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-2.5 mt-8 pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setIsBulkEditOpen(false)}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkEditSave}
+                      disabled={!bulkUpdateRole && !bulkUpdateRoles && !bulkUpdateDept && !bulkUpdateFocus && !bulkUpdateStatus && !bulkUpdateIsAdmin}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-xl text-xs font-black transition cursor-pointer shadow-sm"
+                    >
+                      Save Bulk Changes
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* SPREADSHEET WORKSPACE WRAPPER */}
+          {userTableIsFullscreen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-45" onClick={() => setUserTableIsFullscreen(false)} />
+          )}
+          <div className={userTableIsFullscreen ? "fixed inset-4 sm:inset-10 z-50 bg-white rounded-2xl border border-slate-300 p-6 flex flex-col justify-between shadow-2xl animate-in zoom-in-95 duration-200 text-left" : ""}>
             {userTableIsFullscreen && (
               <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4 shrink-0 text-left">
                 <div>
@@ -5336,6 +5751,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </button>
               </div>
             )}
+
+            {/* SPREADSHEET TABLE WORKSPACE */}
+            <div className={`select-none border border-slate-200 bg-slate-50/20 shadow-3xs relative ${userTableIsFullscreen ? 'flex-1 overflow-auto rounded-xl border-slate-300 bg-white' : 'overflow-x-auto overflow-y-auto rounded-b-xl max-h-[720px] scrollbar-thin'}`}>
 
             {userTableIsRefreshing ? (
               <div className="flex flex-col gap-3 p-12 animate-pulse w-full bg-white">
@@ -5367,7 +5785,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     {userTableVisibleCols.includes('REPORT_TO') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800">REPORT TO</th>}
                     {userTableVisibleCols.includes('PATH_MET') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24">PATH MET</th>}
                     {userTableVisibleCols.includes('MASTERY_MET') && <th className="bg-slate-100 border-r border-slate-300 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24">MASTERY MET</th>}
-                    {userTableVisibleCols.includes('CONTROL') && <th className="bg-slate-100 py-2.5 px-3 font-bold select-none text-slate-800 text-center w-24 sticky right-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ACTIONS</th>}
+                    {userTableVisibleCols.includes('CONTROL') && <th className="bg-slate-100 py-2.5 px-3 font-bold select-none text-slate-800 text-center min-w-[150px] sticky right-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ACTIONS</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -5385,12 +5803,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       return `05:${Math.abs(hash >> 2) % 60} PM, 0${day} Jul 2026`;
                     })();
 
-                    const stableMobile = (() => {
-                      let hash = 0;
-                      for (let i = 0; i < item.email.length; i++) hash = item.email.charCodeAt(i) + ((hash << 5) - hash);
-                      const end = Math.abs(hash % 1000000).toString().padStart(6, '8');
-                      return `8518${end}`;
-                    })();
+                    const stableMobile = item.mobile || "—";
 
                     const stableEmployeeId = (() => {
                       let hash = 0;
@@ -5495,8 +5908,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               </select>
                             </td>
                           )}
-                          {userTableVisibleCols.includes('MOBILE') && (
-                            <td className="border-r border-slate-200 py-2.5 px-3 text-slate-500 font-mono text-[11px]">{stableMobile}</td>
+                           {userTableVisibleCols.includes('MOBILE') && (
+                            <td className="border-r border-slate-200 py-2.5 px-3 min-w-[120px]">
+                              <input
+                                type="text"
+                                value={editUserMobile}
+                                onChange={(e) => setEditUserMobile(e.target.value)}
+                                className="bg-white border border-slate-300 focus:border-emerald-500 outline-none rounded px-2 py-1 text-[11px] w-full font-mono text-slate-700 font-medium"
+                                placeholder="Mobile No"
+                              />
+                            </td>
                           )}
                           {userTableVisibleCols.includes('ADMIN') && (
                             <td className="border-r border-slate-200 py-2.5 px-3 text-center min-w-[120px]">
@@ -5552,19 +5973,19 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                             <td className="border-r border-slate-200 py-2.5 px-3 text-center font-mono font-extrabold text-emerald-600 bg-slate-50/50">{stats.masteryPercent}%</td>
                           )}
                           {userTableVisibleCols.includes('CONTROL') && (
-                            <td className="py-2.5 px-3 text-center sticky right-0 z-10 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
+                            <td className="py-2.5 px-3 text-center min-w-[150px] sticky right-0 z-10 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
                               <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => handleSaveUser(item.id)}
-                                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-black px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer"
+                                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-black px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer whitespace-nowrap"
                                 >
                                   Save
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingUserId(null)}
-                                  className="bg-white border border-slate-200 text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer"
+                                  className="bg-white border border-slate-200 text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition text-[10px] uppercase cursor-pointer whitespace-nowrap"
                                 >
                                   Cancel
                                 </button>
@@ -5694,21 +6115,21 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           </td>
                         )}
                         {userTableVisibleCols.includes('CONTROL') && (
-                          <td className="py-2 px-3 text-center w-24 sticky right-0 z-10 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
+                          <td className={`py-2 px-3 text-center min-w-[150px] sticky right-0 bg-white shadow-[-2px_0_5px_rgba(0,0,0,0.05)] ${userTableRowMenuOpenId === item.id ? 'z-30' : 'z-10'}`}>
                             <div className="flex items-center justify-center gap-1.5 relative">
                               {confirmDeleteUserId === item.id ? (
                                 <div className="flex items-center gap-1 animate-in zoom-in-95 duration-100">
                                   <button
                                     type="button"
                                     onClick={() => setConfirmDeleteUserId(null)}
-                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250"
+                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250 whitespace-nowrap"
                                   >
                                     No
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteUser(item.id, item.name)}
-                                    className="text-[9px] uppercase font-mono font-black text-white bg-rose-600 hover:bg-rose-700 px-1.5 py-1 rounded cursor-pointer shadow-xs"
+                                    className="text-[9px] uppercase font-mono font-black text-white bg-rose-600 hover:bg-rose-700 px-1.5 py-1 rounded cursor-pointer shadow-xs whitespace-nowrap"
                                   >
                                     Delete
                                   </button>
@@ -5718,57 +6139,85 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                   <button
                                     type="button"
                                     onClick={() => setConfirmResetUserId(null)}
-                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250"
+                                    className="text-[9px] uppercase font-mono font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-1.5 py-1 rounded cursor-pointer border border-slate-250 whitespace-nowrap"
                                   >
                                     No
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleResetUserMastery(item.id, item.name)}
-                                    className="text-[9px] uppercase font-mono font-black text-white bg-amber-550 hover:bg-amber-600 px-1.5 py-1 rounded cursor-pointer shadow-xs"
+                                    className="text-[9px] uppercase font-mono font-black text-white bg-amber-550 hover:bg-amber-600 px-1.5 py-1 rounded cursor-pointer shadow-xs whitespace-nowrap"
                                   >
                                     Reset
                                   </button>
                                 </div>
                               ) : (
-                                <div className="relative">
-                                  {/* Row actions Vertical ellipses menu */}
-                                  <button
-                                    type="button"
-                                    onClick={() => setUserTableRowMenuOpenId(userTableRowMenuOpenId === item.id ? null : item.id)}
-                                    className="hover:bg-slate-100 p-1.5 rounded-lg border border-slate-200 transition cursor-pointer select-none"
-                                    title="Open action controls"
-                                  >
-                                    <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
-                                  </button>
-                                  {userTableRowMenuOpenId === item.id && (
-                                    <>
-                                      <div className="fixed inset-0 z-30" onClick={() => setUserTableRowMenuOpenId(null)} />
-                                      <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl p-1 z-40 text-left space-y-0.5 animate-in slide-in-from-top-1 duration-100 text-[10px]">
-                                        {hasPermission('perm_user_edt') && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setUserTableRowMenuOpenId(null);
-                                              setEditingUserId(item.id);
-                                              setEditUserName(item.name);
-                                              setEditUserEmail(item.email);
-                                              setEditUserAvatar(item.avatarUrl || '');
-                                              setEditUserRole(item.roleId);
-                                              setEditUserRoles(item.roleIds || []);
-                                              setEditUserDept(item.department);
-                                              setEditUserFocus(item.focusEntity);
-                                              setEditUserPassword(item.password || 'rathi123');
-                                              setEditUserStatus(item.status || 'Active');
-                                              setEditUserIsAdmin(!!item.isAdmin);
-                                              setEditUserIsSuperAdmin(!!item.isSuperAdmin);
-                                              setEditUserPermissions(item.permissions || []);
-                                            }}
-                                            className="w-full text-left font-bold text-slate-700 hover:text-indigo-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5"
-                                          >
-                                            📝 Edit Detail
-                                          </button>
-                                        )}
+                                <div className="flex items-center gap-1.5 justify-center">
+                                  {hasPermission('perm_user_edt') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingUserId(item.id);
+                                        setEditUserName(item.name);
+                                        setEditUserEmail(item.email);
+                                        setEditUserAvatar(item.avatarUrl || '');
+                                        setEditUserRole(item.roleId);
+                                        setEditUserRoles(item.roleIds || []);
+                                        setEditUserDept(item.department);
+                                        setEditUserFocus(item.focusEntity);
+                                        setEditUserPassword(item.password || 'rathi123');
+                                        setEditUserStatus(item.status || 'Active');
+                                        setEditUserIsAdmin(!!item.isAdmin);
+                                        setEditUserIsSuperAdmin(!!item.isSuperAdmin);
+                                        setEditUserPermissions(item.permissions || []);
+                                        setEditUserMobile(item.mobile || '');
+                                      }}
+                                      className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold px-2.5 py-1 rounded shadow-3xs transition hover:scale-[1.02] cursor-pointer flex items-center gap-1 text-[10px] uppercase font-mono tracking-wide whitespace-nowrap"
+                                      title="Edit Trainee Inline"
+                                    >
+                                      📝 Edit
+                                    </button>
+                                  )}
+
+                                  <div className="relative">
+                                    {/* Row actions Vertical ellipses menu */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setUserTableRowMenuOpenId(userTableRowMenuOpenId === item.id ? null : item.id)}
+                                      className="hover:bg-slate-100 p-1.5 rounded-lg border border-slate-200 transition cursor-pointer select-none"
+                                      title="Open action controls"
+                                    >
+                                      <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
+                                    </button>
+                                    {userTableRowMenuOpenId === item.id && (
+                                      <>
+                                        <div className="fixed inset-0 z-30" onClick={() => setUserTableRowMenuOpenId(null)} />
+                                        <div className="absolute right-full -top-1 mr-1.5 w-max min-w-[145px] bg-white border border-slate-200 rounded-xl shadow-xl p-1 z-40 text-left space-y-0.5 animate-in slide-in-from-right-1 duration-100 text-[10px]">
+                                          {hasPermission('perm_user_edt') && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setUserTableRowMenuOpenId(null);
+                                                setEditingUserId(item.id);
+                                                setEditUserName(item.name);
+                                                setEditUserEmail(item.email);
+                                                setEditUserAvatar(item.avatarUrl || '');
+                                                setEditUserRole(item.roleId);
+                                                setEditUserRoles(item.roleIds || []);
+                                                setEditUserDept(item.department);
+                                                setEditUserFocus(item.focusEntity);
+                                                setEditUserPassword(item.password || 'rathi123');
+                                                setEditUserStatus(item.status || 'Active');
+                                                setEditUserIsAdmin(!!item.isAdmin);
+                                                setEditUserIsSuperAdmin(!!item.isSuperAdmin);
+                                                setEditUserPermissions(item.permissions || []);
+                                                setEditUserMobile(item.mobile || '');
+                                              }}
+                                              className="w-full text-left font-bold text-slate-700 hover:text-indigo-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                                            >
+                                              📝 Edit Detail
+                                            </button>
+                                          )}
                                         {hasPermission('perm_user_edt') && (
                                           <button
                                             type="button"
@@ -5776,7 +6225,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                               setUserTableRowMenuOpenId(null);
                                               setConfirmResetUserId(item.id);
                                             }}
-                                            className="w-full text-left font-bold text-slate-700 hover:text-amber-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                                            className="w-full text-left font-bold text-slate-700 hover:text-amber-650 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
                                           >
                                             🔄 Reset Progress
                                           </button>
@@ -5788,7 +6237,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                               setUserTableRowMenuOpenId(null);
                                               setConfirmDeleteUserId(item.id);
                                             }}
-                                            className="w-full text-left font-extrabold text-slate-500 hover:text-rose-650 hover:bg-rose-50/50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 border-t border-slate-100 mt-1"
+                                            className="w-full text-left font-extrabold text-slate-500 hover:text-rose-650 hover:bg-rose-50/50 px-2 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 border-t border-slate-100 mt-1 whitespace-nowrap"
                                           >
                                             🗑️ Live Offboard
                                           </button>
@@ -5797,9 +6246,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                     </>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                          </td>
+                              </div>
+                            )}
+                          </div>
+                        </td>
                         )}
                       </tr>
                     );
@@ -5902,6 +6352,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 

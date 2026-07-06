@@ -32,6 +32,7 @@ export interface User {
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   permissions?: string[];
+  mobile?: string;
 }
 
 export interface Chapter {
