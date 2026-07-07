@@ -364,7 +364,7 @@ export default function Header({
       )}
 
       <header className="bg-white/80 backdrop-blur-xl border-b border-slate-300 text-slate-700 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(15,23,42,0.03)] transition-all duration-300">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 lg:h-16 items-center">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">

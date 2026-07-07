@@ -3175,7 +3175,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
         )}
 
         {/* Existing Content wrapped inside responsive container */}
-        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-3.5 lg:py-4 animate-in fade-in duration-300 relative">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-3.5 lg:py-4 animate-in fade-in duration-300 relative">
           
           {/* Dynamic Modern Toast Notification Layer */}
           {toast && (

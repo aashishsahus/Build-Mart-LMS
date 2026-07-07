@@ -544,7 +544,7 @@ export default function App() {
 
           {/* Modern & Stylish Fixed Status Footer bar */}
           <footer className="bg-white/85 backdrop-blur-lg border-t border-slate-200/60 py-2.5 text-center text-[10px] font-sans shrink-0 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] lg:pb-2.5 pb-[calc(3.5rem+10px)] transition-all duration-300">
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
+            <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
               
               {/* Left Side: Compliance & Real-time Live Counters */}
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">

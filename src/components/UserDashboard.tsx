@@ -376,9 +376,13 @@ export default function UserDashboard({
   const currentRoleIds = activeRoleView === 'all' ? assignedRoleIds : [activeRoleView];
 
   const userRole = roles.find(r => r.id === (activeRoleView === 'all' ? currentUser.roleId : activeRoleView)) || currentUser.role || roles[0];
-  const userChapters = chapters.filter(c => currentRoleIds.includes(c.roleId)).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const userChaptersRaw = chapters.filter(c => currentRoleIds.includes(c.roleId)).sort((a, b) => (a.order || 0) - (b.order || 0));
+  // Deduplicate chapters by ID
+  const userChapters = userChaptersRaw.filter((c, index, self) => self.findIndex(x => x.id === c.id) === index);
   const userChapterIds = userChapters.map(c => c.id);
-  const userUnits = units.filter(u => userChapterIds.includes(u.chapterId));
+  const userUnitsRaw = units.filter(u => userChapterIds.includes(u.chapterId));
+  // Deduplicate units by ID
+  const userUnits = userUnitsRaw.filter((u, index, self) => self.findIndex(x => x.id === u.id) === index);
 
   // Active unit selection
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
@@ -511,7 +515,7 @@ export default function UserDashboard({
   };
 
   // Synchronously update form input values when user changes active video unit
-  const [activeMediaTab, setActiveMediaTab] = useState<'pdf' | 'video'>('pdf');
+  const [activeMediaTab, setActiveMediaTab] = useState<'pdf' | 'video' | 'checklist'>('pdf');
 
   useEffect(() => {
     if (selectedUnit) {
@@ -519,15 +523,17 @@ export default function UserDashboard({
       setSubmissionNotes(prog?.notes || '');
       setSubmittingStatus(prog?.status || 'Not Started');
 
-      // Set default media tab according to the rules:
-      const hasPdf = !!(selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '');
-      const hasVideo = !!(selectedUnit.videoUrl && selectedUnit.videoUrl.trim() !== '');
-      if (hasPdf && hasVideo) {
-        setActiveMediaTab('pdf');
-      } else if (!hasPdf && hasVideo) {
-        setActiveMediaTab('video');
-      } else {
-        setActiveMediaTab('pdf');
+      // Keep 'checklist' if it was selected, otherwise pick best default
+      if (activeMediaTab !== 'checklist') {
+        const hasPdf = !!(selectedUnit.pdfUrl && selectedUnit.pdfUrl.trim() !== '');
+        const hasVideo = !!(selectedUnit.videoUrl && selectedUnit.videoUrl.trim() !== '');
+        if (hasPdf) {
+          setActiveMediaTab('pdf');
+        } else if (hasVideo) {
+          setActiveMediaTab('video');
+        } else {
+          setActiveMediaTab('pdf');
+        }
       }
     }
   }, [selectedUnitId]);
@@ -549,6 +555,12 @@ export default function UserDashboard({
   const [isEditingPdf, setIsEditingPdf] = useState(false);
   const [customPdfInput, setCustomPdfInput] = useState(pdfUrl);
   const [pdfReaderCollapsed, setPdfReaderCollapsed] = useState(false);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<string>(() => {
+    return localStorage.getItem('lms_video_aspect_ratio') || 'aspect-[16/11.5]';
+  });
+  const [pdfAspectRatio, setPdfAspectRatio] = useState<string>(() => {
+    return localStorage.getItem('lms_pdf_aspect_ratio') || 'aspect-[1/1.414]';
+  });
 
   // Trainee Sidebar States
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -800,21 +812,46 @@ export default function UserDashboard({
       }
     };
 
+    const checkedCount = getSopStatus(selectedUnit.id).filter(Boolean).length;
+    const totalCount = getSopItemsForUnit(selectedUnit).length;
+
     return (
       <div 
         id={isMobile ? "mobile-combined-player" : "desktop-combined-player"}
         className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden transition-all duration-200 ${
-          activeMediaTab === 'pdf' ? 'border-indigo-200' : 'border-slate-200/90'
+          activeMediaTab === 'pdf' 
+            ? 'border-indigo-200' 
+            : activeMediaTab === 'checklist' 
+              ? 'border-emerald-200' 
+              : 'border-slate-200/90'
         } ${
           isMobile ? 'mb-6 block lg:hidden ring-4 ring-slate-100/60' : 'mb-6 hidden lg:block'
         }`}
       >
         {/* Dynamic Header */}
-        <div className={`px-5 py-3.5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 ${
-          activeMediaTab === 'pdf' ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-150 bg-slate-50/50'
+        <div className={`px-5 py-3.5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors duration-200 ${
+          activeMediaTab === 'pdf' 
+            ? 'border-indigo-100 bg-indigo-50/30' 
+            : activeMediaTab === 'checklist' 
+              ? 'border-emerald-100 bg-emerald-50/30' 
+              : 'border-slate-150 bg-slate-50/50'
         }`}>
           {/* Active Tab Branding Header Info */}
-          {activeMediaTab === 'pdf' ? (
+          {activeMediaTab === 'checklist' ? (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl shrink-0">
+                <CheckSquare className="w-4 h-4 shrink-0 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] text-emerald-600 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
+                  SOP Task Checklist & Compliance
+                </span>
+                <span className="font-display text-xs sm:text-sm font-black text-slate-900 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
+                  📋 {selectedUnit.taskName} SOP Checklist
+                </span>
+              </div>
+            </div>
+          ) : activeMediaTab === 'pdf' ? (
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl shrink-0">
                 <FileText className="w-4 h-4 shrink-0" />
@@ -842,21 +879,21 @@ export default function UserDashboard({
             </div>
           )}
 
-          {/* Combined Switch Tabs inside Header */}
-          {unitHasPdf && unitHasVideo && (
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5 select-none shrink-0 mx-auto md:mx-0">
-              <button
-                type="button"
-                onClick={() => setActiveMediaTab('pdf')}
-                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                  activeMediaTab === 'pdf'
-                    ? 'bg-white text-indigo-700 shadow-3xs font-black border border-slate-200/20'
-                    : 'text-slate-500 hover:text-slate-850'
-                }`}
-              >
-                <FileText className="w-2.5 h-2.5 shrink-0 text-indigo-600" />
-                <span>SOP PDF</span>
-              </button>
+          {/* Combined Switch Tabs inside Header - Always Visible */}
+          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5 select-none shrink-0 mx-auto md:mx-0">
+            <button
+              type="button"
+              onClick={() => setActiveMediaTab('pdf')}
+              className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                activeMediaTab === 'pdf'
+                  ? 'bg-white text-indigo-700 shadow-3xs font-black border border-slate-200/20'
+                  : 'text-slate-500 hover:text-slate-850'
+              }`}
+            >
+              <FileText className="w-2.5 h-2.5 shrink-0 text-indigo-600" />
+              <span>SOP PDF</span>
+            </button>
+            {unitHasVideo && (
               <button
                 type="button"
                 onClick={() => setActiveMediaTab('video')}
@@ -869,8 +906,20 @@ export default function UserDashboard({
                 <Play className="w-2.5 h-2.5 shrink-0 text-rose-600 fill-rose-600" />
                 <span>Video</span>
               </button>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={() => setActiveMediaTab('checklist')}
+              className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                activeMediaTab === 'checklist'
+                  ? 'bg-white text-emerald-700 shadow-3xs font-black border border-slate-200/20'
+                  : 'text-slate-500 hover:text-slate-850'
+              }`}
+            >
+              <CheckSquare className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
+              <span>SOP Checklist ({checkedCount}/{totalCount})</span>
+            </button>
+          </div>
 
           {/* Context Actions (Presets dropdown, watch links, collapse button) */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 justify-end md:justify-start">
@@ -903,22 +952,66 @@ export default function UserDashboard({
                     {isEditingPdf ? 'Close Editor' : 'Edit PDF Link'}
                   </button>
                 )}
+
+                {/* Compact Aspect Ratio Fit Selector for PDF */}
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs hover:bg-slate-100/50 transition-colors">
+                  <span className="text-[8px] font-mono font-black text-slate-450 uppercase">FIT:</span>
+                  <select
+                    value={pdfAspectRatio}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPdfAspectRatio(val);
+                      localStorage.setItem('lms_pdf_aspect_ratio', val);
+                    }}
+                    className="bg-transparent border-none outline-none text-[9.5px] font-black text-slate-700 cursor-pointer p-0 select-none font-sans focus:ring-0"
+                  >
+                    <option value="aspect-[1/1.414]">A4 Portrait (Fit)</option>
+                    <option value="aspect-[3/4]">US Letter (3:4)</option>
+                    <option value="aspect-[16/11.5]">Drive Fit (Auto)</option>
+                    <option value="aspect-video">Widescreen (16:9)</option>
+                  </select>
+                </div>
               </>
-            ) : (
+            ) : activeMediaTab === 'video' ? (
               <>
                 {/* Video Badges & Direct Watch External Link */}
                 {getStreamBadge()}
                 {type !== 'none' && (
-                  <a 
-                    href={selectedUnit.videoUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-slate-400 hover:text-rose-600 flex items-center gap-1.5 text-[10px] font-mono hover:underline tracking-tight transition-all shrink-0"
-                  >
-                    Watch Link <ExternalLink className="w-3 h-3 text-rose-500" />
-                  </a>
+                  <div className="flex items-center gap-2.5">
+                    <a 
+                      href={selectedUnit.videoUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-slate-400 hover:text-rose-600 flex items-center gap-1.5 text-[10px] font-mono hover:underline tracking-tight transition-all shrink-0"
+                    >
+                      Watch Link <ExternalLink className="w-3 h-3 text-rose-500" />
+                    </a>
+                    
+                    {/* Compact Aspect Ratio Fit Selector */}
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs hover:bg-slate-100/50 transition-colors">
+                      <span className="text-[8px] font-mono font-black text-slate-450 uppercase">FIT:</span>
+                      <select
+                        value={videoAspectRatio}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setVideoAspectRatio(val);
+                          localStorage.setItem('lms_video_aspect_ratio', val);
+                        }}
+                        className="bg-transparent border-none outline-none text-[9.5px] font-black text-slate-700 cursor-pointer p-0 select-none font-sans focus:ring-0"
+                      >
+                        <option value="aspect-[16/11.5]">Drive Fit (Auto)</option>
+                        <option value="aspect-video">Widescreen (16:9)</option>
+                        <option value="aspect-[16/10]">Laptop (16:10)</option>
+                        <option value="aspect-[4/3]">Standard (4:3)</option>
+                      </select>
+                    </div>
+                  </div>
                 )}
               </>
+            ) : (
+              <span className="text-[9.5px] text-emerald-700 font-mono font-bold bg-emerald-50 px-2.5 py-1 border border-emerald-100 rounded-xl">
+                ✔ SOP Verification Mode
+              </span>
             )}
 
             <button
@@ -932,16 +1025,16 @@ export default function UserDashboard({
           </div>
         </div>
 
-        {/* Custom Input for PDF URL (visible only if isEditingPdf is active and we are currently on the PDF tab) */}
+        {/* Custom Input for PDF URL */}
         {activeMediaTab === 'pdf' && isEditingPdf && (
           <div className="p-4 bg-slate-50 border-b border-indigo-100 flex flex-col gap-2.5 text-left">
-            <span className="text-[9px] font-bold text-slate-505 text-slate-500 uppercase font-mono tracking-wider">
-              Configure Corporate Curriculum PDF Link (Direct PDF, Google Drive Link, OneDrive link):
+            <span className="text-[9px] font-bold text-slate-500 uppercase font-mono tracking-wider">
+              Configure Corporate Curriculum PDF Link:
             </span>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Paste corporate curriculum PDF URL here (Google Drive share link, OneDrive, or any web PDF URL)"
+                placeholder="Paste corporate curriculum PDF URL here..."
                 value={customPdfInput}
                 onChange={(e) => setCustomPdfInput(e.target.value)}
                 className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-sans focus:border-indigo-500 outline-none"
@@ -959,30 +1052,80 @@ export default function UserDashboard({
                 Apply Link
               </button>
             </div>
-            <p className="text-[9px] text-slate-400 font-medium">
-              💡 <strong>Google Drive Tip:</strong> Google Drive standard viewer links will automatically convert to clean, responsive embedded preview frames.
-            </p>
           </div>
         )}
 
         {/* Media Frame Main Canvas Content Body */}
         {!pdfReaderCollapsed && (
           <div>
-            {activeMediaTab === 'pdf' ? (
-              /* PDF iframe stage */
-              <div className="w-full bg-slate-900 relative shadow-inner h-[260px] lg:h-[330px]">
-                <iframe
-                  src={resolvedPdfUrl}
-                  title="Corporate Curriculum Architecture PDF Frame"
-                  className="absolute inset-0 w-full h-full border-none bg-slate-800"
-                  referrerPolicy="no-referrer"
-                  allow="autoplay"
-                ></iframe>
+            {activeMediaTab === 'checklist' ? (
+              /* SOP Checklist interactive view inside the media stage box! */
+              <div className="w-full bg-slate-50/40 p-4 sm:p-5 overflow-y-auto h-[300px] lg:h-[360px] text-left">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4 pb-3 border-b border-slate-150">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[8px] font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-widest w-fit">
+                      SOP Standard Audit Checklist
+                    </div>
+                    <h4 className="text-[11.5px] sm:text-xs font-sans font-black text-slate-900 flex items-center gap-1.5">
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Verify each procedural control standard below to complete {selectedUnit.code}
+                    </h4>
+                  </div>
+                  <span className="text-[9px] font-sans text-slate-400 italic shrink-0">
+                    (Click items to check off compliance)
+                  </span>
+                </div>
+                
+                <ul className="text-xs text-slate-600 space-y-2 max-w-4xl mx-auto">
+                  {getSopItemsForUnit(selectedUnit).map((item, index) => {
+                    const isItemChecked = getSopStatus(selectedUnit.id)[index];
+                    return (
+                      <li 
+                        key={index}
+                        onClick={() => handleToggleSop(index)}
+                        className={`flex items-start gap-3.5 leading-relaxed cursor-pointer p-3.5 rounded-2xl border transition-all duration-200 select-none ${
+                          isItemChecked 
+                            ? 'bg-emerald-50/40 border-emerald-200 text-slate-700 shadow-3xs' 
+                            : 'bg-white border-slate-150 hover:border-slate-250 hover:bg-slate-50/50 text-slate-600'
+                        }`}
+                      >
+                        <span className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${
+                          isItemChecked 
+                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-3xs scale-105' 
+                            : 'bg-white border-slate-300 text-transparent hover:border-emerald-400 hover:scale-[1.03]'
+                        }`}>
+                          <span className="text-[10px] font-black">✓</span>
+                        </span>
+                        <span className="flex-1 text-[11px] sm:text-xs text-left">
+                          <strong className={`font-bold font-display tracking-tight transition-colors ${isItemChecked ? 'text-emerald-800' : 'text-slate-850'}`}>
+                            {item.title}:
+                          </strong>{" "}
+                          <span className={isItemChecked ? 'text-slate-450 line-through decoration-slate-300' : 'text-slate-600'}>
+                            {item.desc}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : activeMediaTab === 'pdf' ? (
+              /* PDF iframe stage with optimized portrait/page proportions to avoid massive black empty sidebars */
+              <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-4 px-4 sm:px-6 border-b border-slate-150">
+                <div className={`w-full max-w-xl relative rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white ${pdfAspectRatio} transition-all duration-300`}>
+                  <iframe
+                    src={resolvedPdfUrl}
+                    title="Corporate Curriculum Architecture PDF Frame"
+                    className="absolute inset-0 w-full h-full border-none bg-white"
+                    referrerPolicy="no-referrer"
+                    allow="autoplay"
+                  ></iframe>
+                </div>
               </div>
             ) : (
-              /* Video stage */
-              <>
-                <div className="aspect-video w-full max-h-[330px] bg-slate-950 relative shadow-inner">
+              /* Video stage with constrained smaller display size according to aspect ratio */
+              <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-3 px-4 sm:px-6 border-b border-slate-150">
+                <div className={`w-full max-w-xl relative rounded-2xl overflow-hidden shadow-xl border border-slate-800 bg-slate-950 ${videoAspectRatio} transition-all duration-300`}>
                   {type === 'embed' ? (
                     <iframe
                       src={url}
@@ -1022,7 +1165,7 @@ export default function UserDashboard({
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -1206,7 +1349,7 @@ export default function UserDashboard({
           ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
           : ''
       }`}>
-        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
         
         {/* Trainee Enrollment Approved Banner */}
         <AnimatePresence>
@@ -1591,11 +1734,11 @@ export default function UserDashboard({
 
                     {/* Switcher details display inside console */}
 
-                    {/* Analytics Insights (3 small cards) */}
+                    {/* Analytics Insights (4 small cards including Execution Standings) */}
                     {(() => {
                       const { nextUnit, lowestChapter, highestChapter } = getSyllabusInsights();
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-left">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-left">
                           {/* Next Recommended Task */}
                           <div className="bg-gradient-to-tr from-emerald-50/60 to-teal-50/20 border border-emerald-100 rounded-lg p-2 flex items-center justify-between shadow-3xs gap-2 min-h-[44px]">
                             <div className="min-w-0">
@@ -1696,6 +1839,26 @@ export default function UserDashboard({
                               </div>
                             )}
                           </div>
+
+                          {/* Execution Standings Widget */}
+                          <div className="bg-gradient-to-tr from-slate-50 to-indigo-50/30 border border-slate-200 rounded-lg p-2 flex flex-col justify-between shadow-3xs gap-1.5 min-h-[44px]">
+                            <div className="flex items-center gap-1.5 text-slate-800">
+                              <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="text-[7px] font-mono font-black uppercase tracking-wider text-slate-700">
+                                Execution Standings
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <div className="bg-white p-1 rounded border border-slate-150 text-center">
+                                <span className="block text-[6.5px] font-mono text-slate-400 uppercase leading-none">Mastered</span>
+                                <span className="text-[9.5px] font-mono font-extrabold text-emerald-700 leading-none mt-0.5 block">{stats.verifiedCount} / {stats.totalUnits}</span>
+                              </div>
+                              <div className="bg-white p-1 rounded border border-slate-150 text-center">
+                                <span className="block text-[6.5px] font-mono text-slate-400 uppercase leading-none">Pending Review</span>
+                                <span className="text-[9.5px] font-mono font-extrabold text-amber-600 leading-none mt-0.5 block">{stats.completedCount}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}
@@ -1750,7 +1913,7 @@ export default function UserDashboard({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:flex-1 lg:min-h-0">
           {/* Left Column: Premium Soft Light Curriculum Sidebar */}
-          <div className={`lg:col-span-4 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
+          <div className={`lg:col-span-4 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 lg:overflow-y-auto lg:pr-1 custom-scrollbar ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-3xs overflow-hidden select-none lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
             {/* Sidebar Brand Header */}
             <div className="p-3.5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
@@ -1815,7 +1978,7 @@ export default function UserDashboard({
             </div>
 
             {/* Chapters and Stepper Timelines - Styled Sidebar List */}
-            <div className="divide-y divide-slate-100 max-h-[380px] lg:max-h-none lg:flex-1 overflow-y-auto scrollbar-thin">
+            <div className="divide-y divide-slate-100 max-h-[320px] lg:max-h-[240px] xl:max-h-[320px] lg:flex-1 overflow-y-auto scrollbar-thin">
               {userChapters.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs italic p-6 font-mono">
                   No chapters added for this training track yet.
@@ -2053,199 +2216,120 @@ export default function UserDashboard({
             </div>
           </div>
 
-          {/* Sidebar Navigation Footer Helper block (matching bottom panel) */}
-          <div className="bg-white text-slate-600 rounded-2xl border border-slate-200 shadow-3xs p-3.5 space-y-2.5">
-            <div className="flex items-center gap-2 text-slate-800">
-              <CheckSquare className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-display text-xs font-extrabold uppercase tracking-tight">
-                Execution Standings
-              </h3>
-            </div>
-            <p className="text-[10px] text-slate-500 leading-normal font-sans">
-              Complete each nested lesson sequentially to unlock subsequent workspace chapters. Keep track of your verification statuses.
-            </p>
-
-             <div className="grid grid-cols-2 gap-2.5 pt-1">
-               <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
-                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Mastered</span>
-                 <span className="text-xs font-mono font-bold text-emerald-700">{stats.verifiedCount} / {stats.totalUnits}</span>
-               </div>
-               <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
-                 <span className="block text-[7.5px] font-mono text-slate-400 uppercase tracking-wider">Pending Review</span>
-                 <span className="text-xs font-mono font-bold text-amber-600">{stats.completedCount}</span>
-               </div>
-             </div>
-          </div>
         </div>
 
         {/* Right Column: Player & Active Details (8/12 cols) */}
-        <div className={`lg:col-span-8 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
+        <div className={`lg:col-span-8 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 lg:overflow-y-auto lg:pr-1.5 custom-scrollbar ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
           {activeTab === 'learning' ? (
             selectedUnit ? (
             <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col gap-3 animate-in fade-in duration-200">
               
+              {/* Sleek Compact Highlight Line for Active Chapter & Unit */}
+              <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border-l-4 border-emerald-500 px-3.5 py-2.5 rounded-r-xl flex items-center justify-between text-left shrink-0 shadow-3xs">
+                <div className="flex items-center gap-2.5 flex-wrap min-w-0 flex-1">
+                  <span className="inline-block text-[8.5px] font-mono font-black text-emerald-800 bg-emerald-100 border border-emerald-200/60 px-2 py-0.5 rounded uppercase tracking-wider shrink-0">
+                    Chapter {Math.max(1, userChapters.findIndex(c => c.id === selectedUnit.chapterId) + 1)} · {selectedUnit.code}
+                  </span>
+                  <span className="font-sans text-xs font-extrabold text-slate-900 leading-tight truncate">
+                    {selectedUnit.taskName}
+                  </span>
+                  {selectedUnit.description && (
+                    <span className="text-[10px] text-slate-500 font-medium truncate max-w-[200px] sm:max-w-xs md:max-w-md hidden sm:inline-block">
+                      — {selectedUnit.description}
+                    </span>
+                  )}
+                </div>
+                {/* Modern Mini Status Pill */}
+                <div className="shrink-0 flex items-center gap-2.5 pl-2">
+                  <span className="text-[8.5px] text-slate-450 font-mono font-bold hidden md:inline-block">
+                    ({selectedUnit.frequency} · Skill: {selectedUnit.skillRequired})
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md text-[8.5px] font-mono font-black tracking-wide border shadow-3xs uppercase ${
+                    getStatusColor(getUnitProgress(selectedUnit.id)?.status)
+                  }`}>
+                    {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
+                  </span>
+                </div>
+              </div>
+
               {/* Desktop Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
               <div className="shrink-0">
                 {renderCombinedMediaStage(false)}
               </div>
 
               {/* Unified SOP Checklist & Progress Sign-Off Panel */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-3xs p-3 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col justify-between">
-                
-                {/* Active Unit Header Info Bar */}
-                <div className="border-b border-slate-150 pb-2 mb-2 shrink-0 bg-slate-50/50 p-2 rounded-lg flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="inline-block text-[7.5px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-150 px-1.5 py-0.2 rounded uppercase tracking-wider">
-                        {selectedUnit.code} · Chapter {chapters.indexOf(chapters.find(c => c.id === selectedUnit.chapterId)!) + 1}
-                      </span>
-                      <span className="text-[8px] text-slate-400 font-mono">
-                        ({selectedUnit.frequency} · Skill: {selectedUnit.skillRequired})
-                      </span>
-                    </div>
-                    <h3 className="font-sans text-[11px] font-extrabold text-slate-900 leading-tight truncate">
-                      {selectedUnit.taskName}
-                    </h3>
-                    {selectedUnit.description && (
-                      <p className="text-[9px] text-slate-500 leading-normal font-medium truncate mt-0.5">
-                        {selectedUnit.description}
-                      </p>
-                    )}
-                  </div>
-                  {/* Modern Status Pill */}
-                  <div className="shrink-0 flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[8px] sm:text-[8.5px] font-mono font-extrabold tracking-wide border ${
-                      getStatusColor(getUnitProgress(selectedUnit.id)?.status)
-                    }`}>
-                      {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
-                    </span>
-                  </div>
-                </div>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-3xs p-3 shrink-0">
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 divide-y md:divide-y-0 md:divide-x divide-slate-150 lg:flex-1 lg:min-h-0">
+                {/* Horizontal Sign-Off Workspace */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 text-left">
                   
-                  {/* Left Column: SOP Checklist (7/12 cols) */}
-                  <div className="md:col-span-7 pr-0 md:pr-3.5 space-y-2 lg:flex lg:flex-col lg:min-h-0">
-                    <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100 shrink-0">
-                      <div className="flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <h4 className="text-[10px] font-sans font-extrabold text-slate-900 uppercase tracking-tight">
-                          SOP Checklist & Best Practices
-                        </h4>
-                      </div>
-                      <span className="text-[7.5px] font-sans text-slate-400 italic">
-                        (Check items to confirm audit compliance)
-                      </span>
+                  {/* Shortcut Message/Reminder about Checklist */}
+                  <div className="flex-1 flex items-center gap-2.5 bg-emerald-50/40 border border-emerald-100/60 p-2.5 rounded-xl text-[9px] text-emerald-850 font-medium">
+                    <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-emerald-900 block leading-tight">📋 SOP Checklist Active inside the Stream Player</span>
+                      <span className="text-slate-500 leading-snug">Click the <strong>SOP Checklist</strong> tab above at any time to mark off specific training steps ({getSopStatus(selectedUnit.id).filter(Boolean).length} of {getSopItemsForUnit(selectedUnit).length} complete).</span>
                     </div>
-
-                    <ul className="text-[10px] text-slate-600 space-y-1 max-h-[140px] lg:max-h-none lg:flex-1 overflow-y-auto scrollbar-thin pr-1">
-                      {getSopItemsForUnit(selectedUnit).map((item, index) => {
-                        const isItemChecked = getSopStatus(selectedUnit.id)[index];
-                        return (
-                          <li 
-                            key={index}
-                            onClick={() => handleToggleSop(index)}
-                            className={`flex items-start gap-2 leading-tight cursor-pointer p-1.5 rounded-lg border transition-all duration-150 select-none ${
-                              isItemChecked 
-                                ? 'bg-emerald-50/20 border-emerald-100/70 text-slate-700' 
-                                : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 text-slate-600'
-                            }`}
-                          >
-                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
-                              isItemChecked 
-                                ? 'bg-emerald-500 border-emerald-600 text-white' 
-                                : 'bg-white border-slate-300 text-transparent hover:border-emerald-400'
-                            }`}>
-                              <span className="text-[8px] font-black">✓</span>
-                            </span>
-                            <span className="flex-1 min-w-0">
-                              <strong className={`font-bold font-sans ${isItemChecked ? 'text-emerald-800' : 'text-slate-800'}`}>
-                                {item.title}:
-                              </strong>{" "}
-                              <span className={`text-[9.5px] ${isItemChecked ? 'text-slate-400 line-through' : 'text-slate-500'}`}>
-                                {item.desc}
-                              </span>
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => setActiveMediaTab('checklist')}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-2.5 py-1 rounded-lg text-[8px] uppercase tracking-wider shrink-0 transition shadow-3xs cursor-pointer"
+                    >
+                      Open Checklist Tab
+                    </button>
                   </div>
 
-                  {/* Right Column: Sign-Off Workflow (5/12 cols) */}
-                  <div className="md:col-span-5 pt-3 md:pt-0 pl-0 md:pl-3.5 flex flex-col justify-between space-y-2 lg:min-h-0">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0">
-                        <div className="flex items-center gap-1">
-                          <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-                          <h4 className="font-display text-[10px] font-extrabold text-slate-900 uppercase tracking-tight">
-                            Sign-Off Workflow
-                          </h4>
-                        </div>
+                  {/* Sign-Off Inputs & Actions */}
+                  <div className="md:w-[45%] flex flex-col gap-2 border-t md:border-t-0 md:border-l border-slate-150 pt-2 md:pt-0 pl-0 md:pl-3">
+                    {toastMsg && (
+                      <div className="p-1 px-2 bg-emerald-50 rounded-md border border-emerald-100 text-[8.5px] text-emerald-800 font-bold flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-150 shrink-0">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>{toastMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-1/3 shrink-0">
+                        <label className="block text-[7.5px] text-slate-400 uppercase font-mono font-bold tracking-wider mb-0.5">
+                          Status
+                        </label>
+                        <select
+                          value={submittingStatus}
+                          onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded py-1 px-1.5 text-[9.5px] text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                        >
+                          <option value="Not Started">Not Started</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed (Pending Review)">Completed (Review)</option>
+                          <option value="Verified & Mastered">Verified & Mastered</option>
+                        </select>
                       </div>
 
-                      {toastMsg && (
-                        <div className="p-1 px-2 bg-emerald-50 rounded-md border border-emerald-100 text-[8.5px] text-emerald-800 font-bold flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-150 shrink-0">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>{toastMsg}</span>
-                        </div>
-                      )}
-
-                      {getUnitProgress(selectedUnit.id)?.status === 'Verified & Mastered' ? (
-                        <div className="bg-emerald-50/30 rounded-lg p-1 border border-emerald-100/50 text-[8.5px] text-emerald-800 shrink-0">
-                          <p className="font-bold flex items-center gap-1 text-emerald-800">
-                            ✓ Task Verified & Mastered!
-                          </p>
-                        </div>
-                      ) : getUnitProgress(selectedUnit.id)?.status === 'Completed (Pending Review)' ? (
-                        <div className="bg-amber-50/30 rounded-lg p-1 border border-amber-100/50 text-[8.5px] text-amber-800 shrink-0">
-                          <p className="font-bold flex items-center gap-1 text-amber-800">
-                            ⏳ Completed (Pending Review)
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-1">
-                          <label className="block text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">
-                            Status
-                          </label>
-                          <select
-                            value={submittingStatus}
-                            onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
-                            className="bg-slate-50 border border-slate-200 rounded py-0.5 px-1.5 text-[9.5px] text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
-                          >
-                            <option value="Not Started">Not Started</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed (Pending Review)">Completed (Review)</option>
-                            <option value="Verified & Mastered">Verified & Mastered</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <label className="block text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">
-                            Compliance Observations / Notes
-                          </label>
-                          <textarea
-                            placeholder="Observations or bookkeeping details..."
-                            value={submissionNotes}
-                            onChange={(e) => setSubmissionNotes(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 px-1.5 text-[9.5px] text-slate-700 outline-none focus:bg-white focus:border-emerald-500 min-h-[30px] lg:min-h-[40px] max-h-[50px] transition-all leading-snug"
-                          />
-                        </div>
+                      <div className="flex-1">
+                        <label className="block text-[7.5px] text-slate-400 uppercase font-mono font-bold tracking-wider mb-0.5">
+                          Compliance Notes
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Observations or bookkeeping details..."
+                          value={submissionNotes}
+                          onChange={(e) => setSubmissionNotes(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded py-1 px-1.5 text-[9.5px] text-slate-700 outline-none focus:bg-white focus:border-emerald-500 transition-all"
+                        />
                       </div>
                     </div>
 
                     <button
                       onClick={handleSubmitProgress}
                       id="user-submit-progress-btn"
-                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-1.5 px-3 rounded-lg shadow-3xs transition-all text-[10px] flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-1.5 px-3 rounded-lg shadow-3xs transition-all text-[9.5px] flex items-center justify-center gap-1 cursor-pointer shrink-0"
                     >
                       Update Progress Record
                     </button>
                   </div>
 
                 </div>
+
               </div>
 
             </div>
@@ -2302,7 +2386,8 @@ export default function UserDashboard({
           </>
         ) : (
           /* 📊 ENTERPRISE TRAINING COMPLIANCE LOGBOOK & SUMMARY REPORT */
-          <div className="mt-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 animate-in fade-in duration-300">
+          <div className="flex-1 min-h-0 overflow-y-auto lg:pr-1 custom-scrollbar mt-3">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 animate-in fade-in duration-300">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 mb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -2555,7 +2640,8 @@ export default function UserDashboard({
             </div>
           );
         })()}
-      </div>
+            </div>
+          </div>
         )}
 
       {/* Floating System Notification overlay for superior visual polish */}
