@@ -1845,15 +1845,19 @@ export default function UserDashboard({
                   }).length;
                   const chapMasteryPercent = chapUnits.length ? Math.round((verifiedUnitsInChapter / chapUnits.length) * 100) : 0;
                   const isUnlocked = checkIsChapterUnlocked(chapIdx);
+                  const isChapterWithSelectedUnit = selectedUnit && selectedUnit.chapterId === chap.id;
 
                   // Cycle through nice sidebar icons for each chapter category
                   const getChapterIcon = () => {
                     if (!isUnlocked) return <Lock className="w-3.5 h-3.5" />;
+                    const colorClass = isChapterWithSelectedUnit 
+                      ? 'text-white' 
+                      : (chapIdx % 4 === 0 ? 'text-emerald-600' : chapIdx % 4 === 1 ? 'text-purple-500' : chapIdx % 4 === 2 ? 'text-amber-500' : 'text-emerald-600');
                     switch (chapIdx % 4) {
-                      case 0: return <BookOpen className="w-3.5 h-3.5 text-emerald-600" />;
-                      case 1: return <FileText className="w-3.5 h-3.5 text-purple-500" />;
-                      case 2: return <Award className="w-3.5 h-3.5 text-amber-500" />;
-                      default: return <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />;
+                      case 0: return <BookOpen className={`w-3.5 h-3.5 ${colorClass}`} />;
+                      case 1: return <FileText className={`w-3.5 h-3.5 ${colorClass}`} />;
+                      case 2: return <Award className={`w-3.5 h-3.5 ${colorClass}`} />;
+                      default: return <CheckSquare className={`w-3.5 h-3.5 ${colorClass}`} />;
                     }
                   };
 
@@ -1865,9 +1869,11 @@ export default function UserDashboard({
                         type="button"
                         className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between transition-all duration-300 ${
                           isUnlocked 
-                            ? isExpanded 
-                              ? 'bg-slate-50/60 text-slate-850 cursor-pointer' 
-                              : 'hover:bg-slate-50/50 cursor-pointer bg-transparent text-slate-700' 
+                            ? isChapterWithSelectedUnit
+                              ? 'bg-gradient-to-r from-emerald-50/70 via-teal-50/20 to-white text-emerald-950 font-extrabold border-l-[3.5px] border-l-emerald-600 shadow-3xs cursor-pointer'
+                              : isExpanded 
+                                ? 'bg-slate-50/60 text-slate-850 cursor-pointer' 
+                                : 'hover:bg-slate-50/50 cursor-pointer bg-transparent text-slate-700' 
                             : 'cursor-not-allowed bg-slate-50/30 text-slate-400'
                         }`}
                         id={`chapter-header-${chap.id}`}
@@ -1875,27 +1881,38 @@ export default function UserDashboard({
                         <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
                           <div className={`mt-0.5 shrink-0 p-1 rounded-lg transition-all duration-350 ${
                             isUnlocked 
-                              ? isExpanded 
-                                ? 'bg-white shadow-3xs border border-slate-150 text-emerald-600'
-                                : 'bg-slate-50 border border-transparent text-slate-600'
+                              ? isChapterWithSelectedUnit
+                                ? 'bg-emerald-600 border border-emerald-500 text-white shadow-xs scale-105'
+                                : isExpanded 
+                                  ? 'bg-white shadow-3xs border border-slate-150 text-emerald-600'
+                                  : 'bg-slate-50 border border-transparent text-slate-600'
                               : 'text-slate-350 bg-slate-100'
                           }`}>
                             {getChapterIcon()}
                           </div>
                           <div className="min-w-0 flex-1">
                             <span className={`text-[6.5px] font-mono font-black tracking-wider uppercase block leading-none mb-0.5 ${
-                              isUnlocked ? 'text-emerald-700' : 'text-slate-400'
+                              isChapterWithSelectedUnit ? 'text-emerald-700 font-extrabold' : isUnlocked ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
                               CHAPTER {chapIdx + 1}
                               {!isUnlocked && " (LOCKED)"}
                             </span>
-                            <h4 className="font-sans text-[9.5px] font-black text-slate-800 tracking-tight truncate leading-tight group-hover:text-slate-905">
+                            <h4 className={`font-sans text-[9.5px] font-black tracking-tight truncate leading-tight group-hover:text-slate-905 flex items-center flex-wrap gap-1 ${
+                              isChapterWithSelectedUnit ? 'text-emerald-950 font-extrabold' : 'text-slate-800'
+                            }`}>
                               {chap.name}
+                              {isChapterWithSelectedUnit && (
+                                <span className="inline-flex items-center gap-0.5 bg-emerald-100 text-emerald-800 text-[6.5px] font-mono font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider animate-pulse ml-1.5 shrink-0">
+                                  ● Active Learn
+                                </span>
+                              )}
                             </h4>
                             
                             {isUnlocked && (
                               <div className="mt-0.5">
-                                <div className="flex items-center justify-between text-[7.5px] font-mono text-emerald-700 font-bold mb-0.5">
+                                <div className={`flex items-center justify-between text-[7.5px] font-mono font-bold mb-0.5 ${
+                                  isChapterWithSelectedUnit ? 'text-emerald-800' : 'text-emerald-700'
+                                }`}>
                                   <span>{chapMasteryPercent}% Completed</span>
                                   <span className="text-slate-450 font-medium">{chapUnits.length} tasks</span>
                                 </div>
@@ -1977,11 +1994,13 @@ export default function UserDashboard({
 
                                       <div className="min-w-0">
                                         <span className={`text-[7px] font-mono tracking-wider block mb-0.5 ${
-                                          isSelected ? 'text-emerald-700 font-extrabold' : 'text-slate-400'
+                                          isSelected ? 'text-emerald-800 font-black' : 'text-slate-400'
                                         }`}>
-                                          {unit.code} · {unit.frequency}
+                                          {unit.code} · {unit.frequency} {isSelected && "· LEARNING NOW"}
                                         </span>
-                                        <h5 className="text-[10px] font-bold leading-tight truncate">
+                                        <h5 className={`text-[10px] font-bold leading-tight truncate ${
+                                          isSelected ? 'text-emerald-950 font-black scale-[1.01] origin-left' : 'text-slate-800'
+                                        }`}>
                                           {unit.taskName}
                                         </h5>
                                       </div>
@@ -2065,58 +2084,6 @@ export default function UserDashboard({
             selectedUnit ? (
             <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col gap-3 animate-in fade-in duration-200">
               
-              {/* Core Unit Workspace Header Card */}
-              <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-3xs shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-1.5 mb-1.5">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="inline-block text-[7px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.2 rounded uppercase tracking-wider">
-                        {selectedUnit.code}
-                      </span>
-                    </div>
-                    <h3 className="font-display text-xs sm:text-sm font-black text-slate-900 tracking-tight leading-tight truncate">
-                      {selectedUnit.taskName}
-                    </h3>
-                  </div>
-                  
-                  {/* Modern Status Pill */}
-                  <div className="shrink-0 self-start sm:self-auto">
-                    <span className={`px-2 py-0.5 rounded-md text-[8.5px] sm:text-[9px] font-mono font-extrabold tracking-wide border ${
-                      getStatusColor(getUnitProgress(selectedUnit.id)?.status)
-                    }`}>
-                      {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Highly Compact Metadata Row (1 single line) */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-0.5 text-[8.5px] text-slate-500 border-b border-slate-100 pb-1 mb-1">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Schedule:</span>
-                    <span className="font-bold text-slate-800">{selectedUnit.frequency}</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Required Skill:</span>
-                    <span className="font-bold text-slate-800 block truncate max-w-[120px]">{selectedUnit.skillRequired}</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Standard:</span>
-                    <span className="font-bold text-slate-800">Dual Verification</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Scope:</span>
-                    <span className="font-bold text-emerald-600">Active Master</span>
-                  </div>
-                </div>
-
-                <p className="text-[9.5px] text-slate-500 leading-tight font-sans font-medium">
-                  {selectedUnit.description}
-                </p>
-              </div>
-
               {/* Desktop Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
               <div className="shrink-0">
                 {renderCombinedMediaStage(false)}
@@ -2124,6 +2091,37 @@ export default function UserDashboard({
 
               {/* Unified SOP Checklist & Progress Sign-Off Panel */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-3xs p-3 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col justify-between">
+                
+                {/* Active Unit Header Info Bar */}
+                <div className="border-b border-slate-150 pb-2 mb-2 shrink-0 bg-slate-50/50 p-2 rounded-lg flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="inline-block text-[7.5px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-150 px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        {selectedUnit.code} · Chapter {chapters.indexOf(chapters.find(c => c.id === selectedUnit.chapterId)!) + 1}
+                      </span>
+                      <span className="text-[8px] text-slate-400 font-mono">
+                        ({selectedUnit.frequency} · Skill: {selectedUnit.skillRequired})
+                      </span>
+                    </div>
+                    <h3 className="font-sans text-[11px] font-extrabold text-slate-900 leading-tight truncate">
+                      {selectedUnit.taskName}
+                    </h3>
+                    {selectedUnit.description && (
+                      <p className="text-[9px] text-slate-500 leading-normal font-medium truncate mt-0.5">
+                        {selectedUnit.description}
+                      </p>
+                    )}
+                  </div>
+                  {/* Modern Status Pill */}
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-md text-[8px] sm:text-[8.5px] font-mono font-extrabold tracking-wide border ${
+                      getStatusColor(getUnitProgress(selectedUnit.id)?.status)
+                    }`}>
+                      {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 divide-y md:divide-y-0 md:divide-x divide-slate-150 lg:flex-1 lg:min-h-0">
                   
                   {/* Left Column: SOP Checklist (7/12 cols) */}
