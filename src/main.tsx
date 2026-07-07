@@ -62,7 +62,8 @@ if (typeof window !== 'undefined') {
       !event.filename || 
       lower.includes('script error') ||
       lower.includes('websocket') ||
-      lower.includes('failed to connect')
+      lower.includes('failed to connect') ||
+      lower.includes('closed without opened')
     ) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -93,6 +94,47 @@ if (typeof window !== 'undefined') {
       // ignore
     }
   }, true);
+
+  // Directly assign window.onerror and onunhandledrejection to intercept early or when event listeners are bypassed
+  window.onerror = function (message, source, lineno, colno, error) {
+    const errStr = String(message || (error && error.message) || '').toLowerCase();
+    if (
+      errStr.includes('websocket') ||
+      errStr.includes('failed to connect') ||
+      errStr.includes('closed without opened') ||
+      errStr.includes('script error')
+    ) {
+      return true; // suppress default browser/tool error handling
+    }
+  };
+
+  const originalOnUnhandledRejection = window.onunhandledrejection;
+  window.onunhandledrejection = function (event) {
+    try {
+      const reason = event.reason;
+      const reasonStr = reason 
+        ? String(reason.message || reason.stack || reason) 
+        : '';
+      const eventStr = String(event) + ' ' + (event.promise ? String(event.promise) : '');
+      const combined = (reasonStr + ' ' + eventStr).toLowerCase();
+      
+      if (
+        combined.includes('websocket') ||
+        combined.includes('failed to connect') ||
+        combined.includes('closed without opened') ||
+        combined.includes('script error')
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    if (originalOnUnhandledRejection) {
+      return originalOnUnhandledRejection.call(window, event);
+    }
+  };
 }
 
 createRoot(document.getElementById('root')!).render(
