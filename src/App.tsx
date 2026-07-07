@@ -443,7 +443,7 @@ export default function App() {
   const certProgressStats = currentUserDetail ? calculateUserProgress(currentUserDetail.id, certCurrentRoleIds) : null;
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-900 relative overflow-hidden">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#fafbfc] flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-900 relative">
       {/* Premium Stylish Background Grid & Radial Light Accents */}
       <div className="absolute inset-x-0 top-0 h-[800px] bg-gradient-to-b from-blue-50/30 via-emerald-50/15 to-transparent pointer-events-none z-0" />
       <div className="absolute top-[10%] left-[-15%] w-[600px] h-[600px] rounded-full bg-blue-300/[0.12] blur-[130px] pointer-events-none z-0" />
@@ -454,7 +454,7 @@ export default function App() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_20%,#000_75%,transparent_100%)] pointer-events-none opacity-[0.4] z-0" />
 
       {currentUserId && currentUserDetail ? (
-        <div className="flex flex-col min-h-screen relative z-10 flex-grow">
+        <div className="flex flex-col min-h-screen lg:h-screen lg:overflow-hidden relative z-10 flex-grow">
           {/* Header */}
           <Header
             currentUser={currentUserDetail}
@@ -482,8 +482,8 @@ export default function App() {
           />
 
           {/* Core Content Area */}
-          <main className="flex-grow pt-14 lg:pt-16 pb-32 lg:pb-20">
-            {activeTab === 'learning' ? (
+          <main className="flex-grow pt-14 lg:pt-16 pb-32 lg:pb-12 lg:h-[calc(100vh-64px)] lg:max-h-[calc(100vh-64px)] lg:overflow-hidden flex flex-col min-h-0">
+            {!activeTab.startsWith('admin-') ? (
               <UserDashboard
                 currentUser={currentUserDetail}
                 roles={roles}
@@ -501,52 +501,19 @@ export default function App() {
                   saveGlobalNotifications(updated);
                   setGlobalNotifications(updated);
                 }}
-              />
-            ) : activeTab === 'exams' ? (
-              <AssessmentCenter
-                currentUser={currentUserDetail}
-                chapterId={selectedExamChapterId}
-                onBackToDashboard={() => {
-                  setSelectedExamChapterId(null);
-                  setActiveTab('learning');
+                activeTab={activeTab}
+                onChangeTab={(tab) => {
+                  setActiveTab(tab);
                 }}
+                selectedExamChapterId={selectedExamChapterId}
+                setSelectedExamChapterId={setSelectedExamChapterId}
                 onAttemptSaved={() => {
                   const updatedProgress = getProgress();
                   setProgress(updatedProgress);
                 }}
+                certUserRole={certUserRole}
+                certProgressStats={certProgressStats}
               />
-            ) : activeTab === 'testing' ? (
-              <ScreeningTest
-                currentUser={currentUserDetail}
-                onAttemptSaved={() => {
-                  // Synchronize assessments if necessary
-                }}
-              />
-            ) : activeTab === 'certificate' ? (
-              <div id="standalone-certificate-tab" className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 flex flex-col gap-6">
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
-                  <h3 className="font-display text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 mb-2">
-                    <span className="text-2xl">📜</span>
-                    Mastery Certificate Workspace
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-505 text-slate-500 max-w-2xl mb-8 font-sans">
-                    Track your completion progress and download your official {branding?.companyName || 'Rathi Buildmart'} Corporate Learning Academy Certificate of Mastery.
-                  </p>
-
-                  {certProgressStats && (
-                    <CertificateGenerator
-                      currentUser={currentUserDetail}
-                      userRole={certUserRole}
-                      progress={progress}
-                      stats={certProgressStats}
-                      onStartFinalExam={() => {
-                        setSelectedExamChapterId(null);
-                        setActiveTab('exams');
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
             ) : (
               <AdminDashboard
                 currentUser={currentUserDetail}
@@ -570,6 +537,7 @@ export default function App() {
                 onUpdateHelplineContacts={(updated) => { saveHelplineContacts(updated); setHelplineContacts(updated); }}
                 selectedTab={activeTab.startsWith('admin-') ? (activeTab.replace('admin-', '') as any) : undefined}
                 onTabChange={(tab) => setActiveTab('admin-' + tab)}
+                onSelectTraineeTab={(tab) => setActiveTab(tab)}
               />
             )}
           </main>

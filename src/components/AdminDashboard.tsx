@@ -69,7 +69,8 @@ import {
   Lock,
   Unlock,
   Eye,
-  EyeOff
+  EyeOff,
+  MousePointerClick
 } from 'lucide-react';
 import { Maximize2, Minimize2, SlidersHorizontal, MoreVertical } from 'lucide-react';
 import { 
@@ -206,6 +207,7 @@ interface AdminDashboardProps {
   onUpdateHelplineContacts?: (contacts: HelplineContact[]) => void;
   selectedTab?: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit';
   onTabChange?: (tab: 'reports' | 'approvals' | 'hierarchy' | 'users' | 'roles' | 'curriculum' | 'analytics' | 'recruitment' | 'departments' | 'certificate' | 'audit') => void;
+  onSelectTraineeTab?: (tab: string) => void;
 }
 
 const getDeptTheme = (name: string) => {
@@ -330,7 +332,8 @@ export default function AdminDashboard({
   helplineContacts,
   onUpdateHelplineContacts,
   selectedTab,
-  onTabChange
+  onTabChange,
+  onSelectTraineeTab
 }: AdminDashboardProps) {
 
   // Helpline Contacts State
@@ -418,6 +421,7 @@ export default function AdminDashboard({
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [sidebarLocked, setSidebarLocked] = useState<boolean>(false);
   const [sidebarVisible, setSidebarVisible] = useState<boolean>(true);
+  const [autoHideEnabled, setAutoHideEnabled] = useState<boolean>(true);
   const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({ reports: true });
   const [showDepartmentsSidebar, setShowDepartmentsSidebar] = useState<boolean>(false);
   const [welcomeBannerDismissed, setWelcomeBannerDismissed] = useState<boolean>(() => {
@@ -2371,7 +2375,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
     <div className="flex min-h-screen bg-slate-50/50 relative">
       
       {/* Backdrop overlay for floating sidebar to auto hide when clicking outside / side */}
-      {!sidebarLocked && sidebarVisible && !sidebarCollapsed && (
+      {autoHideEnabled && !sidebarLocked && sidebarVisible && !sidebarCollapsed && (
         <div 
           className="fixed inset-0 bg-transparent z-[80] cursor-pointer"
           onClick={() => setSidebarCollapsed(true)}
@@ -2382,10 +2386,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       {sidebarVisible && (
         <aside 
           id="admin-sidebar"
-          className={`bg-white/95 border-r-2 border-slate-300 transition-all duration-350 z-40 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
+          className={`bg-white/95 border-r-2 border-slate-300 transition-all duration-350 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
             sidebarCollapsed ? 'w-16' : 'w-[265px]'
           } ${
-            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
+            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans z-40' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
           }`}
         >
           {/* Header area of sidebar */}
@@ -2437,6 +2441,21 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 }`}
               >
                 {sidebarLocked ? <Pin className="w-3 h-3" /> : <PinOff className="w-3 h-3" />}
+              </button>
+
+              {/* Auto-Hide Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoHideEnabled(!autoHideEnabled);
+                  showToast(autoHideEnabled ? "Auto-hide on outside click disabled" : "Auto-hide on outside click enabled", "info");
+                }}
+                title={autoHideEnabled ? "Disable Auto-Hide on Outside Click" : "Enable Auto-Hide on Outside Click"}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                  autoHideEnabled ? 'text-indigo-650 text-indigo-600 bg-indigo-50 border border-indigo-100' : 'text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60'
+                }`}
+              >
+                <MousePointerClick className="w-3.5 h-3.5" />
               </button>
 
               {/* Hide Sidebar button */}
@@ -2747,6 +2766,70 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       }
                     }
                   ]
+                },
+                {
+                  id: 'learning',
+                  label: 'My Learning Path',
+                  icon: BookOpen,
+                  isTraineeTab: true,
+                  subTabs: [
+                    {
+                      id: 'trainee_learning_path',
+                      label: 'Lesson Syllabus & Modules',
+                      isActive: false,
+                      onClick: () => {
+                        onSelectTraineeTab?.('learning');
+                      }
+                    }
+                  ]
+                },
+                {
+                  id: 'exams',
+                  label: 'Final Competency Test',
+                  icon: Award,
+                  isTraineeTab: true,
+                  subTabs: [
+                    {
+                      id: 'trainee_exams',
+                      label: 'Chapter Assessment Tests',
+                      isActive: false,
+                      onClick: () => {
+                        onSelectTraineeTab?.('exams');
+                      }
+                    }
+                  ]
+                },
+                {
+                  id: 'testing',
+                  label: 'Only Testing',
+                  icon: Brain,
+                  isTraineeTab: true,
+                  subTabs: [
+                    {
+                      id: 'trainee_testing',
+                      label: 'Skill Screening Exercises',
+                      isActive: false,
+                      onClick: () => {
+                        onSelectTraineeTab?.('testing');
+                      }
+                    }
+                  ]
+                },
+                {
+                  id: 'certificate_trainee',
+                  label: 'Mastery Certificate',
+                  icon: Award,
+                  isTraineeTab: true,
+                  subTabs: [
+                    {
+                      id: 'trainee_certificate',
+                      label: 'Download Qualification Document',
+                      isActive: false,
+                      onClick: () => {
+                        onSelectTraineeTab?.('certificate');
+                      }
+                    }
+                  ]
                 }
               ];
 
@@ -2845,6 +2928,38 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   inactiveIcon: 'bg-pink-50 text-pink-600 border border-pink-100/50',
                   activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
                   inactiveBadge: 'bg-pink-50/80 text-pink-700 border border-pink-100/40 text-[7.5px]'
+                },
+                learning: {
+                  activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-emerald-50/70 hover:text-emerald-900 hover:border-emerald-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-emerald-50 text-emerald-600 border border-emerald-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-emerald-50/80 text-emerald-700 border border-emerald-100/40 text-[7.5px]'
+                },
+                exams: {
+                  activeBg: 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-indigo-50/70 hover:text-indigo-900 hover:border-indigo-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-indigo-50 text-indigo-600 border border-indigo-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-indigo-50/80 text-indigo-700 border border-indigo-100/40 text-[7.5px]'
+                },
+                testing: {
+                  activeBg: 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md shadow-violet-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-violet-50/70 hover:text-violet-900 hover:border-violet-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-violet-50 text-violet-600 border border-violet-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-violet-50/80 text-violet-700 border border-violet-100/40 text-[7.5px]'
+                },
+                certificate_trainee: {
+                  activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/15 scale-[1.01]',
+                  inactiveHover: 'hover:bg-amber-50/70 hover:text-amber-900 hover:border-amber-100/60 text-slate-600 border border-transparent',
+                  activeIcon: 'bg-white/25 text-white',
+                  inactiveIcon: 'bg-amber-50 text-amber-600 border border-amber-100/50',
+                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
+                  inactiveBadge: 'bg-amber-50/80 text-amber-700 border border-amber-100/40 text-[7.5px]'
                 }
               };
 
@@ -2861,6 +2976,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 certificate: 'perm_cert_config',
               };
 
+              let firstTraineeTabFound = false;
+
               return sidebarTabs
                 .filter((t) => {
                   const requiredPerm = tabPermissionMap[t.id];
@@ -2874,121 +2991,148 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   const requiredPerm = tabPermissionMap[t.id];
                   const isLocked = requiredPerm && !hasPermission(requiredPerm);
                   
+                  let renderHeader = false;
+                  if (t.isTraineeTab && !firstTraineeTabFound) {
+                    firstTraineeTabFound = true;
+                    renderHeader = true;
+                  }
+                  
                   return (
-                  <div key={t.id} className="space-y-1 font-sans">
-                    {/* Main Sidebar Tab button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isLocked) {
-                          showToast(`🔒 Access Denied: Your designation (${currentUser.role?.name || 'Quality Checker'}) has not been granted the required permission in the Permissions Matrix!`, 'error');
-                          return;
-                        }
-                        if (isTabActive) {
-                          setExpandedTabs(prev => ({ [t.id]: !prev[t.id] }));
-                        } else {
-                          setAdminTab(t.id as any);
-                          setExpandedTabs(() => ({ [t.id]: true }));
-                          if (t.subTabs && t.subTabs.length > 0) {
-                            t.subTabs[0].onClick();
-                          }
-                          if (!sidebarLocked) {
-                            setSidebarCollapsed(true);
-                          }
-                        }
-                      }}
-                      onDoubleClick={() => {
-                        if (isLocked) return;
-                        setExpandedTabs(() => ({ [t.id]: false }));
-                      }}
-                      className={`w-full group relative flex items-center justify-between gap-1.5 p-1.5 rounded-lg transition-all duration-200 text-left cursor-pointer ${
-                        isLocked 
-                          ? 'opacity-65 hover:opacity-85 border border-transparent hover:bg-slate-50'
-                          : isTabActive 
-                            ? theme.activeBg + ' font-semibold scale-[1.01]' 
-                            : theme.inactiveHover
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className={`p-1 rounded-lg shrink-0 transition-colors duration-200 relative ${
-                          isLocked 
-                            ? 'bg-slate-100 text-slate-400 border border-slate-200' 
-                            : isTabActive ? theme.activeIcon : theme.inactiveIcon
-                        }`}>
-                          <Icon className="w-3.5 h-3.5" />
-                          {isLocked && (
-                            <div className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 border border-white shadow-2xs">
-                              <Lock className="w-1.5 h-1.5" />
-                            </div>
+                    <React.Fragment key={t.id}>
+                      {renderHeader && (
+                        <div className="pt-3 pb-1.5">
+                          {!sidebarCollapsed ? (
+                            <span className="block text-[8px] font-mono text-slate-400 uppercase tracking-widest font-black mb-1 px-1.5 mt-3">
+                              📚 TRAINEE WORKSPACE
+                            </span>
+                          ) : (
+                            <div className="border-t border-slate-200 my-1.5 mx-2 mt-3" />
                           )}
                         </div>
-                        
-                        {!sidebarCollapsed && (
-                          <span className="text-[10.5px] font-extrabold font-sans tracking-wide truncate flex items-center gap-1">
-                            {t.label}
-                            {isLocked && (
-                              <Lock className="w-2.5 h-2.5 text-rose-500 shrink-0" title="Locked by Matrix" />
-                            )}
-                          </span>
-                        )}
-                      </div>
- 
-                      {/* Right metadata badge/count */}
-                      {!sidebarCollapsed && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isLocked ? (
-                            <span className="text-[7.5px] font-mono font-black uppercase text-rose-500 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded">LOCKED</span>
-                          ) : t.countLabel ? (
-                            <span className={`px-1.5 py-0.5 rounded shrink-0 uppercase border font-mono font-black ${
-                              isTabActive ? theme.activeBadge : theme.inactiveBadge
-                            }`}>
-                              {t.countLabel}
-                            </span>
-                          ) : t.count !== undefined ? (
-                            <span className={`px-1.5 py-0.5 rounded-full shrink-0 border font-mono font-black ${
-                              isTabActive ? theme.activeBadge : theme.inactiveBadge
-                            }`}>
-                              {t.count}
-                            </span>
-                          ) : null}
-                        </div>
                       )}
-                    </button>
- 
-                    {/* Expandable nested sub-tabs */}
-                    {!sidebarCollapsed && !isLocked && t.subTabs && expandedTabs[t.id] && (
-                      <div className="pl-3 py-1 border-l border-slate-300 ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                        {t.subTabs
-                          .filter((st) => {
-                            if (st.id === 'user_add') return hasPermission('perm_user_add');
-                            if (st.id === 'user_sync') return hasPermission('perm_user_edt');
-                            return true;
-                          })
-                          .map((st) => (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => {
-                              st.onClick();
+                      
+                      <div className="space-y-1 font-sans">
+                        {/* Main Sidebar Tab button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (t.isTraineeTab) {
+                              onSelectTraineeTab?.(t.id === 'certificate_trainee' ? 'certificate' : t.id);
                               if (!sidebarLocked) {
                                 setSidebarCollapsed(true);
                               }
-                            }}
-                            className={`w-full text-left py-1 px-2 rounded-md text-[9.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                              st.isActive 
-                                ? 'bg-slate-100 text-slate-900 border border-slate-200/60 shadow-3xs' 
-                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'
-                            }`}
-                          >
-                            <span className={`w-1 h-1 rounded-full shrink-0 ${st.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                            <span className="truncate flex-1">{st.label}</span>
-                          </button>
-                        ))}
+                              return;
+                            }
+                            if (isLocked) {
+                              showToast(`🔒 Access Denied: Your designation (${currentUser.role?.name || 'Quality Checker'}) has not been granted the required permission in the Permissions Matrix!`, 'error');
+                              return;
+                            }
+                            if (isTabActive) {
+                              setExpandedTabs(prev => ({ [t.id]: !prev[t.id] }));
+                            } else {
+                              setAdminTab(t.id as any);
+                              setExpandedTabs(() => ({ [t.id]: true }));
+                              if (t.subTabs && t.subTabs.length > 0) {
+                                t.subTabs[0].onClick();
+                              }
+                              if (!sidebarLocked) {
+                                setSidebarCollapsed(true);
+                              }
+                            }
+                          }}
+                          onDoubleClick={() => {
+                            if (isLocked) return;
+                            setExpandedTabs(() => ({ [t.id]: false }));
+                          }}
+                          className={`w-full group relative flex items-center justify-between gap-1.5 p-1.5 rounded-lg transition-all duration-200 text-left cursor-pointer ${
+                            isLocked 
+                              ? 'opacity-65 hover:opacity-85 border border-transparent hover:bg-slate-50'
+                              : isTabActive 
+                                ? theme.activeBg + ' font-semibold scale-[1.01]' 
+                                : theme.inactiveHover
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className={`p-1 rounded-lg shrink-0 transition-colors duration-200 relative ${
+                              isLocked 
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200' 
+                                : isTabActive ? theme.activeIcon : theme.inactiveIcon
+                            }`}>
+                              <Icon className="w-3.5 h-3.5" />
+                              {isLocked && (
+                                <div className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 border border-white shadow-2xs">
+                                  <Lock className="w-1.5 h-1.5" />
+                                </div>
+                              )}
+                            </div>
+                            
+                            {!sidebarCollapsed && (
+                              <span className="text-[10.5px] font-extrabold font-sans tracking-wide truncate flex items-center gap-1">
+                                {t.label}
+                                {isLocked && (
+                                  <Lock className="w-2.5 h-2.5 text-rose-500 shrink-0" title="Locked by Matrix" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+     
+                          {/* Right metadata badge/count */}
+                          {!sidebarCollapsed && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isLocked ? (
+                                <span className="text-[7.5px] font-mono font-black uppercase text-rose-500 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded">LOCKED</span>
+                              ) : t.countLabel ? (
+                                <span className={`px-1.5 py-0.5 rounded shrink-0 uppercase border font-mono font-black ${
+                                  isTabActive ? theme.activeBadge : theme.inactiveBadge
+                                }`}>
+                                  {t.countLabel}
+                                </span>
+                              ) : t.count !== undefined ? (
+                                <span className={`px-1.5 py-0.5 rounded-full shrink-0 border font-mono font-black ${
+                                  isTabActive ? theme.activeBadge : theme.inactiveBadge
+                                }`}>
+                                  {t.count}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+                        </button>
+     
+                        {/* Expandable nested sub-tabs */}
+                        {!sidebarCollapsed && !isLocked && t.subTabs && expandedTabs[t.id] && (
+                          <div className="pl-3 py-1 border-l border-slate-300 ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {t.subTabs
+                              .filter((st) => {
+                                if (st.id === 'user_add') return hasPermission('perm_user_add');
+                                if (st.id === 'user_sync') return hasPermission('perm_user_edt');
+                                return true;
+                              })
+                              .map((st) => (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => {
+                                  st.onClick();
+                                  if (!sidebarLocked) {
+                                    setSidebarCollapsed(true);
+                                  }
+                                }}
+                                className={`w-full text-left py-1 px-2 rounded-md text-[9.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  st.isActive 
+                                    ? 'bg-slate-100 text-slate-900 border border-slate-200/60 shadow-3xs' 
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'
+                                }`}
+                              >
+                                <span className={`w-1 h-1 rounded-full shrink-0 ${st.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                <span className="truncate flex-1">{st.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              });
+                    </React.Fragment>
+                  );
+                });
             })()}
           </div>
 

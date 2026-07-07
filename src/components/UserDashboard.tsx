@@ -16,6 +16,12 @@ import {
   BookOpen, 
   Building2, 
   ChevronRight, 
+  ChevronLeft,
+  Pin,
+  PinOff,
+  Eye,
+  EyeOff,
+  MousePointerClick,
   FileText, 
   Calendar, 
   CheckSquare, 
@@ -28,10 +34,13 @@ import {
   Trash2,
   Check,
   Database,
-  BarChart3
+  BarChart3,
+  Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CertificateGenerator from './CertificateGenerator';
+import AssessmentCenter from './AssessmentCenter';
+import ScreeningTest from './ScreeningTest';
 
 export interface NotificationItem {
   id: string;
@@ -320,6 +329,15 @@ interface UserDashboardProps {
   branding?: CompanyBranding;
   globalNotifications?: GlobalNotification[];
   onUpdateNotifications?: (updated: GlobalNotification[]) => void;
+  
+  // Sidebar tab routing
+  activeTab?: string;
+  onChangeTab?: (tab: string) => void;
+  selectedExamChapterId?: string | null;
+  setSelectedExamChapterId?: (id: string | null) => void;
+  onAttemptSaved?: () => void;
+  certUserRole?: Role | null;
+  certProgressStats?: any;
 }
 
 export default function UserDashboard({
@@ -332,7 +350,16 @@ export default function UserDashboard({
   onStartChapterExam,
   branding,
   globalNotifications = [],
-  onUpdateNotifications = () => {}
+  onUpdateNotifications = () => {},
+  
+  // Destructured sidebar routing
+  activeTab = 'learning',
+  onChangeTab,
+  selectedExamChapterId = null,
+  setSelectedExamChapterId,
+  onAttemptSaved,
+  certUserRole = null,
+  certProgressStats = null
 }: UserDashboardProps) {
   // Get all assigned role IDs for the user (always fallback/include currentUser.roleId)
   const assignedRoleIds = Array.from(new Set([
@@ -522,6 +549,12 @@ export default function UserDashboard({
   const [isEditingPdf, setIsEditingPdf] = useState(false);
   const [customPdfInput, setCustomPdfInput] = useState(pdfUrl);
   const [pdfReaderCollapsed, setPdfReaderCollapsed] = useState(false);
+
+  // Trainee Sidebar States
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarLocked, setSidebarLocked] = useState(false);
+  const [autoHideEnabled, setAutoHideEnabled] = useState(true);
 
   // Helper: check if chapter is unlocked
   const checkIsChapterUnlocked = (idx: number) => {
@@ -790,7 +823,7 @@ export default function UserDashboard({
                 <span className="text-[9px] text-indigo-500 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
                   Corporate Curriculum Architecture
                 </span>
-                <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
+                <span className="font-display text-xs sm:text-sm font-black text-slate-900 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
                   📄 Lesson SOP Document (PDF)
                 </span>
               </div>
@@ -799,10 +832,10 @@ export default function UserDashboard({
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse shrink-0"></span>
               <div className="min-w-0">
-                <span className="text-[10px] text-slate-400 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
+                <span className="text-[9px] sm:text-[10px] text-rose-500 font-mono tracking-wider font-extrabold uppercase block leading-none mb-0.5">
                   NOW STREAMING LESSON
                 </span>
-                <span className="font-display text-xs font-black text-slate-800 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
+                <span className="font-display text-xs sm:text-sm font-black text-slate-900 tracking-tight block truncate max-w-[180px] sm:max-w-md md:max-w-xl">
                   {selectedUnit.videoTitle || "Standard Walkthrough Demonstration"}
                 </span>
               </div>
@@ -937,7 +970,7 @@ export default function UserDashboard({
           <div>
             {activeMediaTab === 'pdf' ? (
               /* PDF iframe stage */
-              <div className="w-full bg-slate-900 relative shadow-inner" style={{ height: '380px' }}>
+              <div className="w-full bg-slate-900 relative shadow-inner h-[260px] lg:h-[330px]">
                 <iframe
                   src={resolvedPdfUrl}
                   title="Corporate Curriculum Architecture PDF Frame"
@@ -949,7 +982,7 @@ export default function UserDashboard({
             ) : (
               /* Video stage */
               <>
-                <div className="aspect-video w-full bg-slate-950 relative shadow-inner">
+                <div className="aspect-video w-full max-h-[330px] bg-slate-950 relative shadow-inner">
                   {type === 'embed' ? (
                     <iframe
                       src={url}
@@ -998,8 +1031,182 @@ export default function UserDashboard({
   };
 
   return (
-    <div className="bg-transparent">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-10 animate-in fade-in duration-350">
+    <div className="flex min-h-screen bg-slate-50/50 relative w-full">
+      {/* Backdrop overlay for floating sidebar to auto hide when clicking outside / side */}
+      {autoHideEnabled && !sidebarLocked && sidebarVisible && !sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-transparent z-[80] cursor-pointer"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
+      {/* PREMIUM LIGHT LEFT SIDEBAR CONSOLE (Trainee version) */}
+      {sidebarVisible && (
+        <aside 
+          id="trainee-sidebar"
+          className={`bg-white/95 border-r-2 border-slate-200 transition-all duration-300 z-[85] flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
+            sidebarCollapsed ? 'w-16' : 'w-[265px]'
+          } ${
+            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
+          }`}
+        >
+          {/* Header area of sidebar */}
+          <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-50/20 via-teal-50/10 to-transparent">
+            {!sidebarCollapsed ? (
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 shrink-0">
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                </span>
+                <div className="min-w-0">
+                  <h4 className="font-display text-[10.5px] font-black uppercase tracking-wider text-slate-800 truncate leading-tight">
+                    Trainee Console
+                  </h4>
+                  <p className="text-[7.5px] text-slate-500 font-mono font-bold mt-0.5 truncate leading-none">
+                    WORKSPACE PANEL
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto">
+                <BookOpen className="w-4.5 h-4.5 text-emerald-500 animate-pulse" />
+              </div>
+            )}
+            
+            <div className={`flex items-center gap-0.5 shrink-0 ${sidebarCollapsed ? 'mx-auto hidden' : ''}`}>
+              {/* Collapse Button */}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(true)}
+                title="Collapse Panel (Icons Mode)"
+                className="text-slate-400 hover:text-emerald-650 hover:bg-emerald-50/60 p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Lock/Unlock Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarLocked(!sidebarLocked);
+                }}
+                title={sidebarLocked ? "Unlock/Float Sidebar" : "Lock Sidebar (Fixed Column)"}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                  sidebarLocked ? 'text-emerald-650 text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-emerald-650 hover:bg-emerald-50/60'
+                }`}
+              >
+                {sidebarLocked ? <Pin className="w-3 h-3" /> : <PinOff className="w-3 h-3" />}
+              </button>
+
+              {/* Auto-Hide Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoHideEnabled(!autoHideEnabled);
+                  setToastMsg(autoHideEnabled ? "Auto-hide on outside click disabled" : "Auto-hide on outside click enabled");
+                  setTimeout(() => setToastMsg(null), 3000);
+                }}
+                title={autoHideEnabled ? "Disable Auto-Hide on Outside Click" : "Enable Auto-Hide on Outside Click"}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                  autoHideEnabled ? 'text-teal-650 text-teal-600 bg-teal-50 border border-teal-100' : 'text-slate-400 hover:text-teal-650 hover:bg-teal-50/60'
+                }`}
+              >
+                <MousePointerClick className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsed state Expand trigger */}
+          {sidebarCollapsed && (
+            <div className="py-2 flex justify-center border-b border-slate-100 bg-slate-50/20">
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                title="Expand Panel"
+                className="text-slate-400 hover:text-emerald-650 bg-white hover:bg-emerald-50 p-1.5 rounded-lg transition duration-200 cursor-pointer border border-slate-200"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Sidebar Nav Items List */}
+          <div className="flex-1 p-3 space-y-2 overflow-y-auto custom-scrollbar">
+            {[
+              { id: 'learning', label: 'My Learning Path', icon: BookOpen, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
+              { id: 'exams', label: 'Final Competency Test', icon: Award, colorClass: 'text-indigo-600', bgClass: 'bg-indigo-50' },
+              { id: 'testing', label: 'Only Testing', icon: Brain, colorClass: 'text-violet-600', bgClass: 'bg-violet-50' },
+              { id: 'certificate', label: 'Mastery Certificate', icon: Award, colorClass: 'text-amber-600', bgClass: 'bg-amber-50' },
+            ].map((t) => {
+              const isTabActive = activeTab === t.id;
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    if (onChangeTab) onChangeTab(t.id);
+                    if (!sidebarLocked) {
+                      setSidebarCollapsed(true);
+                    }
+                  }}
+                  className={`w-full group relative flex items-center gap-2.5 p-2 rounded-lg transition-all duration-200 text-left cursor-pointer border border-transparent ${
+                    isTabActive 
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/15 font-bold scale-[1.01]' 
+                      : 'hover:bg-slate-100/70 hover:text-slate-900 text-slate-655'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-lg shrink-0 transition-colors duration-200 ${
+                    isTabActive ? 'bg-white/20 text-white' : `${t.bgClass} ${t.colorClass} border border-slate-100 group-hover:bg-white`
+                  }`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  {!sidebarCollapsed && (
+                    <span className="text-[11px] font-extrabold tracking-wide truncate">
+                      {t.label}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer of Sidebar */}
+          {!sidebarCollapsed && (
+            <div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[8.5px] text-slate-500 font-mono space-y-1">
+              <div className="flex justify-between gap-1.5">
+                <span className="text-slate-400 font-semibold uppercase">TRAINEE:</span>
+                <span className="text-slate-800 font-bold truncate max-w-[130px]">{currentUser.name}</span>
+              </div>
+              <div className="flex justify-between gap-1.5">
+                <span className="text-slate-400 font-semibold uppercase">POSITION:</span>
+                <span className="text-emerald-700 font-black truncate max-w-[130px]">{userRole?.name || 'Trainee'}</span>
+              </div>
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* Sleek Floating Toggle Button when Trainee Sidebar is fully hidden */}
+      {!sidebarVisible && (
+        <button 
+          type="button"
+          onClick={() => {
+            setSidebarVisible(true);
+          }}
+          className="fixed left-5 top-24 z-50 bg-white hover:bg-emerald-50 border border-slate-200/80 p-3 rounded-2xl shadow-[0_12px_40px_rgba(148,163,184,0.18)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:text-emerald-600"
+        >
+          <BookOpen className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+          <span>Open Workspace Panel</span>
+        </button>
+      )}
+
+      {/* MAIN CONTENT AREA */}
+      <div className={`flex-grow min-w-0 flex flex-col relative transition-all duration-300 lg:h-full lg:max-h-full lg:min-h-0 ${
+        !sidebarLocked && sidebarVisible 
+          ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
+          : ''
+      }`}>
+        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
         
         {/* Trainee Enrollment Approved Banner */}
         <AnimatePresence>
@@ -1419,6 +1626,7 @@ export default function UserDashboard({
                                   if (window.innerWidth < 1024) {
                                     setMobileTab('player');
                                   }
+                                  if (onChangeTab) onChangeTab('learning');
                                   setToastMsg(`🎯 Selected: ${nextUnit.code} to continue your workspace journey.`);
                                 }}
                                 className="bg-slate-900 hover:bg-slate-800 text-white font-black text-[8px] py-1 px-2 rounded transition-all uppercase tracking-wider flex items-center justify-center gap-0.5 cursor-pointer shrink-0 shadow-3xs"
@@ -1540,10 +1748,10 @@ export default function UserDashboard({
               </button>
             </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:flex-1 lg:min-h-0">
           {/* Left Column: Premium Soft Light Curriculum Sidebar */}
-          <div className={`lg:col-span-5 space-y-4 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-3xs overflow-hidden select-none">
+          <div className={`lg:col-span-4 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 ${mobileTab === 'syllabus' ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white text-slate-800 rounded-2xl border border-slate-200 shadow-3xs overflow-hidden select-none lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
             {/* Sidebar Brand Header */}
             <div className="p-3.5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1566,21 +1774,21 @@ export default function UserDashboard({
             </div>
 
             {/* Sidebar Search & Schedule Filters */}
-            <div className="p-3.5 border-b border-slate-200 bg-slate-50/20 space-y-2.5">
+            <div className="p-4 border-b border-slate-200 bg-gradient-to-b from-slate-50/80 to-white space-y-3">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search syllabus tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-8 pr-7 py-2 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 outline-none transition-all duration-300 placeholder:text-slate-400 shadow-2xs hover:border-slate-350"
                 />
                 <span className="absolute left-2.5 top-2.5 text-xs text-slate-400">🔍</span>
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1 text-slate-400 hover:text-slate-600 text-base font-bold transition-colors"
+                    className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-lg font-bold transition-colors cursor-pointer"
                   >
                     ×
                   </button>
@@ -1588,16 +1796,16 @@ export default function UserDashboard({
               </div>
               
               {/* Frequency Filtering Pills */}
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none select-none pb-0.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none pb-0.5">
                 {(['All', 'Daily', 'Weekly', 'Monthly'] as const).map((freq) => (
                   <button
                     key={freq}
                     type="button"
                     onClick={() => setSelectedFreqFilter(freq as any)}
-                    className={`px-2.5 py-1 text-[8px] uppercase tracking-wider font-extrabold rounded-md border transition-all duration-150 shrink-0 cursor-pointer ${
+                    className={`px-3 py-1.5 text-[8.5px] uppercase tracking-wider font-extrabold rounded-lg border transition-all duration-200 shrink-0 cursor-pointer active:scale-95 ${
                       selectedFreqFilter === freq
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-3xs'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 border-slate-200/90'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs shadow-emerald-600/20'
+                        : 'bg-slate-50/50 hover:bg-slate-100/80 text-slate-500 hover:text-slate-800 border-slate-250/50'
                     }`}
                   >
                     {freq}
@@ -1607,9 +1815,9 @@ export default function UserDashboard({
             </div>
 
             {/* Chapters and Stepper Timelines - Styled Sidebar List */}
-            <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto scrollbar-thin">
+            <div className="divide-y divide-slate-100 max-h-[380px] lg:max-h-none lg:flex-1 overflow-y-auto scrollbar-thin">
               {userChapters.length === 0 ? (
-                <div className="text-center py-12 text-slate-405 text-slate-400 text-xs italic p-6 font-mono">
+                <div className="text-center py-12 text-slate-400 text-xs italic p-6 font-mono">
                   No chapters added for this training track yet.
                 </div>
               ) : (
@@ -1640,58 +1848,76 @@ export default function UserDashboard({
 
                   // Cycle through nice sidebar icons for each chapter category
                   const getChapterIcon = () => {
-                    if (!isUnlocked) return <Lock className="w-4 h-4" />;
+                    if (!isUnlocked) return <Lock className="w-3.5 h-3.5" />;
                     switch (chapIdx % 4) {
-                      case 0: return <BookOpen className="w-4 h-4 text-emerald-650 text-emerald-600" />;
-                      case 1: return <FileText className="w-4 h-4 text-purple-650 text-purple-500" />;
-                      case 2: return <Award className="w-4 h-4 text-amber-655 text-amber-500" />;
-                      default: return <CheckSquare className="w-4 h-4 text-emerald-655 text-emerald-600" />;
+                      case 0: return <BookOpen className="w-3.5 h-3.5 text-emerald-600" />;
+                      case 1: return <FileText className="w-3.5 h-3.5 text-purple-500" />;
+                      case 2: return <Award className="w-3.5 h-3.5 text-amber-500" />;
+                      default: return <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />;
                     }
                   };
 
                   return (
-                    <div key={chap.id} className="transition-all duration-200">
+                    <div key={chap.id} className="transition-all duration-300">
                       {/* Sidebar Chapter Accordion Title */}
                       <button
                         onClick={() => toggleChapter(chap.id, isUnlocked)}
                         type="button"
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                        className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between transition-all duration-300 ${
                           isUnlocked 
-                            ? 'hover:bg-slate-50 cursor-pointer bg-transparent text-slate-700' 
-                            : 'cursor-not-allowed bg-slate-50/50 text-slate-400'
+                            ? isExpanded 
+                              ? 'bg-slate-50/60 text-slate-850 cursor-pointer' 
+                              : 'hover:bg-slate-50/50 cursor-pointer bg-transparent text-slate-700' 
+                            : 'cursor-not-allowed bg-slate-50/30 text-slate-400'
                         }`}
                         id={`chapter-header-${chap.id}`}
                       >
                         <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
-                          <div className={`mt-0.5 shrink-0 ${isUnlocked ? 'text-emerald-600' : 'text-slate-350'}`}>
+                          <div className={`mt-0.5 shrink-0 p-1 rounded-lg transition-all duration-350 ${
+                            isUnlocked 
+                              ? isExpanded 
+                                ? 'bg-white shadow-3xs border border-slate-150 text-emerald-600'
+                                : 'bg-slate-50 border border-transparent text-slate-600'
+                              : 'text-slate-350 bg-slate-100'
+                          }`}>
                             {getChapterIcon()}
                           </div>
-                          <div className="min-w-0">
-                            <span className={`text-[7.5px] font-mono font-bold tracking-wider uppercase block ${
+                          <div className="min-w-0 flex-1">
+                            <span className={`text-[6.5px] font-mono font-black tracking-wider uppercase block leading-none mb-0.5 ${
                               isUnlocked ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
                               CHAPTER {chapIdx + 1}
                               {!isUnlocked && " (LOCKED)"}
                             </span>
-                            <h4 className="font-sans text-[11px] font-extrabold text-slate-800 tracking-tight truncate leading-tight">
+                            <h4 className="font-sans text-[9.5px] font-black text-slate-800 tracking-tight truncate leading-tight group-hover:text-slate-905">
                               {chap.name}
                             </h4>
+                            
                             {isUnlocked && (
-                              <span className="text-[9px] font-mono text-emerald-700 font-bold block mt-0.5 leading-none">
-                                {chapMasteryPercent}% Mastered · {chapUnits.length} tasks
-                              </span>
+                              <div className="mt-0.5">
+                                <div className="flex items-center justify-between text-[7.5px] font-mono text-emerald-700 font-bold mb-0.5">
+                                  <span>{chapMasteryPercent}% Completed</span>
+                                  <span className="text-slate-450 font-medium">{chapUnits.length} tasks</span>
+                                </div>
+                                <div className="w-full bg-slate-150 h-0.5 rounded-full overflow-hidden">
+                                  <div 
+                                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-700 ease-out"
+                                    style={{ width: `${chapMasteryPercent}%` }}
+                                  />
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
-                        <div className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
+                        <div className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 pl-1">
                           {isUnlocked ? (
                             isExpanded ? (
-                              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                              <ChevronDown className="w-4 h-4 text-slate-500" />
                             ) : (
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
                             )
                           ) : (
-                            <Lock className="w-3 h-3 text-slate-300" />
+                            <Lock className="w-3.5 h-3.5 text-slate-300" />
                           )}
                         </div>
                       </button>
@@ -1703,9 +1929,10 @@ export default function UserDashboard({
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="bg-slate-50/30 border-t border-slate-100 overflow-hidden"
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="bg-slate-50/20 border-t border-slate-100 overflow-hidden"
                           >
-                            <div className="py-1.5 space-y-0.5">
+                            <div className="py-1 px-1.5 space-y-0.5 bg-gradient-to-b from-slate-50/30 to-white">
                               {chapUnits.map((unit) => {
                                 const prog = getUnitProgress(unit.id);
                                 const isSelected = selectedUnit?.id === unit.id;
@@ -1714,67 +1941,66 @@ export default function UserDashboard({
                                   <div
                                     key={unit.id}
                                     id={`unit-item-${unit.id}`}
-                                    className={`w-full flex items-center justify-between px-4 py-1.5 transition-all duration-200 border-l-4 outline-none select-none relative group ${
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-all duration-300 border-l-[3px] outline-none select-none relative group cursor-pointer ${
                                       isSelected
-                                        ? 'bg-emerald-50/90 text-emerald-950 font-extrabold border-l-emerald-600'
-                                        : 'hover:bg-slate-100/70 text-slate-600 hover:text-slate-800 border-l-transparent'
+                                        ? 'bg-gradient-to-r from-emerald-50/95 via-teal-50/20 to-white text-emerald-950 font-extrabold border-l-emerald-600 shadow-3xs border border-emerald-100/50'
+                                        : 'hover:bg-slate-50 hover:-translate-y-[0.5px] hover:shadow-3xs text-slate-600 hover:text-slate-900 border-l-transparent border border-transparent'
                                     }`}
+                                    onClick={() => {
+                                      setSelectedUnitId(unit.id);
+                                      setMobileTab('player');
+                                      if (onChangeTab) onChangeTab('learning');
+                                    }}
                                   >
-                                    {/* Main info area (clicking selects unit) */}
-                                    <div
-                                      onClick={() => {
-                                        setSelectedUnitId(unit.id);
-                                        setMobileTab('player');
-                                      }}
-                                      className="flex items-center min-w-0 flex-1 pr-2 cursor-pointer"
-                                    >
-                                      {/* Beautiful Screenshot-Style Ring Bullet Indicators */}
+                                    {/* Main info area */}
+                                    <div className="flex items-center min-w-0 flex-1 pr-2">
+                                      {/* Beautiful Indicators */}
                                       {isSelected ? (
-                                        <div className="w-4 h-4 rounded-full border-2 border-emerald-600 flex items-center justify-center mr-2.5 shrink-0 bg-transparent">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></div>
+                                        <div className="w-3.5 h-3.5 rounded-full border-2 border-emerald-600 flex items-center justify-center mr-2 shrink-0 bg-white shadow-2xs">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 animate-pulse"></div>
                                         </div>
                                       ) : prog?.status === 'Verified & Mastered' ? (
-                                        <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-2xs">
-                                          ✓
+                                        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center mr-2 shrink-0 shadow-3xs">
+                                          <Check className="w-2 h-2 stroke-[4px]" />
                                         </div>
                                       ) : prog?.status === 'Completed (Pending Review)' ? (
-                                        <div className="w-4 h-4 rounded-full bg-amber-550 bg-amber-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-black shadow-2xs">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center mr-2 shrink-0 shadow-3xs text-[7px] animate-pulse">
                                           ⏳
                                         </div>
                                       ) : prog?.status === 'In Progress' ? (
-                                        <div className="w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2.5 shrink-0 text-[8px] font-bold">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2 shrink-0 text-[8px] font-black shadow-3xs">
                                           •
                                         </div>
                                       ) : (
-                                        <div className="w-4 h-4 rounded-full border border-slate-300 group-hover:border-slate-400 mr-2.5 shrink-0 transition-colors flex items-center justify-center" />
+                                        <div className="w-3.5 h-3.5 rounded-full border border-slate-300 group-hover:border-slate-450 mr-2 shrink-0 transition-all flex items-center justify-center bg-white" />
                                       )}
 
                                       <div className="min-w-0">
-                                        <span className={`text-[8px] font-mono tracking-wider block ${
+                                        <span className={`text-[7px] font-mono tracking-wider block mb-0.5 ${
                                           isSelected ? 'text-emerald-700 font-extrabold' : 'text-slate-400'
                                         }`}>
                                           {unit.code} · {unit.frequency}
                                         </span>
-                                        <h5 className="text-[11px] font-bold leading-snug truncate">
+                                        <h5 className="text-[10px] font-bold leading-tight truncate">
                                           {unit.taskName}
                                         </h5>
                                       </div>
                                     </div>
 
-                                    {/* Inline Status Badge (Read-only as per request, no inline dropdown) */}
+                                    {/* Inline Status Badge */}
                                     {(() => {
                                       const statusVal = prog?.status || 'Not Started';
                                       return (
                                         <div className="shrink-0 flex items-center gap-1.5 z-10">
                                           <span
-                                            className={`text-[8px] font-mono font-bold rounded-md px-1.5 py-0.5 border transition-all uppercase ${
+                                            className={`text-[7px] font-mono font-extrabold rounded px-1.5 py-0.2 border transition-all uppercase tracking-wide ${
                                               statusVal === 'Verified & Mastered'
-                                                ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
+                                                ? 'bg-emerald-50 border-emerald-100 text-emerald-800 shadow-3xs'
                                                 : statusVal === 'Completed (Pending Review)'
-                                                ? 'bg-amber-100 border-amber-200 text-amber-800'
+                                                ? 'bg-amber-50 border-amber-150 text-amber-800 shadow-3xs'
                                                 : statusVal === 'In Progress'
-                                                ? 'bg-blue-100 border-blue-200 text-blue-800'
-                                                : 'bg-slate-100 border-slate-200 text-slate-500'
+                                                ? 'bg-blue-50 border-blue-100 text-blue-800'
+                                                : 'bg-slate-50 border-slate-200/60 text-slate-500'
                                             }`}
                                           >
                                             {statusVal === 'Verified & Mastered' 
@@ -1793,12 +2019,10 @@ export default function UserDashboard({
                               })}
                               
                               {chapUnits.length === 0 && (
-                                <p className="px-5 py-3 text-[11px] text-slate-405 text-slate-400 italic text-center font-mono">
+                                <p className="px-5 py-3 text-[11px] text-slate-400 italic text-center font-mono">
                                   No tasks match schedule filters.
                                 </p>
                               )}
-
-
                             </div>
                           </motion.div>
                         )}
@@ -1835,28 +2059,29 @@ export default function UserDashboard({
           </div>
         </div>
 
-        {/* Right Column: Player & Active Details (7/12 cols) */}
-        <div className={`lg:col-span-7 space-y-4 ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
-          {selectedUnit ? (
-            <div className="space-y-4 animate-in fade-in duration-200">
+        {/* Right Column: Player & Active Details (8/12 cols) */}
+        <div className={`lg:col-span-8 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
+          {activeTab === 'learning' ? (
+            selectedUnit ? (
+            <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col gap-3 animate-in fade-in duration-200">
               
               {/* Core Unit Workspace Header Card */}
-              <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-3xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-2">
+              <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-3xs shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-1.5 mb-1.5">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="inline-block text-[7px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.2 rounded uppercase tracking-wider">
                         {selectedUnit.code}
                       </span>
                     </div>
-                    <h3 className="font-display text-sm sm:text-base font-black text-slate-900 tracking-tight leading-tight truncate">
+                    <h3 className="font-display text-xs sm:text-sm font-black text-slate-900 tracking-tight leading-tight truncate">
                       {selectedUnit.taskName}
                     </h3>
                   </div>
                   
                   {/* Modern Status Pill */}
                   <div className="shrink-0 self-start sm:self-auto">
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-mono font-extrabold tracking-wide border ${
+                    <span className={`px-2 py-0.5 rounded-md text-[8.5px] sm:text-[9px] font-mono font-extrabold tracking-wide border ${
                       getStatusColor(getUnitProgress(selectedUnit.id)?.status)
                     }`}>
                       {getStatusLabelText(getUnitProgress(selectedUnit.id)?.status)}
@@ -1865,171 +2090,163 @@ export default function UserDashboard({
                 </div>
 
                 {/* Highly Compact Metadata Row (1 single line) */}
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5 text-[9.5px] text-slate-500 border-b border-slate-100 pb-1.5 mb-1.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-0.5 text-[8.5px] text-slate-500 border-b border-slate-100 pb-1 mb-1">
                   <div className="flex items-center gap-1">
-                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Schedule:</span>
+                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Schedule:</span>
                     <span className="font-bold text-slate-800">{selectedUnit.frequency}</span>
                   </div>
                   <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
                   <div className="flex items-center gap-1">
-                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Required Skill:</span>
+                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Required Skill:</span>
                     <span className="font-bold text-slate-800 block truncate max-w-[120px]">{selectedUnit.skillRequired}</span>
                   </div>
                   <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
                   <div className="flex items-center gap-1">
-                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Standard:</span>
+                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Standard:</span>
                     <span className="font-bold text-slate-800">Dual Verification</span>
                   </div>
                   <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
                   <div className="flex items-center gap-1">
-                    <span className="text-[7.5px] text-slate-400 font-mono uppercase font-bold tracking-wider">Scope:</span>
+                    <span className="text-[7px] text-slate-400 font-mono uppercase font-bold tracking-wider">Scope:</span>
                     <span className="font-bold text-emerald-600">Active Master</span>
                   </div>
                 </div>
 
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-500 leading-normal font-sans font-medium">
+                <p className="text-[9.5px] text-slate-500 leading-tight font-sans font-medium">
                   {selectedUnit.description}
                 </p>
               </div>
 
               {/* Desktop Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
-              {renderCombinedMediaStage(false)}
-
-              {/* SOP Checklist Card Wrapper */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-
-                {/* SOP Best Practices Block (Interactive Checklist - Unit & Chapter Wise) */}
-                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/25">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3.5 pb-2.5 border-b border-slate-100">
-                    <div className="space-y-1 text-left">
-                      <div className="flex items-center gap-1.5 text-[8.5px] font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-widest w-fit">
-                        Chapter: {chapters.find(c => c.id === selectedUnit.chapterId)?.name || 'General Training'}
-                      </div>
-                      <h4 className="text-[10.5px] font-sans font-bold text-slate-900 flex items-center gap-1.5">
-                        <FileText className="w-4 h-4 text-emerald-600" />
-                        Unit {selectedUnit.code} SOP & Best Practices Checklist
-                      </h4>
-                    </div>
-                    <span className="text-[8.5px] font-sans font-semibold text-slate-400 italic shrink-0 self-end sm:self-auto">
-                      (Complete unit-specific audit items before sign-off)
-                    </span>
-                  </div>
-                  
-                  <ul className="text-xs text-slate-600 space-y-2">
-                    {getSopItemsForUnit(selectedUnit).map((item, index) => {
-                      const isItemChecked = getSopStatus(selectedUnit.id)[index];
-                      return (
-                        <li 
-                          key={index}
-                          onClick={() => handleToggleSop(index)}
-                          className={`flex items-start gap-3 leading-relaxed cursor-pointer p-2.5 sm:p-3 rounded-xl border transition-all duration-200 select-none ${
-                            isItemChecked 
-                              ? 'bg-emerald-50/30 border-emerald-100 text-slate-705 shadow-3xs' 
-                              : 'bg-white/40 border-slate-100 hover:border-slate-200 hover:bg-slate-50/70 text-slate-600'
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${
-                            isItemChecked 
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-3xs scale-105' 
-                              : 'bg-white border-slate-300 text-transparent hover:border-emerald-400 hover:scale-[1.03]'
-                          }`}>
-                            <span className="text-[10px] font-black">✓</span>
-                          </span>
-                          <span className="flex-1 text-[11px] sm:text-xs text-left">
-                            <strong className={`font-bold font-sans transition-colors ${isItemChecked ? 'text-emerald-800' : 'text-slate-800'}`}>
-                              {item.title}:
-                            </strong>{" "}
-                            <span className={isItemChecked ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-600'}>
-                              {item.desc}
-                            </span>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+              <div className="shrink-0">
+                {renderCombinedMediaStage(false)}
               </div>
 
-              {/* Clean Trainee Submission Form */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
-                  <h4 className="font-display text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-emerald-600" />
-                    Update Progress & Sign-Off
-                  </h4>
-                  <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    Audit Sign-Off Workflow
-                  </span>
-                </div>
-
-                {toastMsg && (
-                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100/80 text-xs text-emerald-800 font-semibold mb-4 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>{toastMsg}</span>
-                  </div>
-                )}
-
-                {getUnitProgress(selectedUnit.id)?.status === 'Verified & Mastered' ? (
-                  <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100 text-xs text-emerald-800 space-y-1.5 mb-4 animate-in fade-in duration-150">
-                    <p className="font-extrabold flex items-center gap-1.5 text-emerald-800 text-xs sm:text-sm">
-                      <Award className="w-4.5 h-4.5 text-emerald-600" />
-                      Task Verified & Mastered!
-                    </p>
-                    <p className="font-mono text-[9px] text-emerald-700">
-                      Standard execution mastery marked successfully. You can still adjust status below.
-                    </p>
-                  </div>
-                ) : getUnitProgress(selectedUnit.id)?.status === 'Completed (Pending Review)' ? (
-                  <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100 text-xs text-amber-800 space-y-1.5 mb-4 animate-in fade-in duration-150">
-                    <p className="font-extrabold flex items-center gap-1.5 text-amber-800 text-xs sm:text-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-amber-600" />
-                      Completed (Pending Review)
-                    </p>
-                    <p className="font-mono text-[9px] text-amber-700">
-                      Task has been submitted and is currently pending verification sign-off.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider">
-                        Training Action Status
-                      </label>
-                      <select
-                        value={submittingStatus}
-                        onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
-                        className="w-full bg-slate-50/60 border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all"
-                      >
-                        <option value="Not Started">Not Started</option>
-                        <option value="In Progress">In Progress (Active Training)</option>
-                        <option value="Completed (Pending Review)">Completed (Pending Review)</option>
-                        <option value="Verified & Mastered">Verified & Mastered</option>
-                      </select>
+              {/* Unified SOP Checklist & Progress Sign-Off Panel */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-3xs p-3 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col justify-between">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 divide-y md:divide-y-0 md:divide-x divide-slate-150 lg:flex-1 lg:min-h-0">
+                  
+                  {/* Left Column: SOP Checklist (7/12 cols) */}
+                  <div className="md:col-span-7 pr-0 md:pr-3.5 space-y-2 lg:flex lg:flex-col lg:min-h-0">
+                    <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <h4 className="text-[10px] font-sans font-extrabold text-slate-900 uppercase tracking-tight">
+                          SOP Checklist & Best Practices
+                        </h4>
+                      </div>
+                      <span className="text-[7.5px] font-sans text-slate-400 italic">
+                        (Check items to confirm audit compliance)
+                      </span>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[9px] text-slate-400 uppercase font-mono font-bold tracking-wider flex items-center gap-1">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Compliance Observations
-                      </label>
-                      <textarea
-                        placeholder="Summarize lessons or observations (e.g., matching bookkeeping tools)..."
-                        value={submissionNotes}
-                        onChange={(e) => setSubmissionNotes(e.target.value)}
-                        className="w-full bg-slate-50/60 border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-700 outline-none focus:bg-white focus:border-emerald-500 min-h-[40px] max-h-[80px] transition-all leading-relaxed"
-                      />
-                    </div>
+                    <ul className="text-[10px] text-slate-600 space-y-1 max-h-[140px] lg:max-h-none lg:flex-1 overflow-y-auto scrollbar-thin pr-1">
+                      {getSopItemsForUnit(selectedUnit).map((item, index) => {
+                        const isItemChecked = getSopStatus(selectedUnit.id)[index];
+                        return (
+                          <li 
+                            key={index}
+                            onClick={() => handleToggleSop(index)}
+                            className={`flex items-start gap-2 leading-tight cursor-pointer p-1.5 rounded-lg border transition-all duration-150 select-none ${
+                              isItemChecked 
+                                ? 'bg-emerald-50/20 border-emerald-100/70 text-slate-700' 
+                                : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 text-slate-600'
+                            }`}
+                          >
+                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-all duration-150 ${
+                              isItemChecked 
+                                ? 'bg-emerald-500 border-emerald-600 text-white' 
+                                : 'bg-white border-slate-300 text-transparent hover:border-emerald-400'
+                            }`}>
+                              <span className="text-[8px] font-black">✓</span>
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <strong className={`font-bold font-sans ${isItemChecked ? 'text-emerald-800' : 'text-slate-800'}`}>
+                                {item.title}:
+                              </strong>{" "}
+                              <span className={`text-[9.5px] ${isItemChecked ? 'text-slate-400 line-through' : 'text-slate-500'}`}>
+                                {item.desc}
+                              </span>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
 
-                  <button
-                    onClick={handleSubmitProgress}
-                    id="user-submit-progress-btn"
-                    className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-2.5 px-4 rounded-lg shadow-3xs transition-all text-xs flex items-center justify-center gap-1.5"
-                  >
-                    Update My Progress Record
-                  </button>
+                  {/* Right Column: Sign-Off Workflow (5/12 cols) */}
+                  <div className="md:col-span-5 pt-3 md:pt-0 pl-0 md:pl-3.5 flex flex-col justify-between space-y-2 lg:min-h-0">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                          <h4 className="font-display text-[10px] font-extrabold text-slate-900 uppercase tracking-tight">
+                            Sign-Off Workflow
+                          </h4>
+                        </div>
+                      </div>
+
+                      {toastMsg && (
+                        <div className="p-1 px-2 bg-emerald-50 rounded-md border border-emerald-100 text-[8.5px] text-emerald-800 font-bold flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-150 shrink-0">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>{toastMsg}</span>
+                        </div>
+                      )}
+
+                      {getUnitProgress(selectedUnit.id)?.status === 'Verified & Mastered' ? (
+                        <div className="bg-emerald-50/30 rounded-lg p-1 border border-emerald-100/50 text-[8.5px] text-emerald-800 shrink-0">
+                          <p className="font-bold flex items-center gap-1 text-emerald-800">
+                            ✓ Task Verified & Mastered!
+                          </p>
+                        </div>
+                      ) : getUnitProgress(selectedUnit.id)?.status === 'Completed (Pending Review)' ? (
+                        <div className="bg-amber-50/30 rounded-lg p-1 border border-amber-100/50 text-[8.5px] text-amber-800 shrink-0">
+                          <p className="font-bold flex items-center gap-1 text-amber-800">
+                            ⏳ Completed (Pending Review)
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <label className="block text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">
+                            Status
+                          </label>
+                          <select
+                            value={submittingStatus}
+                            onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
+                            className="bg-slate-50 border border-slate-200 rounded py-0.5 px-1.5 text-[9.5px] text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                          >
+                            <option value="Not Started">Not Started</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed (Pending Review)">Completed (Review)</option>
+                            <option value="Verified & Mastered">Verified & Mastered</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="block text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">
+                            Compliance Observations / Notes
+                          </label>
+                          <textarea
+                            placeholder="Observations or bookkeeping details..."
+                            value={submissionNotes}
+                            onChange={(e) => setSubmissionNotes(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 px-1.5 text-[9.5px] text-slate-700 outline-none focus:bg-white focus:border-emerald-500 min-h-[30px] lg:min-h-[40px] max-h-[50px] transition-all leading-snug"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSubmitProgress}
+                      id="user-submit-progress-btn"
+                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-1.5 px-3 rounded-lg shadow-3xs transition-all text-[10px] flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                    >
+                      Update Progress Record
+                    </button>
+                  </div>
+
                 </div>
               </div>
 
@@ -2040,8 +2257,48 @@ export default function UserDashboard({
               <p className="font-bold">No Unit Selected</p>
               <p className="text-xs text-slate-400 mt-1">Please select an accounting training unit from the curriculum path on the left.</p>
             </div>
-          )}
-        </div>
+          )) : activeTab === 'exams' ? (
+          <AssessmentCenter
+            currentUser={currentUser}
+            chapterId={selectedExamChapterId}
+            onBackToDashboard={() => {
+              if (setSelectedExamChapterId) setSelectedExamChapterId(null);
+              if (onChangeTab) onChangeTab('learning');
+            }}
+            onAttemptSaved={onAttemptSaved || (() => {})}
+          />
+        ) : activeTab === 'testing' ? (
+          <ScreeningTest
+            currentUser={currentUser}
+            onAttemptSaved={onAttemptSaved || (() => {})}
+          />
+        ) : activeTab === 'certificate' ? (
+          <div id="standalone-certificate-tab" className="flex flex-col gap-6 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+              <h3 className="font-display text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 mb-2">
+                <span className="text-2xl">📜</span>
+                Mastery Certificate Workspace
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mb-8 font-sans">
+                Track your completion progress and download your official {branding?.companyName || 'Rathi Buildmart'} Corporate Learning Academy Certificate of Mastery.
+              </p>
+
+              {certProgressStats && (
+                <CertificateGenerator
+                  currentUser={currentUser}
+                  userRole={certUserRole}
+                  progress={progress}
+                  stats={certProgressStats}
+                  onStartFinalExam={() => {
+                    if (setSelectedExamChapterId) setSelectedExamChapterId(null);
+                    if (onChangeTab) onChangeTab('exams');
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       </div>
           </>
@@ -2330,6 +2587,7 @@ export default function UserDashboard({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
     </div>
     </div>
   );

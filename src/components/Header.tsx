@@ -385,8 +385,8 @@ export default function Header({
             </div>
 
             {/* Navigation/Tabs - Segment Control Design (Hidden on Mobile to avoid horizontal scrollbar) */}
-            <nav className="hidden lg:flex items-center bg-slate-100/80 border border-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none shadow-3xs">
-              {isAdmin ? (
+            {isAdmin && (
+              <nav className="hidden lg:flex items-center bg-slate-100/80 border border-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none shadow-3xs">
                 <button
                   onClick={() => onChangeTab('admin-reports')}
                   className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
@@ -399,58 +399,8 @@ export default function Header({
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Workspace Cockpit</span>
                 </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => onChangeTab('learning')}
-                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center shrink-0 cursor-pointer ${
-                      currentTab === 'learning'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                    }`}
-                    id="nav-learning-path"
-                  >
-                    My Learning Path
-                  </button>
-                  <button
-                    onClick={() => onChangeTab('exams')}
-                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
-                      currentTab === 'exams'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                    }`}
-                    id="nav-exam-center"
-                  >
-                    <Award className="w-3.5 h-3.5" />
-                    <span>Final Competency Test</span>
-                  </button>
-                  <button
-                    onClick={() => onChangeTab('testing')}
-                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
-                      currentTab === 'testing'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                    }`}
-                    id="nav-only-testing"
-                  >
-                    <Brain className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Only Testing</span>
-                  </button>
-                  <button
-                    onClick={() => onChangeTab('certificate')}
-                    className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
-                      currentTab === 'certificate'
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                    }`}
-                    id="nav-mastery-certificate"
-                  >
-                    <Award className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Mastery Certificate</span>
-                  </button>
-                </>
-              )}
-            </nav>
+              </nav>
+            )}
 
             {/* User Section & Quick Switcher */}
             <div className="flex items-center gap-4">
