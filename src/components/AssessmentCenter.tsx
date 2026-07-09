@@ -272,7 +272,7 @@ export default function AssessmentCenter({
 
   if (!examConfig.examEnabled) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center" id="assessment-center-locked">
+      <div className="w-full mx-auto py-16 text-center" id="assessment-center-locked">
         <div className="p-8 bg-white border border-slate-200 rounded-3xl max-w-xl mx-auto shadow-sm space-y-4">
           <ShieldAlert className="w-14 h-14 text-rose-500 mx-auto animate-pulse" />
           <h3 className="text-xl font-bold text-slate-900 leading-tight">Assessment Portal Closed</h3>
@@ -295,7 +295,7 @@ export default function AssessmentCenter({
 
   if (activeQuestions.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center" id="assessment-center-empty">
+      <div className="w-full mx-auto py-16 text-center" id="assessment-center-empty">
         <div className="p-8 bg-white border border-slate-200 rounded-3xl max-w-xl mx-auto shadow-sm space-y-4">
           <HelpCircle className="w-14 h-14 text-slate-300 mx-auto" />
           <h3 className="text-xl font-bold text-slate-900 leading-tight">No Questions Available</h3>
@@ -322,7 +322,7 @@ export default function AssessmentCenter({
   const isCandidate = currentUser.roleId === 'role_candidate';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="assessment-center-root">
+    <div className="w-full mx-auto py-4" id="assessment-center-root">
       
       {/* Back button link */}
       {onBackToDashboard && (

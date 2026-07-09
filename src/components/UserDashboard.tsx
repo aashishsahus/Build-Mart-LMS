@@ -1615,39 +1615,42 @@ export default function UserDashboard({
             </div>
 
             {/* Syllabus Workspace & Compliance Audit Trail tab switcher integrated next to bell icon */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5">
-              <button
-                type="button"
-                onClick={() => setUserActiveTab('workspace')}
-                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                  userActiveTab === 'workspace'
-                    ? 'bg-white text-emerald-700 shadow-3xs border border-slate-200/10 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <BookOpen className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                <span>Syllabus Workspace</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserActiveTab('audit')}
-                className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                  userActiveTab === 'audit'
-                    ? 'bg-white text-indigo-700 shadow-3xs border border-slate-200/10 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Database className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
-                <span>Compliance Audit Trail</span>
-                <span className="px-1 py-0.2 text-[7.5px] bg-slate-200 text-slate-600 rounded font-mono font-bold">
-                  {userUnits.length}
-                </span>
-              </button>
-            </div>
+            {activeTab === 'learning' && (
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setUserActiveTab('workspace')}
+                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                    userActiveTab === 'workspace'
+                      ? 'bg-white text-emerald-700 shadow-3xs border border-slate-200/10 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <BookOpen className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                  <span>Syllabus Workspace</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserActiveTab('audit')}
+                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                    userActiveTab === 'audit'
+                      ? 'bg-white text-indigo-700 shadow-3xs border border-slate-200/10 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Database className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                  <span>Compliance Audit Trail</span>
+                  <span className="px-1 py-0.2 text-[7.5px] bg-slate-200 text-slate-600 rounded font-mono font-bold">
+                    {userUnits.length}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {userActiveTab === 'workspace' ? (
+        {activeTab === 'learning' ? (
+          userActiveTab === 'workspace' ? (
           <>
             {/* Super Compact Collapsible Dashboard Stats, Profile Switcher & Certificate Panel */}
             <div className="mb-3 bg-white hover:bg-slate-50/50 border border-slate-200 rounded-xl p-1.5 shadow-3xs transition duration-150">
@@ -1932,7 +1935,7 @@ export default function UserDashboard({
               </div>
               <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></span>
-                <span className="text-[8px] font-mono font-bold text-slate-600">{userChapters.length} Ch</span>
+                <span className="text-[8px] font-mono font-bold text-slate-600">{userChapters.slice(0, 1).length} Ch</span>
               </div>
             </div>
 
@@ -1984,7 +1987,7 @@ export default function UserDashboard({
                   No chapters added for this training track yet.
                 </div>
               ) : (
-                userChapters.map((chap, chapIdx) => {
+                userChapters.slice(0, 1).map((chap, chapIdx) => {
                   const chapUnits = userUnits.filter(u => u.chapterId === chap.id).filter(u => {
                     const q = searchQuery.toLowerCase().trim();
                     const matchesSearch = q === '' ||
@@ -2220,8 +2223,7 @@ export default function UserDashboard({
 
         {/* Right Column: Player & Active Details (8/12 cols) */}
         <div className={`lg:col-span-8 lg:h-full lg:max-h-full lg:flex lg:flex-col gap-3 min-h-0 lg:overflow-y-auto lg:pr-1.5 custom-scrollbar ${mobileTab === 'player' ? 'block' : 'hidden lg:block'}`}>
-          {activeTab === 'learning' ? (
-            selectedUnit ? (
+          {selectedUnit ? (
             <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col gap-3 animate-in fade-in duration-200">
               
               {/* Sleek Compact Highlight Line for Active Chapter & Unit */}
@@ -2339,48 +2341,8 @@ export default function UserDashboard({
               <p className="font-bold">No Unit Selected</p>
               <p className="text-xs text-slate-400 mt-1">Please select an accounting training unit from the curriculum path on the left.</p>
             </div>
-          )) : activeTab === 'exams' ? (
-          <AssessmentCenter
-            currentUser={currentUser}
-            chapterId={selectedExamChapterId}
-            onBackToDashboard={() => {
-              if (setSelectedExamChapterId) setSelectedExamChapterId(null);
-              if (onChangeTab) onChangeTab('learning');
-            }}
-            onAttemptSaved={onAttemptSaved || (() => {})}
-          />
-        ) : activeTab === 'testing' ? (
-          <ScreeningTest
-            currentUser={currentUser}
-            onAttemptSaved={onAttemptSaved || (() => {})}
-          />
-        ) : activeTab === 'certificate' ? (
-          <div id="standalone-certificate-tab" className="flex flex-col gap-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
-              <h3 className="font-display text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 mb-2">
-                <span className="text-2xl">📜</span>
-                Mastery Certificate Workspace
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mb-8 font-sans">
-                Track your completion progress and download your official {branding?.companyName || 'Rathi Buildmart'} Corporate Learning Academy Certificate of Mastery.
-              </p>
-
-              {certProgressStats && (
-                <CertificateGenerator
-                  currentUser={currentUser}
-                  userRole={certUserRole}
-                  progress={progress}
-                  stats={certProgressStats}
-                  onStartFinalExam={() => {
-                    if (setSelectedExamChapterId) setSelectedExamChapterId(null);
-                    if (onChangeTab) onChangeTab('exams');
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
+          )}
+        </div>
 
       </div>
           </>
@@ -2641,6 +2603,51 @@ export default function UserDashboard({
           );
         })()}
             </div>
+          </div>
+        )) : (
+          /* Full width other screens (exams, testing, certificate) */
+          <div className="flex-1 min-h-0 overflow-y-auto lg:pr-1 custom-scrollbar mt-3">
+            {activeTab === 'exams' ? (
+              <AssessmentCenter
+                currentUser={currentUser}
+                chapterId={selectedExamChapterId}
+                onBackToDashboard={() => {
+                  if (setSelectedExamChapterId) setSelectedExamChapterId(null);
+                  if (onChangeTab) onChangeTab('learning');
+                }}
+                onAttemptSaved={onAttemptSaved || (() => {})}
+              />
+            ) : activeTab === 'testing' ? (
+              <ScreeningTest
+                currentUser={currentUser}
+                onAttemptSaved={onAttemptSaved || (() => {})}
+              />
+            ) : activeTab === 'certificate' ? (
+              <div id="standalone-certificate-tab" className="flex flex-col gap-6 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+                  <h3 className="font-display text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 mb-2">
+                    <span className="text-2xl">📜</span>
+                    Mastery Certificate Workspace
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mb-8 font-sans">
+                    Track your completion progress and download your official {branding?.companyName || 'Rathi Buildmart'} Corporate Learning Academy Certificate of Mastery.
+                  </p>
+
+                  {certProgressStats && (
+                    <CertificateGenerator
+                      currentUser={currentUser}
+                      userRole={certUserRole}
+                      progress={progress}
+                      stats={certProgressStats}
+                      onStartFinalExam={() => {
+                        if (setSelectedExamChapterId) setSelectedExamChapterId(null);
+                        if (onChangeTab) onChangeTab('exams');
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

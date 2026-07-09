@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { User, Role, CompanyBranding } from '../types';
 import { Avatar } from './Avatar';
-import { getCompanyBranding, getSmtpConfig } from '../data/stateManager';
+import { getCompanyBranding, getSmtpConfig, saveSmtpConfig } from '../data/stateManager';
 import { Shield, BookOpen, UserPlus, Building, Briefcase, Mail, Key, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, UserCheck, Send, Smartphone, RefreshCw, Inbox, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -95,6 +95,12 @@ export default function LoginScreen({
   const [gmailPasswordInput, setGmailPasswordInput] = useState('');
   const [gmailAuthenticated, setGmailAuthenticated] = useState(false);
   const [gmailAuthError, setGmailAuthError] = useState('');
+
+  // Direct SMTP Configuration states
+  const [showSmtpSetup, setShowSmtpSetup] = useState(false);
+  const [smtpConfigState, setSmtpConfigState] = useState(() => getSmtpConfig());
+  const [smtpSuccessMsg, setSmtpSuccessMsg] = useState('');
+  const [smtpErrorMsg, setSmtpErrorMsg] = useState('');
 
   // OTP Countdown timer effect
   React.useEffect(() => {
@@ -517,6 +523,20 @@ export default function LoginScreen({
               <div className="text-center pb-2">
                 <h3 className="text-sm font-bold text-slate-800 font-display">Authenticate Organization Identity</h3>
                 <p className="text-[11px] text-slate-500 mt-1">Please sign in with Google or enter your password credentials</p>
+                <div className="mt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmtpConfigState(getSmtpConfig());
+                      setSmtpSuccessMsg('');
+                      setSmtpErrorMsg('');
+                      setShowSmtpSetup(true);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100/50 text-[10px] font-bold transition cursor-pointer"
+                  >
+                    ⚙️ Set up SMTP for Real Email (No Simulator)
+                  </button>
+                </div>
               </div>
 
               {/* GOOGLE SIGN IN BUTTON */}
@@ -1038,23 +1058,37 @@ export default function LoginScreen({
                                   <span className="bg-blue-100 text-blue-800 text-[8px] font-bold px-1 py-0.5 rounded uppercase font-mono">Sandbox Fallback</span>
                                 </div>
                                 <p>To prevent shoulder-surfing, 2FA notifications are masked on the lock screen. Open your private simulated workspace inbox or disable the privacy mask below:</p>
-                                <div className="pt-2 flex items-center justify-between border-t border-blue-200/30">
+                                <div className="pt-2 flex flex-col gap-2 border-t border-blue-200/30">
+                                  <div className="flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setGmailAppOpen(true); setGmailAuthenticated(false); }}
+                                      className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer bg-blue-100 px-1.5 py-0.5 rounded transition"
+                                    >
+                                      <Inbox className="w-3 h-3" /> 🌐 Open Webmail
+                                    </button>
+                                    <label className="flex items-center gap-1 cursor-pointer text-slate-500 font-bold select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={!lockScreenPrivacy}
+                                        onChange={(e) => setLockScreenPrivacy(!e.target.checked)}
+                                        className="rounded text-blue-600 h-2.5 w-2.5"
+                                      />
+                                      Unmask OTP
+                                    </label>
+                                  </div>
                                   <button
                                     type="button"
-                                    onClick={() => { setGmailAppOpen(true); setGmailAuthenticated(false); }}
-                                    className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer bg-blue-100 px-1.5 py-0.5 rounded transition"
+                                    onClick={() => {
+                                      setSmtpConfigState(getSmtpConfig());
+                                      setSmtpSuccessMsg('');
+                                      setSmtpErrorMsg('');
+                                      setShowSmtpSetup(true);
+                                    }}
+                                    className="w-full text-center py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] rounded-md transition cursor-pointer"
                                   >
-                                    <Inbox className="w-3 h-3" /> 🌐 Open Webmail
+                                    ⚙️ Set up SMTP (Send directly to your real email)
                                   </button>
-                                  <label className="flex items-center gap-1 cursor-pointer text-slate-500 font-bold select-none">
-                                    <input
-                                      type="checkbox"
-                                      checked={!lockScreenPrivacy}
-                                      onChange={(e) => setLockScreenPrivacy(!e.target.checked)}
-                                      className="rounded text-blue-600 h-2.5 w-2.5"
-                                    />
-                                    Unmask OTP
-                                  </label>
                                 </div>
                               </div>
                             )}
@@ -1344,23 +1378,37 @@ export default function LoginScreen({
                             <p className="text-[10px] text-slate-600 leading-normal">
                               To prevent shoulder-surfing, sensitive verification popups are hidden on the public lock screen. You can access the OTP privately by opening the Simulated Workspace Inbox:
                             </p>
-                            <div className="pt-2 flex items-center justify-between border-t border-amber-200/40 text-[10px]">
+                            <div className="pt-2 flex flex-col gap-2 border-t border-amber-200/40 text-[10px]">
+                              <div className="flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => { setGmailAppOpen(true); setGmailAuthenticated(false); }}
+                                  className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer bg-amber-100/50 hover:bg-amber-100 px-2 py-1 rounded-md transition"
+                                >
+                                  <Inbox className="w-3.5 h-3.5" /> 🌐 Open Private Inbox App
+                                </button>
+                                <label className="flex items-center gap-1.5 cursor-pointer text-slate-500 font-medium select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={!lockScreenPrivacy}
+                                    onChange={(e) => setLockScreenPrivacy(!e.target.checked)}
+                                    className="rounded text-blue-600 focus:ring-blue-500 h-3 w-3"
+                                  />
+                                  Disable Privacy Mask
+                                </label>
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => { setGmailAppOpen(true); setGmailAuthenticated(false); }}
-                                className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer bg-amber-100/50 hover:bg-amber-100 px-2 py-1 rounded-md transition"
+                                onClick={() => {
+                                  setSmtpConfigState(getSmtpConfig());
+                                  setSmtpSuccessMsg('');
+                                  setSmtpErrorMsg('');
+                                  setShowSmtpSetup(true);
+                                }}
+                                className="w-full text-center py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] rounded-md transition cursor-pointer"
                               >
-                                <Inbox className="w-3.5 h-3.5" /> 🌐 Open Private Inbox App
+                                ⚙️ Set up SMTP (Send directly to your real email)
                               </button>
-                              <label className="flex items-center gap-1.5 cursor-pointer text-slate-500 font-medium select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={!lockScreenPrivacy}
-                                  onChange={(e) => setLockScreenPrivacy(!e.target.checked)}
-                                  className="rounded text-blue-600 focus:ring-blue-500 h-3 w-3"
-                                />
-                                Disable Privacy Mask
-                              </label>
                             </div>
                           </div>
                         )}
@@ -1477,6 +1525,161 @@ export default function LoginScreen({
                 >
                   Close
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showSmtpSetup && (
+          <div className="fixed inset-0 bg-slate-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden text-slate-800 border border-slate-200"
+            >
+              <div className="px-6 pt-6 pb-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-indigo-400 animate-pulse" />
+                  <div>
+                    <h3 className="text-sm font-bold font-sans">Real SMTP Mail Server Settings</h3>
+                    <p className="text-[10px] text-slate-300 font-mono">Bypass Simulator & Send Direct Emails</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {smtpSuccessMsg && (
+                  <div className="p-2.5 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-100 text-center animate-in fade-in">
+                    ✓ {smtpSuccessMsg}
+                  </div>
+                )}
+                {smtpErrorMsg && (
+                  <div className="p-2.5 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg border border-rose-100 text-center animate-in fade-in">
+                    ⚠️ {smtpErrorMsg}
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 leading-relaxed space-y-1">
+                  <p className="font-bold text-slate-800">💡 Why set up SMTP?</p>
+                  <p>By default, if SMTP details are missing, OTP codes are shown on-screen in the <strong>Gmail Inbox Simulator</strong>. Configuring your custom SMTP credentials enables the app to dispatch real verification codes directly to your real mailbox (e.g. your Gmail ID).</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">SMTP Host</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpConfigState.host}
+                      onChange={(e) => setSmtpConfigState({ ...smtpConfigState, host: e.target.value })}
+                      placeholder="e.g. smtp.gmail.com"
+                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Port</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpConfigState.port}
+                      onChange={(e) => setSmtpConfigState({ ...smtpConfigState, port: e.target.value })}
+                      placeholder="e.g. 587"
+                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">SMTP User / Email Address</label>
+                  <input
+                    type="text"
+                    required
+                    value={smtpConfigState.user}
+                    onChange={(e) => setSmtpConfigState({ ...smtpConfigState, user: e.target.value })}
+                    placeholder="e.g. misrpr@rathibuildmart.com"
+                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 flex items-center justify-between">
+                    <span>SMTP Password / App Password</span>
+                    <span className="text-[8px] text-indigo-600 font-medium lowercase font-sans">use google app passwords</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={smtpConfigState.pass}
+                    onChange={(e) => setSmtpConfigState({ ...smtpConfigState, pass: e.target.value })}
+                    placeholder="Enter SMTP account password"
+                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Sender Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpConfigState.fromName}
+                      onChange={(e) => setSmtpConfigState({ ...smtpConfigState, fromName: e.target.value })}
+                      placeholder="Rathi LMS Security"
+                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Sender Email</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpConfigState.fromEmail}
+                      onChange={(e) => setSmtpConfigState({ ...smtpConfigState, fromEmail: e.target.value })}
+                      placeholder="security@rathibuildmart.com"
+                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-indigo-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSmtpSetup(false);
+                      setSmtpSuccessMsg('');
+                      setSmtpErrorMsg('');
+                    }}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition border border-slate-200 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!smtpConfigState.host || !smtpConfigState.user || !smtpConfigState.pass) {
+                        setSmtpErrorMsg('Host, User, and Password are required to enable SMTP routing.');
+                        return;
+                      }
+                      saveSmtpConfig(smtpConfigState);
+                      setSmtpErrorMsg('');
+                      setSmtpSuccessMsg('SMTP Server details saved successfully! Real email routing is now fully enabled.');
+                      setTimeout(() => {
+                        setShowSmtpSetup(false);
+                        setSmtpSuccessMsg('');
+                        // Trigger a resend OTP if we have a target user to be ultra convenient
+                        if (otpTargetUser) {
+                          triggerOtpDispatch(otpTargetUser, otpMode);
+                        } else if (selectedGoogleUser) {
+                          triggerOtpDispatch(selectedGoogleUser, 'google_2fa');
+                        }
+                      }, 1500);
+                    }}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs transition shadow-sm cursor-pointer"
+                  >
+                    Save & Test OTP
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

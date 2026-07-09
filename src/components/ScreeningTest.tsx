@@ -737,7 +737,7 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-305" id="screening-test-root">
+    <div className="w-full mx-auto py-4 animate-in fade-in duration-305" id="screening-test-root">
       
       {/* Upper Title Segment */}
       <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 pb-6 text-left">

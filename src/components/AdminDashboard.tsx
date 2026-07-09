@@ -503,6 +503,9 @@ export default function AdminDashboard({
   const [logoValue, setLogoValue] = useState(() => getCompanyBranding().logoValue);
   const [brandSavingSuccess, setBrandSavingSuccess] = useState('');
 
+  // Sub-tab for brand and certificate settings
+  const [certSubTab, setCertSubTab] = useState<'branding' | 'template' | 'helpline' | 'smtp'>('branding');
+
   const handleSaveBranding = () => {
     try {
       const updated = {
@@ -789,6 +792,7 @@ export default function AdminDashboard({
 
   // S. Department Directory Form States
   const [newDeptName, setNewDeptName] = useState('');
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [editingDeptIndex, setEditingDeptIndex] = useState<number | null>(null);
   const [editingDeptValue, setEditingDeptValue] = useState('');
 
@@ -1420,6 +1424,7 @@ export default function AdminDashboard({
     const updated = [...departments, name];
     onUpdateDepartments(updated);
     setNewDeptName('');
+    setShowAddDeptModal(false);
     showToast(`✓ Department "${name}" added successfully!`, 'success');
   };
 
@@ -2372,7 +2377,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
   });
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50 relative">
+    <div className="flex w-full h-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:min-h-0 bg-slate-50/50 relative overflow-hidden">
       
       {/* Backdrop overlay for floating sidebar to auto hide when clicking outside / side */}
       {autoHideEnabled && !sidebarLocked && sidebarVisible && !sidebarCollapsed && (
@@ -2598,6 +2603,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         onClick: () => {
                           setAdminTab('roles');
                           setRolesSubTab('matrix');
+                          setIsAddingRole(false);
                         }
                       },
                       { 
@@ -2607,6 +2613,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         onClick: () => {
                           setAdminTab('roles');
                           setRolesSubTab('list');
+                          setIsAddingRole(false);
                         }
                       },
                       { 
@@ -2616,6 +2623,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         onClick: () => {
                           setAdminTab('roles');
                           setRolesSubTab('add');
+                          setIsAddingRole(true);
                         }
                       }
                     ]
@@ -2674,6 +2682,17 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         onClick: () => {
                           setAdminTab('recruitment');
                           setRecSubTab('questions');
+                          setEditingQuestionId(null);
+                          setQChapterId('');
+                          setQType('mcq');
+                          setQTopic('');
+                          setQQuestionText('');
+                          setQOptions(['', '', '', '']);
+                          setQCorrectAnswerIndex(0);
+                          setQCorrectAnswerText('');
+                          setQExplanationText('');
+                          setQIsActive(true);
+                          setQFormSuccess('');
                         }
                       },
                       { 
@@ -2741,11 +2760,39 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   countLabel: 'Config',
                   subTabs: [
                     { 
-                      id: 'cert_config', 
-                      label: 'Layout & Template Config', 
-                      isActive: adminTab === 'certificate',
+                      id: 'cert_branding', 
+                      label: '🏢 Brand Identity & Logo', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'branding',
                       onClick: () => {
                         setAdminTab('certificate');
+                        setCertSubTab('branding');
+                      }
+                    },
+                    { 
+                      id: 'cert_template', 
+                      label: '📜 Certificate Template', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'template',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                        setCertSubTab('template');
+                      }
+                    },
+                    { 
+                      id: 'cert_helpline', 
+                      label: '📞 Helpline & Contacts', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'helpline',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                        setCertSubTab('helpline');
+                      }
+                    },
+                    { 
+                      id: 'cert_smtp', 
+                      label: '✉️ SMTP Outbound Mail', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'smtp',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                        setCertSubTab('smtp');
                       }
                     }
                   ]
@@ -3018,9 +3065,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           onClick={() => {
                             if (t.isTraineeTab) {
                               onSelectTraineeTab?.(t.id === 'certificate_trainee' ? 'certificate' : t.id);
-                              if (!sidebarLocked) {
-                                setSidebarCollapsed(true);
-                              }
                               return;
                             }
                             if (isLocked) {
@@ -3034,9 +3078,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               setExpandedTabs(() => ({ [t.id]: true }));
                               if (t.subTabs && t.subTabs.length > 0) {
                                 t.subTabs[0].onClick();
-                              }
-                              if (!sidebarLocked) {
-                                setSidebarCollapsed(true);
                               }
                             }
                           }}
@@ -3113,9 +3154,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 type="button"
                                 onClick={() => {
                                   st.onClick();
-                                  if (!sidebarLocked) {
-                                    setSidebarCollapsed(true);
-                                  }
                                 }}
                                 className={`w-full text-left py-1 px-2 rounded-md text-[9.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                                   st.isActive 
@@ -3153,7 +3191,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
 
       {/* MAIN RIGHT AREA FOR VIEWS */}
-      <div className={`flex-1 min-w-0 flex flex-col relative transition-all duration-350 ${
+      <div className={`flex-1 min-w-0 flex flex-col relative transition-all duration-350 lg:overflow-y-auto lg:h-[calc(100vh-64px)] custom-scrollbar ${
         !sidebarLocked && sidebarVisible 
           ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
           : ''
@@ -3174,8 +3212,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           </button>
         )}
 
-        {/* Existing Content wrapped inside responsive container */}
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-3.5 lg:py-4 animate-in fade-in duration-300 relative">
+        {/* Existing Content wrapped inside responsive container - COMPACTED PADDINGS */}
+        <div className="w-full px-2.5 sm:px-4 lg:px-5 py-2 lg:py-2.5 pb-16 lg:pb-20 animate-in fade-in duration-300 relative">
           
           {/* Dynamic Modern Toast Notification Layer */}
           {toast && (
@@ -3191,8 +3229,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           )}
           
-          {/* Highly Compact & Toggleable Workspace Cockpit Welcomer */}
-          {welcomeBannerDismissed ? (
+          {/* Highly Compact & Toggleable Workspace Cockpit Welcomer - Only visible on the main Reports/Cockpit Home tab */}
+          {adminTab === 'reports' && (welcomeBannerDismissed ? (
             <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-xl p-2.5 px-3.5 border border-slate-200/80 shadow-3xs animate-in fade-in duration-200 gap-2">
               <div className="flex items-center gap-1.5 pl-1 text-[11px] font-semibold text-slate-500">
                 <span className="flex h-1.5 w-1.5 relative shrink-0">
@@ -3334,7 +3372,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
               </div>
             </div>
-          )}
+          ))}
 
 
 
@@ -3592,34 +3630,32 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
                       </div>
 
-                      {/* FILTERS CONTROL BOX */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      {/* FILTERS CONTROL BOX - DESIGN COMPACTED */}
+                      <div className="flex flex-wrap md:flex-nowrap items-center gap-2 bg-slate-50 p-1 px-2 rounded-xl border border-slate-200 text-[11px] shadow-3xs">
                         {/* Search Term */}
-                        <div className="relative">
-                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Search Name/Email</label>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Search:</span>
                           <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
-                              <Search className="w-3 h-3" />
-                            </span>
                             <input
                               type="text"
                               value={analyticsSearch}
                               onChange={(e) => setAnalyticsSearch(e.target.value)}
-                              placeholder="e.g. Aashish Sahu, misrpr@rathibuildmart.com..."
-                              className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg pl-8 pr-2.5 py-1.5 outline-none text-xs text-slate-850 placeholder-slate-400 font-sans shadow-3xs"
+                              placeholder="Search..."
+                              className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 pl-5.5 focus:border-indigo-500 outline-none text-[11px] w-28 text-slate-800 font-semibold"
                             />
+                            <span className="absolute left-1.5 top-0.5 text-slate-400 text-[9px]">🔍</span>
                           </div>
                         </div>
 
                         {/* Filter by Role / Designation */}
-                        <div>
-                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Filter Designation</label>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Role:</span>
                           <select
                             value={scorecardRoleFilter}
                             onChange={(e) => setScorecardRoleFilter(e.target.value)}
-                            className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
+                            className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 focus:border-indigo-500 outline-none text-[11px] font-bold text-slate-755 cursor-pointer"
                           >
-                            <option value="all">All Roles ({roles.length})</option>
+                            <option value="all">All Roles</option>
                             {roles.map(r => (
                               <option key={r.id} value={r.id}>{r.name}</option>
                             ))}
@@ -3627,54 +3663,52 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         </div>
 
                         {/* Filter by Compliance status */}
-                        <div>
-                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Compliance Status</label>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Compliance:</span>
                           <select
                             value={analyticsProgressFilter}
                             onChange={(e) => setAnalyticsProgressFilter(e.target.value)}
-                            className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
+                            className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 focus:border-indigo-500 outline-none text-[11px] font-bold text-slate-755 cursor-pointer"
                           >
-                            <option value="all">All Compliance Statuses</option>
-                            <option value="certified">Awarded Certification (100% Mastery)</option>
+                            <option value="all">All Statuses</option>
+                            <option value="certified">Certified (100% Mastery)</option>
                             <option value="in_progress">In Progress (1-99% Mastery)</option>
                             <option value="not_started">Unstarted (0% Mastery)</option>
                           </select>
                         </div>
 
                         {/* Sort Option */}
-                        <div>
-                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-mono">Sorting Order</label>
-                          <div className="flex gap-2">
-                            <select
-                              value={analyticsSortBy}
-                              onChange={(e) => setAnalyticsSortBy(e.target.value as any)}
-                              className="w-full bg-white border border-slate-300 focus:border-indigo-500 rounded-lg px-2 py-1.5 outline-none text-xs text-slate-800 font-sans shadow-3xs"
-                            >
-                              <option value="progress_desc">Highest Progress First</option>
-                              <option value="progress_asc">Lowest Progress First</option>
-                              <option value="name_asc">Name (A to Z)</option>
-                              <option value="name_desc">Name (Z to A)</option>
-                            </select>
-
-                            {(analyticsSearch || scorecardDeptFilters.length > 0 || scorecardRoleFilter !== 'all' || analyticsProgressFilter !== 'all') && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAnalyticsSearch('');
-                                  setScorecardDeptFilters([]);
-                                  setScorecardRoleFilter('all');
-                                  setAnalyticsProgressFilter('all');
-                                  setAnalyticsSortBy('progress_desc');
-                                  showToast("All filters and searches reset safely!", "info");
-                                }}
-                                className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg transition text-xs shrink-0 cursor-pointer flex items-center justify-center border border-slate-300/60"
-                                title="Clear All Filters"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Sort:</span>
+                          <select
+                            value={analyticsSortBy}
+                            onChange={(e) => setAnalyticsSortBy(e.target.value as any)}
+                            className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 focus:border-indigo-500 outline-none text-[11px] font-bold text-slate-755 cursor-pointer"
+                          >
+                            <option value="progress_desc">Highest Progress</option>
+                            <option value="progress_asc">Lowest Progress</option>
+                            <option value="name_asc">Name (A-Z)</option>
+                            <option value="name_desc">Name (Z-A)</option>
+                          </select>
                         </div>
+
+                        {(analyticsSearch || scorecardDeptFilters.length > 0 || scorecardRoleFilter !== 'all' || analyticsProgressFilter !== 'all') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAnalyticsSearch('');
+                              setScorecardDeptFilters([]);
+                              setScorecardRoleFilter('all');
+                              setAnalyticsProgressFilter('all');
+                              setAnalyticsSortBy('progress_desc');
+                              showToast("All filters and searches reset safely!", "info");
+                            }}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded-lg transition text-[10px] cursor-pointer border border-slate-300/60"
+                            title="Clear All Filters"
+                          >
+                            Reset
+                          </button>
+                        )}
                       </div>
 
                       {/* Filter by Department Info Badge & Multi-Select dropdown */}
@@ -4541,25 +4575,23 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           ) : (
             <div className="space-y-4">
-              {/* SEARCH & FILTER CONTROLS FOR ENROLLMENTS */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left">
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {/* SEARCH & FILTER CONTROLS FOR ENROLLMENTS - DESIGN COMPACTED */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-wrap items-center justify-between gap-2.5 text-xs font-sans text-left">
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                   {/* Text Search */}
-                  <div className="relative w-full sm:w-64">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Trainees</label>
+                  <div className="relative w-full sm:w-60">
                     <div className="relative">
                       <input
                         type="text"
                         value={approvalSearchQuery}
                         onChange={(e) => setApprovalSearchQuery(e.target.value)}
-                        placeholder="Search name or email..."
-                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-indigo-500 outline-none text-xs w-full text-slate-800 font-sans font-medium text-slate-900"
+                        placeholder="🔍 Search trainees..."
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 pl-7 focus:border-indigo-500 outline-none text-xs w-full text-slate-800 font-sans font-medium text-slate-900"
                       />
-                      <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
                       {approvalSearchQuery && (
                         <button
                           onClick={() => setApprovalSearchQuery('')}
-                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                          className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
                         >
                           ✕
                         </button>
@@ -4569,11 +4601,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                   {/* Department Selector */}
                   <div className="w-full sm:w-auto">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Department</label>
                     <select
                       value={approvalDeptFilter}
                       onChange={(e) => setApprovalDeptFilter(e.target.value)}
-                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full text-slate-800"
+                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full sm:w-48 text-slate-800"
                     >
                       <option value="all">📁 All Departments</option>
                       {departments.map(dept => (
@@ -4591,7 +4622,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       setApprovalSearchQuery('');
                       setApprovalDeptFilter('all');
                     }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
+                    className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
                   >
                     Clear filters [✕]
                   </button>
@@ -5314,32 +5345,32 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </form>
           )}
 
-          {/* USER REGISTRY INTERACTIVE SEARCH & FILTERS BAR */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-3 flex flex-wrap items-center justify-between gap-3 text-xs font-sans text-left shadow-3xs">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* USER REGISTRY INTERACTIVE SEARCH & FILTERS BAR - DESIGN COMPACTED */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-1 px-2 mb-3 flex flex-wrap md:flex-nowrap items-center justify-between gap-1.5 text-[11px] font-sans text-left shadow-3xs">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               
               {/* Search Bar */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Search:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Search:</span>
                 <div className="relative">
                   <input
                     type="text"
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
                     placeholder="Search name, email..."
-                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-emerald-500 outline-none text-xs w-48 text-slate-800 font-semibold"
+                    className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 pl-5.5 focus:border-emerald-500 outline-none text-[11px] w-32 text-slate-800 font-semibold"
                   />
-                  <span className="absolute left-2.5 top-1.5 text-slate-400 text-[11px]">🔍</span>
+                  <span className="absolute left-1.5 top-0.5 text-slate-400 text-[9px]">🔍</span>
                 </div>
               </div>
 
               {/* Department Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Dept:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Dept:</span>
                 <select
                   value={userDeptFilter}
                   onChange={(e) => setUserDeptFilter(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer font-bold"
+                  className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 focus:border-emerald-500 outline-none text-[11px] font-bold text-slate-750 cursor-pointer"
                 >
                   <option value="all">-- All Departments --</option>
                   {departments.map(dept => (
@@ -5349,12 +5380,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Status:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Status:</span>
                 <select
                   value={userStatusFilter}
                   onChange={(e) => setUserStatusFilter(e.target.value as any)}
-                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer font-bold"
+                  className="bg-white border border-slate-300 rounded-lg px-1.5 py-0.5 focus:border-emerald-500 outline-none text-[11px] font-bold text-slate-750 cursor-pointer"
                 >
                   <option value="all">✨ All Statuses</option>
                   <option value="Active">🟢 Active Staff</option>
@@ -5364,14 +5395,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               {/* Job Profile Multi-Select Dropdown Filter */}
-              <div className="relative flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Designation:</span>
-                <div className="flex items-center gap-1.5">
+              <div className="relative flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono whitespace-nowrap">Designation:</span>
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setUserFilterRoleOpen(!userFilterRoleOpen)}
                     id="btn-trigger-user-role-filters"
-                    className="bg-white hover:bg-slate-100/90 text-slate-700 text-xs font-bold px-2 py-1.5 rounded-lg border border-slate-300 shadow-3xs transition duration-150 flex items-center justify-between gap-1.5 cursor-pointer max-w-[160px]"
+                    className="bg-white hover:bg-slate-100/90 text-slate-700 text-[11px] font-bold px-1.5 py-0.5 rounded-lg border border-slate-300 shadow-3xs transition duration-150 flex items-center justify-between gap-1 cursor-pointer max-w-[120px]"
                   >
                     <span className="truncate">
                       {userSelectedRoleIds.length === 0
@@ -5380,21 +5411,21 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         ? 'All Designations'
                         : `${userSelectedRoleIds.length} selected`}
                     </span>
-                    <span className="text-[9px] text-slate-500 font-bold">▼</span>
+                    <span className="text-[8px] text-slate-500 font-bold">▼</span>
                   </button>
 
                   <div className="flex gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => setUserSelectedRoleIds(roles.map(r => r.id))}
-                      className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-150 px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap"
+                      className="text-[8.5px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-150 px-1 py-0.5 rounded cursor-pointer whitespace-nowrap"
                     >
                       All
                     </button>
                     <button
                       type="button"
                       onClick={() => setUserSelectedRoleIds([])}
-                      className="text-[9px] font-extrabold text-slate-650 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded cursor-pointer whitespace-nowrap"
+                      className="text-[8.5px] font-extrabold text-slate-650 bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded cursor-pointer whitespace-nowrap"
                     >
                       Clear
                     </button>
@@ -5404,7 +5435,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 {userFilterRoleOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserFilterRoleOpen(false)} />
-                    <div className="absolute left-0 mt-8 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 space-y-2.5 z-50 text-left animate-in slide-in-from-top-1 duration-150">
+                    <div className="absolute left-0 mt-6 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 space-y-2.5 z-50 text-left animate-in slide-in-from-top-1 duration-150">
                       <div className="flex justify-between items-center border-b pb-1.5">
                         <span className="text-[10px] font-mono font-black text-indigo-700 uppercase">Designations Checklist</span>
                         <button
@@ -5445,17 +5476,17 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider bg-slate-100/50 border border-slate-200/50 rounded-lg px-2 py-1">
-                TRAINEES MATCHED: <strong className="text-emerald-700 text-xs">{matchedUsers.length}</strong>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-[9px] font-bold font-mono text-slate-500 uppercase tracking-wider bg-slate-100/50 border border-slate-200/50 rounded-lg px-1.5 py-0.5">
+                TRAINEES: <strong className="text-emerald-700 text-[11px]">{matchedUsers.length}</strong>
               </div>
               
-              <div className="flex items-center gap-1 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-1 shadow-3xs">
+              <div className="flex items-center gap-1 text-slate-500 font-sans text-[10.5px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-1.5 py-0.5 shadow-3xs">
                 <span>Entries:</span>
                 <select
                   value={usersLimit}
                   onChange={(e) => setUsersLimit(Number(e.target.value))}
-                  className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px] font-bold text-slate-750 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                  className="bg-white border border-slate-200 rounded px-1 py-0.2 text-[10.5px] font-bold text-slate-755 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
                 >
                   <option value={5}>5</option>
                   <option value={10}>10</option>
@@ -6554,56 +6585,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       {adminTab === 'roles' && (
         <div className="space-y-6 text-left">
           
-          {/* Sub-Tabs Selector exactly like Manage Roles / Add Role / Security Matrix */}
-          <div className="flex border-b border-slate-200 pb-px gap-1">
-            <button
-              onClick={() => {
-                setRolesSubTab('matrix');
-                setIsAddingRole(false);
-              }}
-              id="subtab-permissions-matrix"
-              className={`px-4 py-2.5 font-bold text-xs flex items-center gap-1.5 border-b-2 transition duration-150 cursor-pointer ${
-                rolesSubTab === 'matrix'
-                  ? 'border-emerald-600 text-emerald-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-805 font-semibold'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5 text-emerald-600 animate-spin-slow" />
-              Manage User Permissions Matrix 🔐
-            </button>
 
-            <button
-              onClick={() => {
-                setRolesSubTab('list');
-                setIsAddingRole(false);
-              }}
-              id="subtab-roles-list"
-              className={`px-4 py-2.5 font-bold text-xs flex items-center gap-1.5 border-b-2 transition duration-150 cursor-pointer ${
-                rolesSubTab === 'list'
-                  ? 'border-emerald-600 text-emerald-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-805 font-semibold'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-emerald-600" />
-              Manage Job Roles List 👥
-            </button>
-
-            <button
-              onClick={() => {
-                setRolesSubTab('add');
-                setIsAddingRole(true);
-              }}
-              id="subtab-add-role"
-              className={`px-4 py-2.5 font-bold text-xs flex items-center gap-1.5 border-b-2 transition duration-150 cursor-pointer ${
-                rolesSubTab === 'add'
-                  ? 'border-emerald-600 text-emerald-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-805 font-semibold'
-              }`}
-            >
-              <Plus className="w-3.5 h-3.5 text-emerald-600" />
-              Add Dynamic Job Role ➕
-            </button>
-          </div>
 
           {/* 1. INTERACTIVE SECURITY PERMISSIONS MATRIX (Directly matching user screenshot style!) */}
           {rolesSubTab === 'matrix' && (
@@ -6915,25 +6897,23 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
               </div>
 
-              {/* SEARCH & FILTER CONTROLS FOR JOB ROLES */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left mb-5 w-full">
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {/* SEARCH & FILTER CONTROLS FOR JOB ROLES - DESIGN COMPACTED */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-wrap items-center justify-between gap-2.5 text-xs font-sans text-left mb-3 w-full">
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                   {/* Text Search */}
-                  <div className="relative w-full sm:w-64">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Designations</label>
+                  <div className="relative w-full sm:w-60">
                     <div className="relative">
                       <input
                         type="text"
                         value={roleSearchQuery}
                         onChange={(e) => setRoleSearchQuery(e.target.value)}
-                        placeholder="Search designation or skills..."
-                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-indigo-500 outline-none text-xs w-full text-slate-905 font-sans font-medium text-slate-900"
+                        placeholder="🔍 Search designation..."
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 pl-7 focus:border-indigo-500 outline-none text-xs w-full text-slate-905 font-sans font-medium text-slate-900"
                       />
-                      <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
                       {roleSearchQuery && (
                         <button
                           onClick={() => setRoleSearchQuery('')}
-                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                          className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
                         >
                           ✕
                         </button>
@@ -6943,11 +6923,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                   {/* Department Filter */}
                   <div className="w-full sm:w-auto">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Department</label>
                     <select
                       value={roleDeptFilter}
                       onChange={(e) => setRoleDeptFilter(e.target.value)}
-                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full text-indigo-900 text-slate-800"
+                      className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-755 cursor-pointer w-full sm:w-48 text-indigo-900 text-slate-800"
                     >
                       <option value="all">📁 All Departments</option>
                       {departments.map(dept => (
@@ -6965,7 +6944,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       setRoleSearchQuery('');
                       setRoleDeptFilter('all');
                     }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
+                    className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
                   >
                     Clear filters [✕]
                   </button>
@@ -7431,33 +7410,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
             </div>
 
-            {/* Tab Selection for Manual vs. Bulk Upload */}
-            <div className="flex bg-slate-100 rounded-xl p-1 mb-6 text-xs max-w-sm mt-2 border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setCurriculumMode('manual')}
-                className={`flex-1 py-1.5 font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  curriculumMode === 'manual'
-                    ? 'bg-white text-slate-900 shadow-3xs border border-slate-200/50'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5 text-indigo-500" />
-                Standard Interface
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurriculumMode('bulk')}
-                className={`flex-1 py-1.5 font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  curriculumMode === 'bulk'
-                    ? 'bg-white text-slate-900 shadow-3xs border border-slate-200/50'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
-                Excel / CSV bulk loading
-              </button>
-            </div>
+
 
             {curriculumMode === 'manual' ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -8829,76 +8782,28 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           </div>
             
-            {/* Sub-tabs Navigation inside Assessment Exams tab */}
-          <div className="flex border-b border-slate-200 mb-6 gap-6 select-none font-sans">
-            <button
-              onClick={() => setRecSubTab('logs')}
-              type="button"
-              className={`pb-3 text-xs font-bold tracking-tight border-b-2 transition uppercase cursor-pointer ${
-                recSubTab === 'logs' 
-                  ? 'border-emerald-600 text-slate-900 font-extrabold' 
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              📊 Taker Result Logs
-            </button>
-            <button
-              onClick={() => {
-                setRecSubTab('questions');
-                setEditingQuestionId(null);
-                setQChapterId('');
-                setQType('mcq');
-                setQTopic('');
-                setQQuestionText('');
-                setQOptions(['', '', '', '']);
-                setQCorrectAnswerIndex(0);
-                setQCorrectAnswerText('');
-                setQExplanationText('');
-                setQIsActive(true);
-                setQFormSuccess('');
-              }}
-              type="button"
-              className={`pb-3 text-xs font-bold tracking-tight border-b-2 transition uppercase cursor-pointer ${
-                recSubTab === 'questions' 
-                  ? 'border-emerald-600 text-slate-900 font-extrabold' 
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              📝 Question Bank ({questionsBank.length})
-            </button>
-            <button
-              onClick={() => setRecSubTab('gating')}
-              type="button"
-              className={`pb-3 text-xs font-bold tracking-tight border-b-2 transition uppercase cursor-pointer ${
-                recSubTab === 'gating' 
-                  ? 'border-emerald-600 text-slate-900 font-extrabold' 
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              ⚙️ Exam Gating Matrix
-            </button>
-          </div>
+
 
           {/* SUBTAB 1: ATTEMPT LOGS */}
           {recSubTab === 'logs' && (
             <div className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <span className="text-xs font-extrabold text-[#111827]">Filter Screening & Chapter Exams:</span>
-                <div className="flex flex-wrap gap-2 text-xs items-center">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-slate-50 p-1.5 px-3 rounded-xl border border-slate-200 text-[11px]">
+                <span className="text-[11px] font-extrabold text-[#111827]">Filter Gating Exams:</span>
+                <div className="flex flex-wrap gap-1.5 text-[11px] items-center">
                   {/* Text Search Input */}
                   <div className="relative">
                     <input
                       type="text"
                       value={recTakerSearchQuery}
                       onChange={(e) => setRecTakerSearchQuery(e.target.value)}
-                      placeholder="Search taker name/email..."
-                      className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 pl-8 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 w-52 text-slate-900"
+                      placeholder="Search taker..."
+                      className="bg-white border border-slate-200 rounded-lg py-0.5 px-1.5 pl-5 w-36 text-[11px] font-medium text-slate-800 outline-none focus:border-emerald-500 text-slate-900"
                     />
-                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    <span className="absolute left-1.5 top-0.5 text-slate-400 text-[9px]">🔍</span>
                     {recTakerSearchQuery && (
                       <button
                         onClick={() => setRecTakerSearchQuery('')}
-                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                        className="absolute right-1.5 top-0.5 text-slate-400 hover:text-slate-600 text-[9px] font-bold"
                       >
                         ✕
                       </button>
@@ -8908,7 +8813,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <select
                     value={rec_filterRole}
                     onChange={(e) => setRecFilterRole(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 font-semibold text-slate-700 outline-none cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
+                    className="bg-white border border-slate-200 rounded-lg py-0.5 px-1.5 font-semibold text-slate-700 outline-none cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition text-[11px]"
                   >
                     <option value="all">All Taker Roles</option>
                     <option value="candidates">Candidates Only</option>
@@ -8918,7 +8823,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   <select
                     value={rec_filterResult}
                     onChange={(e) => setRecFilterResult(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-lg py-1.5 px-3 font-semibold text-slate-705 cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition"
+                    className="bg-white border border-slate-200 rounded-lg py-0.5 px-1.5 font-semibold text-slate-705 cursor-pointer focus:border-emerald-500 hover:bg-slate-100/50 transition text-[11px]"
                   >
                     <option value="all">All Results</option>
                     <option value="passed">Passed (&gt;= 60%)</option>
@@ -9553,27 +9458,27 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
             {/* Question list (Right 7 Columns) */}
             <div className="lg:col-span-12 xl:col-span-7 space-y-4 text-left">
-              <div className="bg-slate-50 border p-4 rounded-xl space-y-3.5 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-205 pb-2 text-xs">
+              <div className="bg-slate-50 border p-1.5 px-3 rounded-xl space-y-1.5 shadow-xs text-[11px]">
+                <div className="flex items-center justify-between border-b border-slate-205 pb-1 text-[11px]">
                   <span className="font-extrabold text-slate-705">Database Repository Questions Desk:</span>
-                  <span className="font-mono text-xs text-slate-505 text-slate-500 font-bold">({questionsBank.length} items configured)</span>
+                  <span className="font-mono text-[11px] text-slate-500 font-bold">({questionsBank.length} items)</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 text-[11px] font-sans">
                   {/* Search Input */}
-                  <div className="relative">
+                  <div className="relative flex-1">
                     <input
                       type="text"
                       value={questionSearchQuery}
                       onChange={(e) => setQuestionSearchQuery(e.target.value)}
-                      placeholder="Search question prompt or topic..."
-                      className="bg-white border border-slate-300 rounded-lg py-1.5 px-3 pl-8 text-xs text-slate-805 outline-none w-full font-medium text-slate-900"
+                      placeholder="Search question..."
+                      className="bg-white border border-slate-300 rounded-lg py-0.5 px-1.5 pl-5 w-full text-[11px] text-slate-805 outline-none font-medium text-slate-900"
                     />
-                    <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    <span className="absolute left-1.5 top-0.5 text-slate-400 text-[10px]">🔍</span>
                     {questionSearchQuery && (
                       <button
                         onClick={() => setQuestionSearchQuery('')}
-                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                        className="absolute right-1.5 top-0.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
                       >
                         ✕
                       </button>
@@ -9581,11 +9486,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
 
                   {/* Chapter Filter */}
-                  <div>
+                  <div className="flex-1">
                     <select
                       value={questionChapterFilter}
                       onChange={(e) => setQuestionChapterFilter(e.target.value)}
-                      className="bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-xs text-slate-800 outline-none w-full font-semibold cursor-pointer"
+                      className="bg-white border border-slate-300 rounded-lg py-0.5 px-1.5 text-[11px] text-slate-800 outline-none w-full font-semibold cursor-pointer"
                     >
                       <option value="all">📁 All Mapped Chapters</option>
                       {chapters.map(c => (
@@ -9886,97 +9791,76 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           TAB 7: DYNAMIC DEPARTMENTS DIRECTORY MANAGER
           ---------------------------------------------------- */}
       {adminTab === 'departments' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 animate-in fade-in duration-200 space-y-4">
-          <div className="border-b border-slate-100 pb-2">
-            <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
-              <Building className="w-4 h-4 text-emerald-600" />
-              Build Mart Departments Directory
-            </h3>
-          </div>
-
-          {/* Add department form */}
-          <form onSubmit={handleAddDepartment} className="bg-slate-50 border rounded-xl p-5 border-slate-150">
-            <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3 font-sans">
-              Register New Department Unit
-            </h4>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MDO, Warehouse, CRM, Sales, HO..."
-                  value={newDeptName}
-                  onChange={(e) => setNewDeptName(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:border-emerald-500 outline-none font-medium font-sans text-slate-900"
-                />
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 sm:p-4 animate-in fade-in duration-200 space-y-3">
+          
+          {/* COMPACT SINGLE ROW INTEGRATED HEADER & FILTERS BAR */}
+          <div className="border-b border-slate-100 pb-2 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 text-left">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <div className="shrink-0 flex items-center gap-1.5 mr-2">
+                <Building className="w-4 h-4 text-emerald-650" />
+                <h3 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
+                  Departments Directory
+                </h3>
               </div>
-              <button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2 rounded-lg transition duration-150 shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 self-start sm:self-auto h-9"
-              >
-                <Plus className="w-4 h-4" /> Add Department
-              </button>
-            </div>
-          </form>
 
-          {/* SEARCH & INTERACTIVE FILTER BOX */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-sans text-left">
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-64">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Search Departments</label>
-                <div className="relative">
+              {/* INLINE SEARCH & FILTER CONTROLS */}
+              <div className="flex flex-wrap items-center gap-2 text-xs font-sans w-full sm:w-auto">
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-44">
                   <input
                     type="text"
                     value={deptSearchQuery}
                     onChange={(e) => setDeptSearchQuery(e.target.value)}
-                    placeholder="Search department name..."
-                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 pl-8 focus:border-emerald-500 outline-none text-xs w-full text-slate-850 font-sans font-medium text-slate-900"
+                    placeholder="🔍 Search dept..."
+                    className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 pl-6 focus:bg-white focus:border-emerald-500 outline-none text-xs w-full text-slate-900 font-sans font-semibold transition"
                   />
-                  <span className="absolute left-2.5 top-2.5 text-slate-400 text-[10px]">🔍</span>
                   {deptSearchQuery && (
                     <button
                       onClick={() => setDeptSearchQuery('')}
-                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                      className="absolute right-2 top-1 text-slate-400 hover:text-slate-600 text-[10px] font-bold cursor-pointer"
                     >
                       ✕
                     </button>
                   )}
                 </div>
-              </div>
 
-              {/* Advanced Filter Selector */}
-              <div className="w-full sm:w-auto">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-mono">Filter by Association</label>
+                {/* Filter Selector */}
                 <select
                   value={deptFilterType}
                   onChange={(e) => setDeptFilterType(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-emerald-500 outline-none text-xs font-semibold text-slate-750 cursor-pointer w-full text-slate-800"
+                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:bg-white focus:border-emerald-500 outline-none text-xs font-bold text-slate-700 cursor-pointer transition"
                 >
-                  <option value="all">📁 All Departments ({departments.length})</option>
-                  <option value="has-staff">👥 Has Staff Members</option>
-                  <option value="has-roles">💼 Has Job Roles</option>
-                  <option value="no-staff">⚠️ No Staff Members</option>
-                  <option value="empty">🚫 Entirely Empty (No Staff & No Roles)</option>
+                  <option value="all">📁 All ({departments.length})</option>
+                  <option value="has-staff">👥 Has Staff</option>
+                  <option value="has-roles">💼 Has Roles</option>
+                  <option value="no-staff">⚠️ No Staff</option>
+                  <option value="empty">🚫 Empty</option>
                 </select>
+
+                {/* Quick Clear Filter Button */}
+                {(deptSearchQuery || deptFilterType !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeptSearchQuery('');
+                      setDeptFilterType('all');
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                  >
+                    Clear [✕]
+                  </button>
+                )}
               </div>
             </div>
-
-            {/* Quick Summary Badge info */}
-            <div className="text-[11px] font-sans font-semibold text-slate-550 flex items-center gap-2">
-              {(deptSearchQuery || deptFilterType !== 'all') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeptSearchQuery('');
-                    setDeptFilterType('all');
-                  }}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wide font-mono hover:underline cursor-pointer"
-                >
-                  Clear filters [✕]
-                </button>
-              )}
-            </div>
+            
+            {/* Elegant Register Button inline */}
+            <button
+              type="button"
+              onClick={() => setShowAddDeptModal(true)}
+              className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-xs transition duration-150 h-7 shrink-0 self-start lg:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5" /> Register Dept Unit
+            </button>
           </div>
 
           {(() => {
@@ -10005,13 +9889,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               });
 
             return (
-              <div className="space-y-2.5 text-left">
+              <div className="space-y-3.5 text-left">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1 w-full">
-                  <div className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">
+                  <div className="text-[10px] font-bold font-mono text-slate-400 uppercase tracking-wider">
                     DEPARTMENTS MATCHED: <strong className="text-slate-700 text-xs">{filteredDepts.length}</strong>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs self-end">
+                  <div className="flex items-center gap-1.5 text-slate-500 font-sans text-[11px] font-bold bg-slate-100/70 border border-slate-200/80 rounded-lg px-2.5 py-1 shadow-3xs self-end">
                     <span>Show entries:</span>
                     <select
                       value={departmentsLimit}
@@ -10027,132 +9911,222 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-250/60 rounded-xl bg-white shadow-xs max-w-full max-h-[300px] overflow-y-auto">
-                  <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[650px]">
+                {/* MODERN REDESIGNED TABLE WITH MAXIMUM POLISH */}
+                <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-3xs max-w-full max-h-[500px] overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[700px]">
                     <thead>
-                      <tr className="sticky top-0 z-10 bg-slate-50 text-slate-800 border-b border-slate-200 text-[10px] tracking-wider uppercase font-display font-extrabold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
-                        <th className="py-2.5 px-3 pl-5 bg-slate-50">S.No.</th>
-                        <th className="py-2.5 px-3 bg-slate-50">Department Name</th>
-                        <th className="py-2.5 px-3 text-center bg-slate-50">Associated Users</th>
-                        <th className="py-2.5 px-3 text-center bg-slate-50">Associated Job Roles</th>
-                        <th className="py-2.5 px-3 pr-5 text-right bg-slate-50">Actions</th>
+                      <tr className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md text-slate-500 border-b border-slate-200/80 text-[9.5px] tracking-wider uppercase font-mono font-bold shadow-[0_1px_0_0_rgba(226,232,240,1)]">
+                        <th className="py-3 px-4 pl-5">S.No.</th>
+                        <th className="py-3 px-4">Department Name</th>
+                        <th className="py-3 px-4 text-center">Associated Users</th>
+                        <th className="py-3 px-4 text-center">Associated Job Roles</th>
+                        <th className="py-3 px-4 pr-5 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-150 font-sans font-medium text-slate-755">
-                      {filteredDepts.slice(0, departmentsLimit).map(({ dept, originalIdx }, filteredIdx) => {
-                    const associatedUsers = users.filter(u => u.department === dept);
-                    const associatedRoles = roles.filter(r => r.department === dept);
-                    const isEditing = editingDeptIndex === originalIdx;
+                    <tbody className="divide-y divide-slate-100 font-sans font-medium text-slate-750">
+                      {filteredDepts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-400 font-medium">
+                            <span className="block text-xl mb-1.5">📭</span>
+                            No departments found matching current search criteria.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredDepts.slice(0, departmentsLimit).map(({ dept, originalIdx }, filteredIdx) => {
+                          const associatedUsers = users.filter(u => u.department === dept);
+                          const associatedRoles = roles.filter(r => r.department === dept);
+                          const isEditing = editingDeptIndex === originalIdx;
 
-                    return (
-                      <tr key={dept} className="hover:bg-slate-50/50 transition duration-150">
-                        <td className="p-3.5 pl-5 font-mono text-[10px] text-slate-400">{(filteredIdx + 1).toString().padStart(2, '0')}</td>
-                        
-                        <td className="p-3.5 text-slate-900 font-bold">
-                          {isEditing ? (
-                            <div className="flex items-center gap-2 max-w-xs">
-                              <input
-                                type="text"
-                                value={editingDeptValue}
-                                onChange={(e) => setEditingDeptValue(e.target.value)}
-                                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-bold text-slate-900"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleSaveEditedDepartment(originalIdx)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer"
-                                title="Save Changes"
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingDeptIndex(null)}
-                                className="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer"
-                                title="Cancel"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block bg-slate-50 text-slate-700 border border-slate-200/80 px-2.5 py-1 rounded-md text-[10px] font-mono tracking-wider font-extrabold uppercase shadow-3xs max-w-[150px] text-center leading-tight">
-                                {dept}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="p-3.5 text-center">
-                          <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedUsers.length > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-400'}`}>
-                            {associatedUsers.length} staff
-                          </span>
-                        </td>
-
-                        <td className="p-3.5 text-center">
-                          <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${associatedRoles.length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-400'}`}>
-                            {associatedRoles.length} roles
-                          </span>
-                        </td>
-
-                        <td className="p-3.5 pr-5 text-right font-sans">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {!isEditing && (
-                              <>
-                                {confirmDeleteDeptIndex === originalIdx ? (
-                                  <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
+                          return (
+                            <tr key={dept} className="hover:bg-slate-50/60 transition duration-150">
+                              {/* Serial Number */}
+                              <td className="p-4 pl-5 font-mono text-[10.5px] text-slate-400">
+                                {(filteredIdx + 1).toString().padStart(2, '0')}
+                              </td>
+                              
+                              {/* Department Name Block */}
+                              <td className="p-4 text-slate-900 font-bold">
+                                {isEditing ? (
+                                  <div className="flex items-center gap-2 max-w-xs animate-in zoom-in-95 duration-100">
+                                    <input
+                                      type="text"
+                                      value={editingDeptValue}
+                                      onChange={(e) => setEditingDeptValue(e.target.value)}
+                                      className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-bold text-slate-900"
+                                      autoFocus
+                                    />
                                     <button
                                       type="button"
-                                      onClick={() => setConfirmDeleteDeptIndex(null)}
-                                      className="text-[10px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition border border-slate-200 cursor-pointer"
+                                      onClick={() => handleSaveEditedDepartment(originalIdx)}
+                                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer shadow-3xs"
+                                      title="Save Changes"
                                     >
-                                      Cancel
+                                      <Check className="w-4 h-4" />
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteDepartment(originalIdx)}
-                                      className="text-[10px] uppercase font-mono font-black text-white bg-rose-500 hover:bg-rose-600 px-2.5 py-1 rounded shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                      onClick={() => setEditingDeptIndex(null)}
+                                      className="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold p-1 rounded transition flex items-center justify-center h-7 w-7 cursor-pointer shadow-3xs"
+                                      title="Cancel"
                                     >
-                                      <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </div>
                                 ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingDeptIndex(originalIdx);
-                                        setEditingDeptValue(dept);
-                                      }}
-                                      className="text-slate-500 hover:text-blue-650 bg-slate-50 hover:bg-blue-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-blue-200 transition cursor-pointer"
-                                      title="Edit Department Name"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteDeptIndex(originalIdx)}
-                                      className="text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50/70 p-1.5 rounded-lg border border-slate-200 hover:border-rose-200 transition cursor-pointer"
-                                      title="Delete Department"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100/50 text-emerald-700 flex items-center justify-center font-bold text-[10.5px] uppercase font-mono shrink-0 shadow-3xs">
+                                      {dept.substring(0, 2)}
+                                    </span>
+                                    <span className="font-bold text-slate-800 uppercase tracking-wide text-xs">
+                                      {dept}
+                                    </span>
+                                  </div>
                                 )}
-                              </>
-                            )}
-                          </div>
-                        </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-          );
-        })()}
+                              </td>
+
+                              {/* Associated Staff Badge */}
+                              <td className="p-4 text-center">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] font-bold ${
+                                  associatedUsers.length > 0 
+                                    ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100/50' 
+                                    : 'bg-slate-50 text-slate-400 border border-slate-100'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${associatedUsers.length > 0 ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                                  {associatedUsers.length} staff
+                                </span>
+                              </td>
+
+                              {/* Associated Roles Badge */}
+                              <td className="p-4 text-center">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] font-bold ${
+                                  associatedRoles.length > 0 
+                                    ? 'bg-amber-50/70 text-amber-700 border border-amber-100/50' 
+                                    : 'bg-slate-50 text-slate-400 border border-slate-100'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${associatedRoles.length > 0 ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                                  {associatedRoles.length} roles
+                                </span>
+                              </td>
+
+                              {/* Action Items Column */}
+                              <td className="p-4 pr-5 text-right font-sans">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {!isEditing && (
+                                    <>
+                                      {confirmDeleteDeptIndex === originalIdx ? (
+                                        <div className="flex items-center gap-1.5 animate-in zoom-in-95 duration-100">
+                                          <button
+                                            type="button"
+                                            onClick={() => setConfirmDeleteDeptIndex(null)}
+                                            className="text-[9.5px] uppercase font-mono font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition border border-slate-200 cursor-pointer"
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteDepartment(originalIdx)}
+                                            className="text-[9.5px] uppercase font-mono font-black text-white bg-rose-500 hover:bg-rose-600 px-2.5 py-1 rounded shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                          >
+                                            <Trash2 className="w-2.5 h-2.5 text-white" /> Delete
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingDeptIndex(originalIdx);
+                                              setEditingDeptValue(dept);
+                                            }}
+                                            className="text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 p-1.5 rounded-lg border border-slate-100 bg-white shadow-3xs transition cursor-pointer"
+                                            title="Edit Department Name"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setConfirmDeleteDeptIndex(originalIdx)}
+                                            className="text-slate-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 p-1.5 rounded-lg border border-slate-100 bg-white shadow-3xs transition cursor-pointer"
+                                            title="Delete Department"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* DYNAMIC POPUP MODAL FOR REGISTERING NEW DEPARTMENTS */}
+          {showAddDeptModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-150 text-left">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between bg-slate-50 px-5 py-4 border-b border-slate-100">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-wider font-mono">
+                    <Building className="w-4 h-4 text-emerald-650" />
+                    Register New Department Unit
+                  </h4>
+                  <button
+                    onClick={() => setShowAddDeptModal(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Modal Body / Form */}
+                <form onSubmit={handleAddDepartment} className="p-5 space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 font-mono">
+                      Department Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      placeholder="e.g. MDO, Warehouse, CRM, Sales, HO..."
+                      value={newDeptName}
+                      onChange={(e) => setNewDeptName(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none font-medium text-slate-900"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1.5 leading-normal">
+                      Ensure this is a unique structural or organizational department name in the directory.
+                    </p>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddDeptModal(false)}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Create Unit
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -10168,33 +10142,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 Compliance Audit Trail & Verification Logbook
               </h3>
             </div>
-            {/* View Mode Selector */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold font-sans self-start">
-              <button
-                type="button"
-                onClick={() => setAuditViewMode('matrix')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  auditViewMode === 'matrix'
-                    ? 'bg-white text-emerald-800 shadow-3xs'
-                    : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-800'
-                }`}
-              >
-                <CheckSquare className="w-3.5 h-3.5" />
-                <span>Syllabus Matrix</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuditViewMode('timeline')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  auditViewMode === 'timeline'
-                    ? 'bg-white text-emerald-800 shadow-3xs'
-                    : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-800'
-                }`}
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Timeline Log</span>
-              </button>
-            </div>
+
           </div>
 
           {/* Statistics widgets */}
@@ -10255,22 +10203,39 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           })()}
 
           {/* Interactive Dynamic Filters Panel */}
-          <div className="bg-slate-50/60 border border-slate-200/70 p-4 rounded-xl space-y-3.5">
-            <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider font-mono">
-              <ListFilter className="w-4 h-4 text-emerald-600" />
-              <span>Dynamic Filter controls</span>
+          <div className="bg-slate-50/60 border border-slate-200/70 p-1.5 px-3 rounded-xl space-y-1.5 shadow-3xs text-[11px]">
+            <div className="flex items-center justify-between text-[11px] font-black text-slate-700 uppercase tracking-wider font-mono border-b border-slate-100 pb-1">
+              <span className="flex items-center gap-1.5"><ListFilter className="w-3.5 h-3.5 text-emerald-600" /> Dynamic Filter Controls</span>
+              
+              {/* Reset filters inline trigger */}
+              {(auditSearch || auditUserFilter !== 'all' || auditDeptFilter !== 'all' || auditRoleFilter !== 'all' || auditStatusFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuditSearch('');
+                    setAuditUserFilter('all');
+                    setAuditDeptFilter('all');
+                    setAuditRoleFilter('all');
+                    setAuditStatusFilter('all');
+                    showToast('🔍 Compliance filters successfully reset.', 'info');
+                  }}
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.2 rounded transition text-[10px] cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="flex flex-wrap md:flex-nowrap items-center gap-2">
               {/* Search input */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+              <div className="relative flex-1">
+                <Search className="absolute left-1.5 top-1.5 w-3 h-3 text-slate-400" />
                 <input
                   type="text"
                   value={auditSearch}
                   onChange={(e) => setAuditSearch(e.target.value)}
                   placeholder="Search trainee, task, code..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 placeholder-slate-400"
+                  className="w-full pl-5.5 pr-2 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-805 outline-none placeholder-slate-400"
                 />
               </div>
 
@@ -10278,7 +10243,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <select
                 value={auditUserFilter}
                 onChange={(e) => setAuditUserFilter(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+                className="flex-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 cursor-pointer"
               >
                 <option value="all">All Trainees ({users.length})</option>
                 {users.map(u => (
@@ -10290,7 +10255,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <select
                 value={auditDeptFilter}
                 onChange={(e) => setAuditDeptFilter(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+                className="flex-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 cursor-pointer"
               >
                 <option value="all">All Departments ({departments.length})</option>
                 {departments.map(d => (
@@ -10302,7 +10267,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <select
                 value={auditRoleFilter}
                 onChange={(e) => setAuditRoleFilter(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+                className="flex-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 cursor-pointer"
               >
                 <option value="all">All Job Roles ({roles.length})</option>
                 {roles.map(r => (
@@ -10314,7 +10279,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               <select
                 value={auditStatusFilter}
                 onChange={(e) => setAuditStatusFilter(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 cursor-pointer"
+                className="flex-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 cursor-pointer"
               >
                 <option value="all">All Statuses</option>
                 <option value="Not Started">Not Started</option>
@@ -10323,27 +10288,6 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 <option value="Verified & Mastered">Verified & Mastered</option>
               </select>
             </div>
-
-            {/* Clear filters trigger */}
-            {(auditSearch || auditUserFilter !== 'all' || auditDeptFilter !== 'all' || auditRoleFilter !== 'all' || auditStatusFilter !== 'all') && (
-              <div className="flex justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuditSearch('');
-                    setAuditUserFilter('all');
-                    setAuditDeptFilter('all');
-                    setAuditRoleFilter('all');
-                    setAuditStatusFilter('all');
-                    showToast('🔍 Compliance filters successfully reset.', 'info');
-                  }}
-                  className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                  <span>Reset All Active Filters</span>
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Dynamic Views: Matrix vs Timeline */}
@@ -10886,59 +10830,62 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* Left side: configuration inputs */}
-            <div className="xl:col-span-7 space-y-6">
+            <div className={`${certSubTab === 'template' ? 'xl:col-span-7' : 'xl:col-span-12'} space-y-4 pb-12`}>
 
               {/* SECTION A: CORPORATE BRAND IDENTITY & LOGO */}
-              <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[11px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold flex items-center gap-2">
-                    <span className="p-1 rounded bg-indigo-50 text-indigo-700">🏢</span>
-                    Part 1: Platform Brand Name & Corporate Logo
-                  </h4>
-                  <span className="text-[9px] bg-slate-200 text-slate-800 font-mono font-bold px-2 py-0.5 rounded-full select-none">Global Header</span>
-                </div>
+              {certSubTab === 'branding' && (
+                <div className="bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-xl space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold flex items-center gap-2">
+                      <span className="p-1 rounded bg-indigo-50 text-indigo-700">🏢</span>
+                      Part 1: Platform Brand Name & Corporate Logo
+                    </h4>
+                    <span className="text-[9px] bg-slate-200 text-slate-800 font-mono font-bold px-2 py-0.5 rounded-full select-none">Global Header</span>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1">Company / Group Registered Name</label>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-5">
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Company / Group Registered Name</label>
                     <input
                       type="text"
                       value={compName}
                       onChange={(e) => setCompName(e.target.value)}
                       placeholder="e.g. Build Mart"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1">System Abbreviation Label</label>
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">System Abbreviation</label>
                     <input
                       type="text"
                       maxLength={10}
                       value={compAbbr}
                       onChange={(e) => setCompAbbr(e.target.value)}
                       placeholder="e.g. LMS"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500 font-mono"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Brand Tagline / Footprint Text</label>
+                    <input
+                      type="text"
+                      value={compTagline}
+                      onChange={(e) => setCompTagline(e.target.value)}
+                      placeholder="e.g. MEMBER OF RATHI BUILDMART PLC"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 mb-1">Brand Tagline / Footprint Text</label>
-                  <input
-                    type="text"
-                    value={compTagline}
-                    onChange={(e) => setCompTagline(e.target.value)}
-                    placeholder="e.g. MEMBER OF RATHI BUILDMART PLC"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
-                  />
-                </div>
-
                 {/* LOGO TYPE CHANGER */}
-                <div className="space-y-2">
-                  <label className="block text-[11px] font-black text-slate-700">Header Icon Logo Mode</label>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-slate-600">Header Icon Logo Mode</label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
@@ -10946,7 +10893,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         setLogoType('icon');
                         setLogoValue('BookOpen');
                       }}
-                      className={`px-3 py-2 text-xs font-bold rounded-lg border transition ${
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition ${
                         logoType === 'icon' 
                           ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700' 
                           : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -10960,7 +10907,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         setLogoType('emoji');
                         setLogoValue('🏢');
                       }}
-                      className={`px-3 py-2 text-xs font-bold rounded-lg border transition ${
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition ${
                         logoType === 'emoji' 
                           ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700' 
                           : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -10974,7 +10921,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         setLogoType('image');
                         setLogoValue('https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=80');
                       }}
-                      className={`px-3 py-2 text-xs font-bold rounded-lg border transition ${
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition ${
                         logoType === 'image' 
                           ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700' 
                           : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -10986,7 +10933,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
 
                 {/* LOGO SELECTION VALUES */}
-                <div className="bg-white border border-slate-200/70 p-3 rounded-lg">
+                <div className="bg-white border border-slate-200/70 p-2.5 rounded-lg">
                   {logoType === 'icon' && (
                     <div className="space-y-2">
                       <span className="text-[10px] text-slate-400 font-semibold block uppercase">Select brand icon preset:</span>
@@ -11093,131 +11040,135 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </button>
                 </div>
               </div>
+              )}
 
               {/* SECTION B: CERTIFICATE DESIGN CONFIGURATIONS */}
-              <div className="bg-slate-50 border border-slate-205 p-5 rounded-xl space-y-4">
+              {certSubTab === 'template' && (
+              <div className="bg-slate-50 border border-slate-200/85 p-3.5 rounded-xl space-y-2.5">
                 <h4 className="text-[11px] font-mono uppercase tracking-wider text-emerald-600 font-extrabold flex items-center gap-2">
                   <span className="p-1 rounded bg-emerald-50 text-emerald-700">📜</span>
                   Part 2: Trainee Certificate Template & Details
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Company / Focus Entity Name</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Company / Focus Entity Name</label>
                     <input
                       type="text"
                       value={certFocusEntity}
                       onChange={(e) => setCertFocusEntity(e.target.value)}
                       placeholder="e.g. Rathi's Buildmart Ltd"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Issuer Authority Sub-Header</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Issuer Authority Sub-Header</label>
                     <input
                       type="text"
                       value={certSubHeader}
                       onChange={(e) => setCertSubHeader(e.target.value)}
                       placeholder="e.g. Office of Operations Integrity & Standard Execution"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Certificate Title Name</label>
+                    <input
+                      type="text"
+                      value={certTitle}
+                      onChange={(e) => setCertTitle(e.target.value)}
+                      placeholder="e.g. Certificate of Mastery"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Awarding Prefix / Phrase</label>
+                    <input
+                      type="text"
+                      value={certProudlyAwardedTo}
+                      onChange={(e) => setCertProudlyAwardedTo(e.target.value)}
+                      placeholder="e.g. This formal competency is proudly awarded to"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Certificate Title Name</label>
-                  <input
-                    type="text"
-                    value={certTitle}
-                    onChange={(e) => setCertTitle(e.target.value)}
-                    placeholder="e.g. Certificate of Mastery"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Awarding Prefix / Phrase</label>
-                  <input
-                    type="text"
-                    value={certProudlyAwardedTo}
-                    onChange={(e) => setCertProudlyAwardedTo(e.target.value)}
-                    placeholder="e.g. This formal competency is proudly awarded to"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Acclaim Purpose Statement (Body)</label>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Acclaim Purpose Statement (Body)</label>
                   <textarea
-                    rows={2}
+                    rows={1}
                     value={certBodyText}
                     onChange={(e) => setCertBodyText(e.target.value)}
                     placeholder="e.g. for successfully completing all configured operational training modules..."
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500 leading-normal"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500 leading-normal"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-[9px] text-slate-400 mt-0.5">
                     *The system dynamically appends the Trainee's Job Role and Department at the end of this statement.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Left Signature Name / Body</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Left Signature Name / Body</label>
                     <input
                       type="text"
                       value={certSignatureText}
                       onChange={(e) => setCertSignatureText(e.target.value)}
                       placeholder="e.g. Rathi Operations Ltd."
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Left Signature Role Title</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Left Signature Role Title</label>
                     <input
                       type="text"
                       value={certSignatureTitle}
                       onChange={(e) => setCertSignatureTitle(e.target.value)}
                       placeholder="e.g. Training Registrar verifier"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Left Signature Subtitle / Org</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Left Signature Subtitle / Org</label>
                     <input
                       type="text"
                       value={certSignatureSub}
                       onChange={(e) => setCertSignatureSub(e.target.value)}
                       placeholder="e.g. Rathi's Buildmart LLC"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Established Year Label</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Established Year Label</label>
                     <input
                       type="text"
                       value={certEstablishedText}
                       onChange={(e) => setCertEstablishedText(e.target.value)}
                       placeholder="e.g. ESTABLISHED 2026"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Seal Status Label</label>
-                  <input
-                    type="text"
-                    value={certStampLabel}
-                    onChange={(e) => setCertStampLabel(e.target.value)}
-                    placeholder="e.g. MASTERED"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
-                  />
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Seal Status Label</label>
+                    <input
+                      type="text"
+                      value={certStampLabel}
+                      onChange={(e) => setCertStampLabel(e.target.value)}
+                      placeholder="e.g. MASTERED"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2 justify-end pt-1">
@@ -11263,9 +11214,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </button>
                 </div>
               </div>
+              )}
 
               {/* SECTION C: HELPLINE & SOP ESCALATION CONTACTS */}
-              <div className="bg-slate-50 border border-slate-200/85 p-5 rounded-xl space-y-4">
+              {certSubTab === 'helpline' && (
+              <div className="bg-slate-50 border border-slate-200/85 p-5 pb-8 rounded-xl space-y-4">
                 <h4 className="text-[11px] font-mono uppercase tracking-wider text-amber-600 font-extrabold flex items-center gap-2">
                   <span className="p-1 rounded bg-amber-50 text-amber-700">📞</span>
                   Part 3: Helpline & SOP Escalation Contacts
@@ -11281,14 +11234,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   Configure the designated contacts displayed in the Trainee Helpdesk overlay (such as Chief Curriculum Directors, Platform Admins, and Compliance Leads).
                 </p>
 
-                <div className="space-y-4 pt-1">
+                <div className="space-y-3 pt-1">
                   {localHelplineContacts.map((contact, index) => {
                     const currentType = contact.badgeType || (index === 0 ? 'indigo' : index === 1 ? 'rose' : index === 2 ? 'emerald' : 'amber');
                     return (
-                      <div key={contact.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 shadow-xs">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 flex-wrap gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                      <div key={contact.id} className="p-3 bg-white border border-slate-200 rounded-lg space-y-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 flex-wrap gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full ${
                               currentType === 'rose' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
                               currentType === 'emerald' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                               currentType === 'amber' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
@@ -11297,7 +11250,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               Contact #{index + 1}
                             </span>
                             {contact.roleBadge && (
-                              <span className={`text-[9px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                              <span className={`text-[8.5px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                 currentType === 'rose' ? 'bg-rose-100 text-rose-800' :
                                 currentType === 'emerald' ? 'bg-emerald-100 text-emerald-800' :
                                 currentType === 'amber' ? 'bg-amber-100 text-amber-800' :
@@ -11307,8 +11260,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <label className="text-[10px] font-mono text-slate-500 font-bold">Badge Color:</label>
+                          <div className="flex items-center gap-1">
+                            <label className="text-[9px] font-mono text-slate-500 font-bold">Badge Color:</label>
                             <select
                               value={currentType}
                               onChange={(e) => {
@@ -11316,7 +11269,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 updated[index] = { ...contact, badgeType: e.target.value as any };
                                 setLocalHelplineContacts(updated);
                               }}
-                              className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition"
+                              className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-mono text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition"
                             >
                               <option value="indigo">Indigo (Blue-Violet)</option>
                               <option value="rose">Rose (Red-Pink)</option>
@@ -11326,9 +11279,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           </div>
                         </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Officer Full Name</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                        <div className="sm:col-span-3">
+                          <label className="block text-[9.5px] font-bold text-slate-600 mb-0.5">Officer Full Name</label>
                           <input
                             type="text"
                             value={contact.name}
@@ -11342,8 +11295,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           />
                         </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Role Badge Name</label>
+                        <div className="sm:col-span-3">
+                          <label className="block text-[9.5px] font-bold text-slate-600 mb-0.5">Role Badge Name</label>
                           <input
                             type="text"
                             value={contact.roleBadge}
@@ -11357,8 +11310,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                           />
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Officer Designation / Title</label>
+                        <div className="sm:col-span-6">
+                          <label className="block text-[9.5px] font-bold text-slate-600 mb-0.5">Officer Designation / Title</label>
                           <input
                             type="text"
                             value={contact.designation}
@@ -11368,13 +11321,13 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               setLocalHelplineContacts(updated);
                             }}
                             placeholder="e.g. Principal Auditor & Chief Curriculum Director"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition"
                           />
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-3 border-t border-slate-200/60">
@@ -11425,9 +11378,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </button>
                 </div>
               </div>
+              )}
 
               {/* SECTION D: SMTP EMAIL DISPATCH & SENDER ALIAS CONFIGURATIONS */}
-              <div id="smtp-email-config-panel" className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+              {certSubTab === 'smtp' && (
+              <div id="smtp-email-config-panel" className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[11px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold flex items-center gap-2">
                     <span className="p-1 rounded bg-indigo-50 text-indigo-700">✉️</span>
@@ -11437,105 +11392,96 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 </div>
 
                 {smtpSavingSuccess && (
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs py-2.5 px-3.5 rounded-lg font-bold font-sans animate-fade-in">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs py-2 px-3 rounded-lg font-bold font-sans animate-fade-in">
                     ✓ {smtpSavingSuccess}
                   </div>
                 )}
 
-                <p className="text-[11px] text-slate-500 leading-normal">
+                <p className="text-[10.5px] text-slate-500 leading-normal">
                   Configure custom SMTP connection details to send 2-Step Verification and passkey reset emails to Trainees directly through your corporate mail server using a custom sender alias name.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="smtp-host" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Outbound Host</label>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                  <div className="sm:col-span-4">
+                    <label htmlFor="smtp-host" className="block text-[10px] font-bold text-slate-600 mb-0.5">SMTP Outbound Host</label>
                     <input
                       id="smtp-host"
                       type="text"
                       value={smtpHost}
                       onChange={(e) => setSmtpHost(e.target.value)}
                       placeholder="e.g. smtp.gmail.com"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="smtp-port" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Port</label>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="smtp-port" className="block text-[10px] font-bold text-slate-600 mb-0.5">SMTP Port</label>
                     <input
                       id="smtp-port"
                       type="text"
                       value={smtpPort}
                       onChange={(e) => setSmtpPort(e.target.value)}
                       placeholder="e.g. 587 or 465"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="smtp-user" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Username</label>
+                  <div className="sm:col-span-3">
+                    <label htmlFor="smtp-user" className="block text-[10px] font-bold text-slate-600 mb-0.5">SMTP Username</label>
                     <input
                       id="smtp-user"
                       type="text"
                       value={smtpUser}
                       onChange={(e) => setSmtpUser(e.target.value)}
                       placeholder="e.g. sender@gmail.com"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="smtp-pass" className="block text-[11px] font-bold text-slate-700 mb-1">SMTP Password</label>
+                  <div className="sm:col-span-3">
+                    <label htmlFor="smtp-pass" className="block text-[10px] font-bold text-slate-600 mb-0.5">SMTP Password</label>
                     <input
                       id="smtp-pass"
                       type="password"
                       value={smtpPass}
                       onChange={(e) => setSmtpPass(e.target.value)}
-                      placeholder="Enter server key or app password"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      placeholder="Server key / app password"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
-                <div className="bg-amber-50/80 border border-amber-200/60 rounded-lg p-3 text-[10.5px] text-amber-800 leading-normal space-y-1.5">
+                <div className="bg-amber-50/80 border border-amber-200/60 rounded-lg p-2.5 text-[10px] text-amber-800 leading-normal space-y-1">
                   <p className="font-bold flex items-center gap-1">
                     <span>💡</span> Gmail/Google Workspace SMTP Configuration Notice:
                   </p>
                   <p>
-                    If you are using Google Mail (<code>smtp.gmail.com</code>) as your host and see the error <strong>"Application-specific password required (534-5.7.9)"</strong>, you must use an App Password rather than your standard account password:
+                    If you are using Google Mail (<code>smtp.gmail.com</code>) as your host, ensure <strong>2-Step Verification</strong> is ON under your <a href="https://myaccount.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-amber-950">Google Account Security</a>, generate a <strong>16-character App Password</strong> (without spaces), and paste it into the <strong>SMTP Password</strong> field above.
                   </p>
-                  <ul className="list-disc list-inside space-y-0.5 pl-1.5">
-                    <li>Go to your <a href="https://myaccount.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-amber-950">Google Account Settings</a></li>
-                    <li>Go to the <strong>Security</strong> tab and ensure <strong>2-Step Verification</strong> is ON</li>
-                    <li>Search for <strong>"App Passwords"</strong> in the top search bar</li>
-                    <li>Generate a new App Password (select 'Other' and name it <em>"Rathi LMS"</em>)</li>
-                    <li>Copy the generated <strong>16-character code</strong> (without spaces) and paste it into the <strong>SMTP Password</strong> field above</li>
-                  </ul>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-100">
                   <div>
-                    <label htmlFor="smtp-from-name" className="block text-[11px] font-bold text-slate-700 mb-1">Sender Display Name (Alias)</label>
+                    <label htmlFor="smtp-from-name" className="block text-[10px] font-bold text-slate-600 mb-0.5">Sender Display Name (Alias)</label>
                     <input
                       id="smtp-from-name"
                       type="text"
                       value={smtpFromName}
                       onChange={(e) => setSmtpFromName(e.target.value)}
                       placeholder="e.g. Rathi Buildmart Security"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-semibold outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-semibold outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="smtp-from-email" className="block text-[11px] font-bold text-slate-700 mb-1">Sender Email Address</label>
+                    <label htmlFor="smtp-from-email" className="block text-[10px] font-bold text-slate-600 mb-0.5">Sender Email Address</label>
                     <input
                       id="smtp-from-email"
                       type="email"
                       value={smtpFromEmail}
                       onChange={(e) => setSmtpFromEmail(e.target.value)}
                       placeholder="e.g. security@rathibuildmart.com"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
@@ -11604,105 +11550,108 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
                 </div>
               </div>
+              )}
             </div>
 
             {/* Right side: Realtime Certificate Mockup Preview */}
-            <div className="xl:col-span-5 flex flex-col justify-between h-full bg-slate-950 p-5 rounded-xl border border-slate-800">
-              <div>
-                <span className="text-[10px] font-mono tracking-wider text-emerald-400 font-extrabold uppercase bg-emerald-950/40 border border-emerald-900/50 px-2.5 py-0.5 rounded">
-                  Live Preview Simulator
-                </span>
-                <p className="text-[11px] text-slate-400 mt-2 leading-normal">
-                  Analyzing current typography matching directly to client-side layouts. View real-time styling of your edits here:
-                </p>
-              </div>
-
-              {/* Real Simulation Box */}
-              <div className="bg-white border border-[#eadaab] rounded-lg p-4 text-center space-y-3.5 my-4 shadow-xl select-none relative">
-                {/* Simulated Monogram */}
-                <div className="mx-auto w-8 h-8 rounded-full bg-slate-950 text-white font-serif font-black text-xs flex items-center justify-center border-2 border-[#b4975a]">
-                  R
-                </div>
-                
-                <h4 className="text-[8px] font-black uppercase tracking-[0.25em] text-[#866e40] leading-none">
-                  {certFocusEntity || "Rathi's Buildmart Ltd"}
-                </h4>
-                
-                <h5 className="text-[6.5px] text-slate-400 tracking-wider uppercase leading-none -mt-1.5">
-                  {certSubHeader || "Office of Operations Integrity"}
-                </h5>
-
-                <div className="w-16 h-[0.5px] bg-[#b4975a] mx-auto my-0.5" />
-
-                <h1 className="text-md font-bold italic font-serif text-[#111827] leading-none">
-                  {certTitle || "Certificate of Mastery"}
-                </h1>
-
-                <p className="text-[7px] text-slate-400 tracking-widest font-bold uppercase leading-none">
-                  {certProudlyAwardedTo || "This formal competency is proudly awarded to"}
-                </p>
-
-                <h2 className="text-sm text-slate-900 font-extrabold font-serif leading-none tracking-wide underline decoration-[#b4975a]/30 decoration-2">
-                  Arjun Rathi (Sample Trainee)
-                </h2>
-
-                <p className="text-[8px] text-slate-500 font-sans leading-relaxed px-2">
-                  {certBodyText || "for successfully completing operational training..."} <br />
-                  <span className="inline-block mt-1 bg-[#fcfaf4] font-bold text-slate-700 border border-[#eadaab]/45 px-1.5 py-0.5 rounded text-[7px]">
-                    Senior Auditor • Operations Division
+            {certSubTab === 'template' && (
+              <div className="xl:col-span-5 flex flex-col justify-between bg-slate-950 p-3.5 sm:p-4 rounded-xl border border-slate-800 xl:sticky xl:top-4">
+                <div>
+                  <span className="text-[10px] font-mono tracking-wider text-emerald-400 font-extrabold uppercase bg-emerald-950/40 border border-emerald-900/50 px-2.5 py-0.5 rounded">
+                    Live Preview Simulator
                   </span>
-                </p>
+                  <p className="text-[11px] text-slate-400 mt-1.5 leading-normal">
+                    Analyzing current typography matching directly to client-side layouts. View real-time styling of your edits here:
+                  </p>
+                </div>
 
-                {/* Signatures simulation */}
-                <div className="grid grid-cols-3 gap-0.5 pt-2 border-t border-[#f2edd5] text-left items-end">
-                  <div className="text-center space-y-0.5">
-                    <span className="block text-[7px] font-serif italic text-slate-800 tracking-wider">
-                      {certSignatureText}
-                    </span>
-                    <div className="border-t border-slate-200" />
-                    <span className="block text-[6px] uppercase font-bold text-slate-400 leading-none">
-                      {certSignatureTitle}
-                    </span>
-                    <span className="block text-[5.5px] text-slate-400 leading-none">
-                      {certSignatureSub}
-                    </span>
+                {/* Real Simulation Box */}
+                <div className="bg-white border border-[#eadaab] rounded-lg p-3 text-center space-y-2.5 my-2.5 shadow-xl select-none relative">
+                  {/* Simulated Monogram */}
+                  <div className="mx-auto w-8 h-8 rounded-full bg-slate-950 text-white font-serif font-black text-xs flex items-center justify-center border-2 border-[#b4975a]">
+                    R
                   </div>
+                  
+                  <h4 className="text-[8px] font-black uppercase tracking-[0.25em] text-[#866e40] leading-none">
+                    {certFocusEntity || "Rathi's Buildmart Ltd"}
+                  </h4>
+                  
+                  <h5 className="text-[6.5px] text-slate-400 tracking-wider uppercase leading-none -mt-1.5">
+                    {certSubHeader || "Office of Operations Integrity"}
+                  </h5>
 
-                  <div className="text-center flex flex-col items-center">
-                    <div className="w-6 h-6 rounded-full bg-[#111827] flex flex-col items-center justify-center border border-[#cbb17b]">
-                      <span className="text-[4px] text-white font-extrabold scale-75 uppercase">
-                        {certStampLabel}
+                  <div className="w-16 h-[0.5px] bg-[#b4975a] mx-auto my-0.5" />
+
+                  <h1 className="text-md font-bold italic font-serif text-[#111827] leading-none">
+                    {certTitle || "Certificate of Mastery"}
+                  </h1>
+
+                  <p className="text-[7px] text-slate-400 tracking-widest font-bold uppercase leading-none">
+                    {certProudlyAwardedTo || "This formal competency is proudly awarded to"}
+                  </p>
+
+                  <h2 className="text-sm text-slate-900 font-extrabold font-serif leading-none tracking-wide underline decoration-[#b4975a]/30 decoration-2">
+                    Arjun Rathi (Sample Trainee)
+                  </h2>
+
+                  <p className="text-[8px] text-slate-500 font-sans leading-relaxed px-2">
+                    {certBodyText || "for successfully completing operational training..."} <br />
+                    <span className="inline-block mt-1 bg-[#fcfaf4] font-bold text-slate-700 border border-[#eadaab]/45 px-1.5 py-0.5 rounded text-[7px]">
+                      Senior Auditor • Operations Division
+                    </span>
+                  </p>
+
+                  {/* Signatures simulation */}
+                  <div className="grid grid-cols-3 gap-0.5 pt-2 border-t border-[#f2edd5] text-left items-end">
+                    <div className="text-center space-y-0.5">
+                      <span className="block text-[7px] font-serif italic text-slate-800 tracking-wider">
+                        {certSignatureText}
+                      </span>
+                      <div className="border-t border-slate-200" />
+                      <span className="block text-[6px] uppercase font-bold text-slate-400 leading-none">
+                        {certSignatureTitle}
+                      </span>
+                      <span className="block text-[5.5px] text-slate-400 leading-none">
+                        {certSignatureSub}
                       </span>
                     </div>
-                    <span className="text-[5.5px] text-slate-400 mt-0.5 block">
-                      {certEstablishedText}
-                    </span>
-                  </div>
 
-                  <div className="text-center space-y-0.5">
-                    <span className="block text-[7px] font-mono font-bold text-slate-800 leading-none">
-                      June 10, 2026
-                    </span>
-                    <div className="border-t border-slate-200" />
-                    <span className="block text-[6px] uppercase font-bold text-slate-400">
-                      DATE OF CREDENTIAL
-                    </span>
-                    <span className="block text-[5.5px] font-mono text-[#b4975a]">
-                      ID: RBM-CERT-8F3D
-                    </span>
+                    <div className="text-center flex flex-col items-center">
+                      <div className="w-6 h-6 rounded-full bg-[#111827] flex flex-col items-center justify-center border border-[#cbb17b]">
+                        <span className="text-[4px] text-white font-extrabold scale-75 uppercase">
+                          {certStampLabel}
+                        </span>
+                      </div>
+                      <span className="text-[5.5px] text-slate-400 mt-0.5 block">
+                        {certEstablishedText}
+                      </span>
+                    </div>
+
+                    <div className="text-center space-y-0.5">
+                      <span className="block text-[7px] font-mono font-bold text-slate-800 leading-none">
+                        June 10, 2026
+                      </span>
+                      <div className="border-t border-slate-200" />
+                      <span className="block text-[6px] uppercase font-bold text-slate-400">
+                        DATE OF CREDENTIAL
+                      </span>
+                      <span className="block text-[5.5px] font-mono text-[#b4975a]">
+                        ID: RBM-CERT-8F3D
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 p-2.5 rounded-lg">
-                <span className="text-[9.5px] font-mono text-[#b4975a] block font-extrabold uppercase">
-                  💡 Trainees View Instant Access
-                </span>
-                <span className="text-[9.5px] text-slate-400 mt-1 block leading-normal">
-                  All trainees loaded with active profiles will see this template rendered as their high-fidelity downloadable PDF on their workspace dashboard the instant they claim mastery!
-                </span>
+                <div className="bg-slate-900/60 border border-slate-800 p-2.5 rounded-lg">
+                  <span className="text-[9.5px] font-mono text-[#b4975a] block font-extrabold uppercase">
+                    💡 Trainees View Instant Access
+                  </span>
+                  <span className="text-[9.5px] text-slate-400 mt-1 block leading-normal">
+                    All trainees loaded with active profiles will see this template rendered as their high-fidelity downloadable PDF on their workspace dashboard the instant they claim mastery!
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
