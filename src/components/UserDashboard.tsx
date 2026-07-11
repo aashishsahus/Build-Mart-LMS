@@ -442,6 +442,7 @@ export default function UserDashboard({
   // Notification system states
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [showApprovalBanner, setShowApprovalBanner] = useState(true);
+  const [showApprovalPopup, setShowApprovalPopup] = useState(false);
   const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
 
   // Check if current user is Admin / Director / HR
@@ -1351,59 +1352,6 @@ export default function UserDashboard({
       }`}>
         <div className="w-full px-2 sm:px-3 lg:px-4 py-2 lg:py-3 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
         
-        {/* Trainee Enrollment Approved Banner */}
-        <AnimatePresence>
-          {showApprovalBanner && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden mb-6"
-            >
-              <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 p-0.5 rounded-2xl shadow-lg">
-                <div className="bg-white/95 backdrop-blur-xs p-5 rounded-[14px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-11 h-11 bg-emerald-50 text-emerald-650 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold animate-bounce mt-0.5">
-                      🎉
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-mono font-black uppercase bg-emerald-100/60 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full tracking-wider">
-                        Enrollment Status Updated
-                      </span>
-                      <h3 className="font-display text-sm font-black text-slate-900 mt-1">
-                        Aashish Sahu Group: Trainee Verification Complete!
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5 max-w-2xl leading-relaxed">
-                        Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 self-stretch md:self-auto justify-end border-t border-slate-100 md:border-t-0 pt-3 md:pt-0 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowApprovalBanner(false);
-                      }}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition cursor-pointer active:scale-95 shadow-sm shadow-emerald-100"
-                    >
-                      Acknowledge & Sync
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowApprovalBanner(false)}
-                      className="p-2 border border-slate-200 hover:border-slate-300 text-slate-400 hover:text-slate-650 rounded-xl transition cursor-pointer text-lg font-bold"
-                      title="Dismiss"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Modern, Highly Compact Welcome Header */}
         {activeTab === 'learning' ? (
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-slate-200/80">
@@ -1497,12 +1445,72 @@ export default function UserDashboard({
             </div>
 
             <div className="flex items-center gap-2 shrink-0 select-none lg:self-center self-end">
+              {/* Enrollment Approval Popup Dropdown */}
+              {showApprovalBanner && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowApprovalPopup(!showApprovalPopup);
+                      setShowNotificationCenter(false);
+                    }}
+                    className={`p-1.5 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center gap-1.5 h-9.5 px-3.5 ${
+                      showApprovalPopup
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 animate-pulse'
+                    }`}
+                    title="Enrollment Status Approved"
+                  >
+                    <span className="text-xs">🎉</span>
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold">Approval</span>
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-600 rounded-full animate-ping"></span>
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-600 rounded-full"></span>
+                  </button>
+
+                  {showApprovalPopup && (
+                    <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-emerald-50 text-emerald-650 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 text-lg font-bold">
+                          🎉
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <span className="text-[8px] font-mono font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200/65 px-1.5 py-0.5 rounded-full tracking-wider">
+                            Enrollment Approved
+                          </span>
+                          <h3 className="font-display text-xs font-black text-slate-900 mt-1.5 leading-tight">
+                            Aashish Sahu Group: Trainee Verification Complete!
+                          </h3>
+                          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                            Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowApprovalPopup(false);
+                            setShowApprovalBanner(false);
+                          }}
+                          className="w-full py-1.5 bg-emerald-650 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-xs text-center"
+                        >
+                          Acknowledge & Sync
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Advanced Interactive Notification Center */}
               <div className="relative">
                 <button
                   type="button"
                   id="notifications-bell-btn"
-                  onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                  onClick={() => {
+                    setShowNotificationCenter(!showNotificationCenter);
+                    setShowApprovalPopup(false);
+                  }}
                   className={`p-1.5 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
                     showNotificationCenter
                       ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
@@ -1662,12 +1670,72 @@ export default function UserDashboard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0 select-none">
+            {/* Enrollment Approval Popup Dropdown */}
+            {showApprovalBanner && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowApprovalPopup(!showApprovalPopup);
+                    setShowNotificationCenter(false);
+                  }}
+                  className={`p-1 py-0.5 px-2 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center gap-1.5 text-[10px] font-bold ${
+                    showApprovalPopup
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 animate-pulse'
+                  }`}
+                  title="Enrollment Status Approved"
+                >
+                  <span className="text-xs">🎉</span>
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-850">Approval</span>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-600 rounded-full animate-ping"></span>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-600 rounded-full"></span>
+                </button>
+
+                {showApprovalPopup && (
+                  <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-emerald-50 text-emerald-650 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 text-lg font-bold">
+                        🎉
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <span className="text-[8px] font-mono font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200/65 px-1.5 py-0.5 rounded-full tracking-wider">
+                          Enrollment Approved
+                        </span>
+                        <h3 className="font-display text-xs font-black text-slate-900 mt-1.5 leading-tight">
+                          Aashish Sahu Group: Trainee Verification Complete!
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                          Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowApprovalPopup(false);
+                          setShowApprovalBanner(false);
+                        }}
+                        className="w-full py-1.5 bg-emerald-650 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition cursor-pointer active:scale-95 shadow-xs text-center"
+                      >
+                        Acknowledge & Sync
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Advanced Interactive Notification Center */}
             <div className="relative">
               <button
                 type="button"
                 id="notifications-bell-btn"
-                onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                onClick={() => {
+                  setShowNotificationCenter(!showNotificationCenter);
+                  setShowApprovalPopup(false);
+                }}
                 className={`p-1 py-0.5 px-2 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center gap-1.5 text-[10px] font-bold ${
                   showNotificationCenter
                     ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
