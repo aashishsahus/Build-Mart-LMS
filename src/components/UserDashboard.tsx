@@ -1110,9 +1110,9 @@ export default function UserDashboard({
                 </ul>
               </div>
             ) : activeMediaTab === 'pdf' ? (
-              /* PDF iframe stage with optimized portrait/page proportions to avoid massive black empty sidebars */
-              <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-4 px-4 sm:px-6 border-b border-slate-150">
-                <div className={`w-full max-w-xl relative rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white ${pdfAspectRatio} transition-all duration-300`}>
+              /* PDF iframe stage with optimized proportions to avoid massive black empty sidebars */
+              <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-3 px-4 sm:px-6 border-b border-slate-150">
+                <div className="w-full max-w-3xl h-[280px] sm:h-[320px] md:h-[360px] lg:h-[380px] xl:h-[420px] relative rounded-xl overflow-hidden shadow-md border border-slate-200 bg-white transition-all duration-300">
                   <iframe
                     src={resolvedPdfUrl}
                     title="Corporate Curriculum Architecture PDF Frame"
@@ -1123,9 +1123,9 @@ export default function UserDashboard({
                 </div>
               </div>
             ) : (
-              /* Video stage with constrained smaller display size according to aspect ratio */
+              /* Video stage with constrained display size */
               <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-3 px-4 sm:px-6 border-b border-slate-150">
-                <div className={`w-full max-w-xl relative rounded-2xl overflow-hidden shadow-xl border border-slate-800 bg-slate-950 ${videoAspectRatio} transition-all duration-300`}>
+                <div className="w-full max-w-3xl h-[280px] sm:h-[320px] md:h-[360px] lg:h-[380px] xl:h-[420px] relative rounded-xl overflow-hidden shadow-xl border border-slate-800 bg-slate-950 transition-all duration-300">
                   {type === 'embed' ? (
                     <iframe
                       src={url}
@@ -1349,7 +1349,7 @@ export default function UserDashboard({
           ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
           : ''
       }`}>
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
+        <div className="w-full px-2 sm:px-3 lg:px-4 py-2 lg:py-3 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 animate-in fade-in duration-350">
         
         {/* Trainee Enrollment Approved Banner */}
         <AnimatePresence>
@@ -1405,104 +1405,270 @@ export default function UserDashboard({
         </AnimatePresence>
 
         {/* Modern, Highly Compact Welcome Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-slate-200/80">
-          <div className="shrink-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <h1 className="font-display text-base sm:text-lg lg:text-xl font-black text-slate-900 tracking-tight leading-none">
-                Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
-              </h1>
-              <PremiumBadge userId={currentUser.id} userName={currentUser.name} roleId={currentUser.roleId} department={currentUser.department} size="sm" className="py-0.2 px-1 text-[7.5px]" />
-            </div>
-            
-            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-              <span className="font-bold text-slate-700">{activeRoleView === 'all' ? 'All Assigned Roles' : userRole?.name}</span>
-              <span className="mx-1 text-slate-300">|</span>
-              <span>{currentUser.department}</span>
-              <span className="mx-1 text-slate-300">|</span>
-              <span className="text-emerald-600 font-bold bg-emerald-50 px-1 py-0.2 rounded text-[8.5px]">{currentUser.focusEntity}</span>
-            </p>
-          </div>
-
-          {/* Unified Compact Scorecard Row aligned next to user details on the left */}
-          <div className="flex flex-wrap items-center gap-2 flex-grow justify-start lg:justify-start lg:ml-5 lg:pl-5 lg:border-l lg:border-slate-200/80">
-            {/* 1. Mastery Rate */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-emerald-200 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-emerald-50 text-emerald-600 rounded-md shrink-0">
-                <Award className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERY</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.masteryPercent}%</div>
+        {activeTab === 'learning' ? (
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-slate-200/80">
+            <div className="shrink-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <h1 className="font-display text-base sm:text-lg lg:text-xl font-black text-slate-900 tracking-tight leading-none">
+                  Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-emerald-700">{currentUser.name}</span>
+                </h1>
+                <PremiumBadge userId={currentUser.id} userName={currentUser.name} roleId={currentUser.roleId} department={currentUser.department} size="sm" className="py-0.2 px-1 text-[7.5px]" />
               </div>
+              
+              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                <span className="font-bold text-slate-700">{activeRoleView === 'all' ? 'All Assigned Roles' : userRole?.name}</span>
+                <span className="mx-1 text-slate-300">|</span>
+                <span>{currentUser.department}</span>
+                <span className="mx-1 text-slate-300">|</span>
+                <span className="text-emerald-600 font-bold bg-emerald-50 px-1 py-0.2 rounded text-[8.5px]">{currentUser.focusEntity}</span>
+              </p>
             </div>
 
-            {/* 2. Overall Progress */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-indigo-200 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-indigo-50 text-indigo-600 rounded-md shrink-0">
-                <BookOpen className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PROGRESS</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.overallPercent}%</div>
+            {/* Unified Compact Scorecard Row aligned next to user details on the left */}
+            <div className="flex flex-wrap items-center gap-2 flex-grow justify-start lg:justify-start lg:ml-5 lg:pl-5 lg:border-l lg:border-slate-200/80">
+              {/* 1. Mastery Rate */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-emerald-200 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-emerald-50 text-emerald-600 rounded-md shrink-0">
+                  <Award className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERY</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.masteryPercent}%</div>
+                </div>
               </div>
-            </div>
 
-            {/* 3. Mastered Units */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-teal-200 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-teal-50 text-teal-600 rounded-md shrink-0">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERED</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">
-                  {stats.verifiedCount}<span className="text-[9px] text-slate-450 font-semibold">/{stats.totalUnits}</span>
+              {/* 2. Overall Progress */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-indigo-200 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-indigo-50 text-indigo-600 rounded-md shrink-0">
+                  <BookOpen className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PROGRESS</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.overallPercent}%</div>
+                </div>
+              </div>
+
+              {/* 3. Mastered Units */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-teal-200 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-teal-50 text-teal-600 rounded-md shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">MASTERED</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">
+                    {stats.verifiedCount}<span className="text-[9px] text-slate-450 font-semibold">/{stats.totalUnits}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Pending Review */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-amber-200 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-amber-50 text-amber-600 rounded-md shrink-0">
+                  <Clock className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PENDING</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.completedCount}</div>
+                </div>
+              </div>
+
+              {/* 5. In Progress */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-cyan-200 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-cyan-50 text-cyan-600 rounded-md shrink-0">
+                  <Play className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">ACTIVE</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.inProgressCount}</div>
+                </div>
+              </div>
+
+              {/* 6. Not Started */}
+              <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-slate-300 hover:shadow-2xs h-9.5">
+                <span className="p-1 bg-slate-50 text-slate-500 rounded-md shrink-0">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+                <div className="leading-tight">
+                  <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">LEFT</div>
+                  <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.notStartedCount}</div>
                 </div>
               </div>
             </div>
 
-            {/* 4. Pending Review */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-amber-200 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-amber-50 text-amber-600 rounded-md shrink-0">
-                <Clock className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">PENDING</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.completedCount}</div>
-              </div>
-            </div>
+            <div className="flex items-center gap-2 shrink-0 select-none lg:self-center self-end">
+              {/* Advanced Interactive Notification Center */}
+              <div className="relative">
+                <button
+                  type="button"
+                  id="notifications-bell-btn"
+                  onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+                  className={`p-1.5 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
+                    showNotificationCenter
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-650 hover:text-slate-900'
+                  }`}
+                  aria-label="Notification Center"
+                  title="Notification Center"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] bg-rose-600 text-[7px] font-black text-white rounded-full flex items-center justify-center border border-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
 
-            {/* 5. In Progress */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-cyan-200 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-cyan-50 text-cyan-600 rounded-md shrink-0">
-                <Play className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">ACTIVE</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.inProgressCount}</div>
-              </div>
-            </div>
+                {/* Notifications Panel Box */}
+                {showNotificationCenter && (
+                  <div className="absolute right-0 mt-2 z-40 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl p-0 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Header */}
+                    <div className="bg-slate-50 border-b border-slate-100 px-4 py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Corporate Notifications Center</span>
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-black hover:underline cursor-pointer"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
 
-            {/* 6. Not Started */}
-            <div className="bg-white border border-slate-200/80 rounded-lg py-1 px-2.5 flex items-center gap-2 shadow-3xs transition-all duration-150 hover:border-slate-300 hover:shadow-2xs h-9.5">
-              <span className="p-1 bg-slate-50 text-slate-500 rounded-md shrink-0">
-                <HelpCircle className="w-3.5 h-3.5" />
-              </span>
-              <div className="leading-tight">
-                <div className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-none">LEFT</div>
-                <div className="text-[11px] font-black text-slate-900 font-mono mt-0.5 leading-none">{stats.notStartedCount}</div>
+                    {/* Notification List */}
+                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400 text-xs">
+                          <p className="text-xl mb-1">📭</p>
+                          <p className="font-medium text-slate-500">All clear! No current updates.</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Admin alerts or enrollment approvals will appear inside this feed.</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => {
+                          const isRead = notif.isReadBy ? notif.isReadBy.includes(currentUser.id) : false;
+                          let icon = '🔔';
+                          if (notif.type === 'user_add') icon = '🤝';
+                          else if (notif.type === 'user_remove') icon = '🔐';
+                          else if (notif.type === 'chapter_add') icon = '📚';
+                          else if (notif.type === 'chapter_remove') icon = '📁';
+                          else if (notif.type === 'unit_add') icon = '🎥';
+                          else if (notif.type === 'unit_remove') icon = '🎬';
+                          else if (notif.type === 'approval') icon = '✅';
+
+                          return (
+                            <div 
+                              key={notif.id} 
+                              className={`p-2.5 transition flex gap-2.5 ${!isRead ? 'bg-emerald-50/30' : 'bg-white hover:bg-slate-50/40'}`}
+                            >
+                              <span className="text-xs shrink-0 mt-0.5 select-none">
+                                {icon}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-1.5">
+                                  <p className={`text-[11px] font-bold leading-tight ${!isRead ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>
+                                    {notif.title}
+                                  </p>
+                                  <span className="text-[7.5px] font-mono font-bold text-slate-400 shrink-0">
+                                    {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[9.5px] text-slate-500 leading-normal mt-0.5">
+                                  {notif.message}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  {!isRead && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAsRead(notif.id)}
+                                      className="text-[7.5px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-wider bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.2 rounded flex items-center gap-0.5 cursor-pointer"
+                                    >
+                                      <Check className="w-1.5 h-1.5" />
+                                      Mark Read
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteNotif(notif.id)}
+                                    className="text-[7.5px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-wider hover:bg-rose-50 px-1.5 py-0.2 rounded flex items-center gap-0.5 cursor-pointer ml-auto"
+                                  >
+                                    <Trash2 className="w-1.5 h-1.5" />
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="bg-slate-50 border-t border-slate-100 px-3 py-1.5 text-center">
+                      <p className="text-[8px] font-mono text-slate-400 uppercase">
+                        Rathi's Build Mart • Training Compliance Console
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+
+            {/* Syllabus Workspace & Compliance Audit Trail tab switcher integrated next to bell icon */}
+            {activeTab === 'learning' && (
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setUserActiveTab('workspace')}
+                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                    userActiveTab === 'workspace'
+                      ? 'bg-white text-emerald-700 shadow-3xs border border-slate-200/10 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <BookOpen className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                  <span>Syllabus Workspace</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserActiveTab('audit')}
+                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                    userActiveTab === 'audit'
+                      ? 'bg-white text-indigo-700 shadow-3xs border border-slate-200/10 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Database className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                  <span>Compliance Audit Trail</span>
+                  <span className="px-1 py-0.2 text-[7.5px] bg-slate-200 text-slate-600 rounded font-mono font-bold">
+                    {userUnits.length}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Ultra-compact header for non-learning screens (Assessment, Screening, Certificate) */
+        <div className="flex items-center justify-between gap-3 mb-2 pb-1.5 border-b border-slate-200/80 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-none">Workspace Center</span>
+            <span className="text-slate-300 text-xs leading-none">/</span>
+            <h1 className="font-display text-xs font-black text-slate-850 tracking-tight leading-none">
+              {activeTab === 'exams' ? 'Assessment Center' : activeTab === 'testing' ? 'Recruitment Technical Screening' : 'Mastery Certificate Workspace'}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 select-none lg:self-center self-end">
+          <div className="flex items-center gap-2 shrink-0 select-none">
             {/* Advanced Interactive Notification Center */}
             <div className="relative">
               <button
                 type="button"
                 id="notifications-bell-btn"
                 onClick={() => setShowNotificationCenter(!showNotificationCenter)}
-                className={`p-1.5 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
+                className={`p-1 py-0.5 px-2 rounded-lg border transition-all duration-200 relative cursor-pointer flex items-center justify-center gap-1.5 text-[10px] font-bold ${
                   showNotificationCenter
                     ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
                     : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-650 hover:text-slate-900'
@@ -1510,9 +1676,10 @@ export default function UserDashboard({
                 aria-label="Notification Center"
                 title="Notification Center"
               >
-                <Bell className="w-3.5 h-3.5" />
+                <Bell className="w-3 h-3" />
+                <span>Alerts</span>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] bg-rose-600 text-[7px] font-black text-white rounded-full flex items-center justify-center border border-white">
+                  <span className="min-w-[12px] h-[12px] bg-rose-600 text-[7px] font-black text-white rounded-full flex items-center justify-center px-1">
                     {unreadCount}
                   </span>
                 )}
@@ -1613,41 +1780,9 @@ export default function UserDashboard({
                 </div>
               )}
             </div>
-
-            {/* Syllabus Workspace & Compliance Audit Trail tab switcher integrated next to bell icon */}
-            {activeTab === 'learning' && (
-              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-3xs gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => setUserActiveTab('workspace')}
-                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                    userActiveTab === 'workspace'
-                      ? 'bg-white text-emerald-700 shadow-3xs border border-slate-200/10 font-black'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <BookOpen className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                  <span>Syllabus Workspace</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUserActiveTab('audit')}
-                  className={`flex items-center gap-1.5 py-1 px-3 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                    userActiveTab === 'audit'
-                      ? 'bg-white text-indigo-700 shadow-3xs border border-slate-200/10 font-black'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <Database className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
-                  <span>Compliance Audit Trail</span>
-                  <span className="px-1 py-0.2 text-[7.5px] bg-slate-200 text-slate-600 rounded font-mono font-bold">
-                    {userUnits.length}
-                  </span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
+      )}
 
         {activeTab === 'learning' ? (
           userActiveTab === 'workspace' ? (
@@ -1935,7 +2070,7 @@ export default function UserDashboard({
               </div>
               <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></span>
-                <span className="text-[8px] font-mono font-bold text-slate-600">{userChapters.slice(0, 1).length} Ch</span>
+                <span className="text-[8px] font-mono font-bold text-slate-600">{userChapters.length} Ch</span>
               </div>
             </div>
 
@@ -1981,13 +2116,13 @@ export default function UserDashboard({
             </div>
 
             {/* Chapters and Stepper Timelines - Styled Sidebar List */}
-            <div className="divide-y divide-slate-100 max-h-[320px] lg:max-h-[240px] xl:max-h-[320px] lg:flex-1 overflow-y-auto scrollbar-thin">
+            <div className="divide-y divide-slate-100 flex-1 overflow-y-auto scrollbar-thin min-h-[350px] lg:min-h-[500px]">
               {userChapters.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs italic p-6 font-mono">
                   No chapters added for this training track yet.
                 </div>
               ) : (
-                userChapters.slice(0, 1).map((chap, chapIdx) => {
+                userChapters.map((chap, chapIdx) => {
                   const chapUnits = userUnits.filter(u => u.chapterId === chap.id).filter(u => {
                     const q = searchQuery.toLowerCase().trim();
                     const matchesSearch = q === '' ||
@@ -2254,84 +2389,70 @@ export default function UserDashboard({
                 </div>
               </div>
 
+              {/* Modern Compact Progress Update Bar */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-3xs p-3 flex flex-col md:flex-row items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-2 text-left w-full md:w-auto">
+                  <span className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg shrink-0">
+                    <CheckSquare className="w-4 h-4 text-emerald-600" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-wider font-extrabold text-emerald-800">
+                      Step Checklist Status
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {getSopStatus(selectedUnit.id).filter(Boolean).length} of {getSopItemsForUnit(selectedUnit).length} SOP items completed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto md:flex-1 md:justify-end">
+                  {toastMsg && (
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-150 px-2.5 py-0.5 rounded-md animate-pulse">
+                      {toastMsg}
+                    </span>
+                  )}
+                  
+                  {/* Status Dropdown */}
+                  <div className="flex items-center gap-1.5 w-full md:w-auto font-sans">
+                    <span className="text-[9px] text-slate-450 font-mono font-bold uppercase shrink-0">Status:</span>
+                    <select
+                      value={submittingStatus}
+                      onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
+                      className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg py-1 px-2 text-[10.5px] text-slate-700 font-extrabold focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                    >
+                      <option value="Not Started">Not Started</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed (Pending Review)">Completed (Review)</option>
+                      <option value="Verified & Mastered">Verified & Mastered</option>
+                    </select>
+                  </div>
+
+                  {/* Compliance Notes */}
+                  <div className="flex items-center gap-1.5 w-full md:w-auto md:flex-1 max-w-xs font-sans">
+                    <span className="text-[9px] text-slate-450 font-mono font-bold uppercase shrink-0">Notes:</span>
+                    <input
+                      type="text"
+                      placeholder="Observations or bookkeeping details..."
+                      value={submissionNotes}
+                      onChange={(e) => setSubmissionNotes(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg py-1 px-2.5 text-[10.5px] text-slate-750 outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitProgress}
+                    id="user-submit-progress-btn"
+                    className="w-full md:w-auto bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-1 px-4 rounded-lg shadow-3xs transition-all text-[10.5px] flex items-center justify-center gap-1 cursor-pointer shrink-0 h-[28px]"
+                  >
+                    <span>Update Record</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Desktop Combined Media Stage (PDF SOP Viewer & Video Player Switcher) */}
               <div className="shrink-0">
                 {renderCombinedMediaStage(false)}
-              </div>
-
-              {/* Unified SOP Checklist & Progress Sign-Off Panel */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-3xs p-3 shrink-0">
-
-                {/* Horizontal Sign-Off Workspace */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 text-left">
-                  
-                  {/* Shortcut Message/Reminder about Checklist */}
-                  <div className="flex-1 flex items-center gap-2.5 bg-emerald-50/40 border border-emerald-100/60 p-2.5 rounded-xl text-[9px] text-emerald-850 font-medium">
-                    <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-emerald-900 block leading-tight">📋 SOP Checklist Active inside the Stream Player</span>
-                      <span className="text-slate-500 leading-snug">Click the <strong>SOP Checklist</strong> tab above at any time to mark off specific training steps ({getSopStatus(selectedUnit.id).filter(Boolean).length} of {getSopItemsForUnit(selectedUnit).length} complete).</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveMediaTab('checklist')}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-2.5 py-1 rounded-lg text-[8px] uppercase tracking-wider shrink-0 transition shadow-3xs cursor-pointer"
-                    >
-                      Open Checklist Tab
-                    </button>
-                  </div>
-
-                  {/* Sign-Off Inputs & Actions */}
-                  <div className="md:w-[45%] flex flex-col gap-2 border-t md:border-t-0 md:border-l border-slate-150 pt-2 md:pt-0 pl-0 md:pl-3">
-                    {toastMsg && (
-                      <div className="p-1 px-2 bg-emerald-50 rounded-md border border-emerald-100 text-[8.5px] text-emerald-800 font-bold flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-150 shrink-0">
-                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>{toastMsg}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <div className="w-1/3 shrink-0">
-                        <label className="block text-[7.5px] text-slate-400 uppercase font-mono font-bold tracking-wider mb-0.5">
-                          Status
-                        </label>
-                        <select
-                          value={submittingStatus}
-                          onChange={(e) => setSubmittingStatus(e.target.value as ProgressStatus)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded py-1 px-1.5 text-[9.5px] text-slate-700 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
-                        >
-                          <option value="Not Started">Not Started</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed (Pending Review)">Completed (Review)</option>
-                          <option value="Verified & Mastered">Verified & Mastered</option>
-                        </select>
-                      </div>
-
-                      <div className="flex-1">
-                        <label className="block text-[7.5px] text-slate-400 uppercase font-mono font-bold tracking-wider mb-0.5">
-                          Compliance Notes
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Observations or bookkeeping details..."
-                          value={submissionNotes}
-                          onChange={(e) => setSubmissionNotes(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded py-1 px-1.5 text-[9.5px] text-slate-700 outline-none focus:bg-white focus:border-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleSubmitProgress}
-                      id="user-submit-progress-btn"
-                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-extrabold py-1.5 px-3 rounded-lg shadow-3xs transition-all text-[9.5px] flex items-center justify-center gap-1 cursor-pointer shrink-0"
-                    >
-                      Update Progress Record
-                    </button>
-                  </div>
-
-                </div>
-
               </div>
 
             </div>
@@ -2606,7 +2727,7 @@ export default function UserDashboard({
           </div>
         )) : (
           /* Full width other screens (exams, testing, certificate) */
-          <div className="flex-1 min-h-0 overflow-y-auto lg:pr-1 custom-scrollbar mt-3">
+          <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden lg:h-full lg:flex lg:flex-col lg:pr-1 custom-scrollbar mt-3">
             {activeTab === 'exams' ? (
               <AssessmentCenter
                 currentUser={currentUser}

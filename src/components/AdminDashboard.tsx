@@ -6034,7 +6034,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 className="bg-white border border-slate-300 focus:border-emerald-500 outline-none rounded px-2 py-1 text-[11px] w-full font-bold text-slate-800"
                                 placeholder="Employee Full Name"
                               />
-                              <div className="flex gap-1.5 mt-1">
+                              <div className="flex flex-col gap-1 mt-1">
                                 <input
                                   type="text"
                                   placeholder="Photo URL"
@@ -6042,6 +6042,16 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                   onChange={(e) => setEditUserAvatar(e.target.value)}
                                   className="w-full bg-white border border-slate-200 focus:border-indigo-400 outline-none rounded px-2 py-0.5 text-[9px] text-slate-500 font-mono"
                                 />
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8px] font-mono font-bold text-slate-400 uppercase whitespace-nowrap">Passkey:</span>
+                                  <input
+                                    type="text"
+                                    placeholder="Login Password"
+                                    value={editUserPassword}
+                                    onChange={(e) => setEditUserPassword(e.target.value)}
+                                    className="w-full bg-white border border-slate-300 focus:border-emerald-500 outline-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-slate-700"
+                                  />
+                                </div>
                               </div>
                             </td>
                           )}
@@ -6244,6 +6254,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                   )}
                                 </div>
                                 <span className="text-[9px] font-mono text-slate-400 mt-0.5 select-all">{item.email}</span>
+                                <div className="flex items-center gap-1 mt-0.5 text-[8.5px] font-mono text-slate-400">
+                                  <span>Passkey:</span>
+                                  <span className="bg-slate-100 border border-slate-200/50 px-1 py-0.2 rounded font-bold text-slate-750 select-all">{item.password || 'rathi123'}</span>
+                                </div>
                               </div>
                             </div>
                           </td>

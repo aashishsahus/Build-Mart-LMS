@@ -737,56 +737,53 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
   });
 
   return (
-    <div className="w-full mx-auto py-4 animate-in fade-in duration-305" id="screening-test-root">
+    <div className="w-full mx-auto py-1 lg:py-0 lg:h-full lg:max-h-full lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden animate-in fade-in duration-305" id="screening-test-root">
       
       {/* Upper Title Segment */}
-      <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 pb-6 text-left">
+      <div className="mb-1.5 lg:mb-1 flex flex-col lg:flex-row lg:items-center justify-between gap-1.5 border-b border-slate-200 pb-1 text-left shrink-0">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono tracking-widest text-indigo-700 uppercase font-black bg-indigo-50 border border-indigo-150 px-2.5 py-1 rounded-full flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-indigo-600 animate-pulse" />
-              Build Mart • HR recruitment testing standard
-            </span>
-          </div>
-          <h2 className="text-xl sm:text-3xl font-black text-slate-900 mt-1 flex items-center gap-3 tracking-tight">
-            <ClipboardList className="w-8 h-8 text-indigo-600 shrink-0" />
+          <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-1.5 tracking-tight">
+            <ClipboardList className="w-4.5 h-4.5 text-indigo-600 shrink-0" />
             Recruitment Technical Screening
+            <span className="text-[8px] font-mono tracking-wider text-indigo-700 uppercase font-black bg-indigo-50 border border-indigo-150 px-1.5 py-0.2 rounded-full hidden sm:inline-flex items-center gap-1 ml-1.5">
+              <Sparkles className="w-2 h-2 text-indigo-600 animate-pulse" />
+              HR Standard
+            </span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl font-medium">
-            Strict manual evaluation checklists mapped per designation. Allows the talent acquisition team to verify practical competencies and dual reconciliation skills before on-boarding.
+          <p className="text-[9.5px] text-slate-500 mt-0.2 max-w-2xl font-medium leading-tight">
+            Verify practical competencies and dual reconciliation skills per designation before on-boarding.
           </p>
         </div>
 
-        {/* Global Tracker showing scorecards */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
           {/* MCQ Aptitude scorecard */}
-          <div className="bg-white border select-none border-slate-200 rounded-2xl p-4 shadow-3xs flex items-center gap-3 text-left">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+          <div className="bg-white border select-none border-slate-200 rounded-lg py-0.5 px-1.5 flex items-center gap-1.5 text-left">
+            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-ping shrink-0" />
             <div>
-              <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Aptitude Exam Score</p>
-              <p className="text-base font-black text-slate-800 mt-0.5">
+              <p className="text-[7px] font-mono font-bold text-slate-400 uppercase tracking-wider leading-none">Aptitude Score</p>
+              <p className="text-[10px] font-black text-slate-800 mt-0.5 leading-none">
                 {knowledgeScore !== null ? `${knowledgeScore}%` : 'Not Attempted'}
               </p>
             </div>
             {knowledgeScore !== null && (
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${getAptitudeColor(knowledgeScore)}`}>
-                {knowledgeScore >= 60 ? 'Mastered' : 'Low Score'}
+              <span className={`text-[7.5px] font-mono font-bold px-1 py-0.1 rounded border leading-none ${getAptitudeColor(knowledgeScore)}`}>
+                {knowledgeScore >= 60 ? 'Mastered' : 'Low'}
               </span>
             )}
           </div>
 
           {/* screening evaluation score */}
-          <div className="bg-white border select-none border-slate-200 rounded-2xl p-4 shadow-3xs flex items-center gap-3 text-left">
-            <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+          <div className="bg-white border select-none border-slate-200 rounded-lg py-0.5 px-1.5 flex items-center gap-1.5 text-left">
+            <div className="w-1 h-1 rounded-full bg-indigo-500 shrink-0" />
             <div>
-              <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Screening score</p>
-              <p className="text-base font-black text-slate-800 mt-0.5">
+              <p className="text-[7px] font-mono font-bold text-slate-400 uppercase tracking-wider leading-none">Screening Score</p>
+              <p className="text-[10px] font-black text-slate-800 mt-0.5 leading-none">
                 {evaluation ? `${evaluation.score}/10` : 'Not Attempted'}
               </p>
             </div>
             {evaluation && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border text-indigo-700 bg-indigo-50 border-indigo-150">
-                {evaluation.score >= 7.0 ? 'Qualified' : 'Requires review'}
+              <span className="text-[7.5px] font-mono font-bold px-1 py-0.1 rounded border leading-none text-indigo-700 bg-indigo-50 border-indigo-150">
+                {evaluation.score >= 7.0 ? 'Qualified' : 'Review'}
               </span>
             )}
           </div>
@@ -795,47 +792,47 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
 
       {/* Admin Quick Options Tabs */}
       {isAdmin ? (
-        <div className="flex border-b border-slate-200 mb-8 font-sans text-xs gap-1 md:gap-2">
+        <div className="flex border-b border-slate-200 mb-1 lg:mb-1 font-sans text-[10.5px] gap-1 shrink-0">
           <button
             onClick={() => handleTabChange('testing')}
-            className={`pb-4 px-4 font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
+            className={`pb-0.5 px-1.5 font-bold transition flex items-center gap-1 cursor-pointer border-b-2 ${
               activeTab === 'testing' 
                 ? 'border-indigo-600 text-indigo-600 font-extrabold' 
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Play className="w-4 h-4" />
+            <Play className="w-2.5 h-2.5" />
             Candidate Test Player
           </button>
           
           <button
             onClick={() => handleTabChange('admin_builder')}
-            className={`pb-4 px-4 font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
+            className={`pb-0.5 px-1.5 font-bold transition flex items-center gap-1 cursor-pointer border-b-2 ${
               activeTab === 'admin_builder' 
                 ? 'border-indigo-600 text-indigo-600 font-extrabold' 
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Settings className="w-4 h-4 text-indigo-500" />
+            <Settings className="w-2.5 h-2.5 text-indigo-500" />
             Questions Architect ({questions.length})
           </button>
 
           <button
             onClick={() => handleTabChange('admin_reports')}
-            className={`pb-4 px-4 font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
+            className={`pb-0.5 px-1.5 font-bold transition flex items-center gap-1 cursor-pointer border-b-2 ${
               activeTab === 'admin_reports' 
                 ? 'border-indigo-600 text-indigo-600 font-extrabold' 
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <ClipboardList className="w-4 h-4" />
+            <ClipboardList className="w-2.5 h-2.5" />
             Graded Reports ({allScreeningEvals.length})
           </button>
         </div>
       ) : (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3 mb-6 text-left flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />
-          <p className="text-xs text-indigo-900 font-semibold">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-0.5 mb-1 text-left flex items-center gap-1.5 shrink-0">
+          <Sparkles className="w-3 h-3 text-indigo-600 shrink-0" />
+          <p className="text-[9.5px] text-indigo-900 font-semibold leading-tight">
             You are logged in as candidate <strong>{currentUser.name}</strong>. Accessing candidate verification workflow. Your responses are directly evaluated by official recruiters.
           </p>
         </div>
@@ -843,75 +840,73 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
 
       {/* TAB CONTENT 1: TESTING PLAYER FOR CANDIDATES */}
       {activeTab === 'testing' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
           
           {/* Main Assessment Container */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 lg:h-full lg:flex lg:flex-col lg:min-h-0 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
             
             {/* 1.1 Intro Menu to Choose Role & Start Test */}
             {!testActive && !isCompleted && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 relative overflow-hidden text-left space-y-6">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-3xs p-2.5 sm:p-3.5 relative overflow-hidden text-left space-y-2.5">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-100/30 rounded-full blur-3xl pointer-events-none"></div>
 
-                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-150 text-indigo-700 flex items-center justify-center shadow-3xs">
-                    <Brain className="w-8 h-8" />
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-indigo-50 rounded-lg border border-indigo-150 text-indigo-700 flex items-center justify-center shadow-3xs">
+                    <Brain className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">Screening Configuration</h3>
-                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mt-0.5">Build Mart Recruiter Auditing Matrix</p>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-tight">Screening Configuration</h3>
+                    <p className="text-[8px] font-mono text-slate-400 uppercase tracking-wider mt-0.5">Build Mart Recruiter Auditing Matrix</p>
                   </div>
-                </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                  Select the target job designation context below. Each designation is compiled of rigorous conceptual questions to measure technical capabilities, risk profiling, compliance, and dual ledger logic.
+                </div>                <p className="text-[10px] text-slate-500 leading-normal font-semibold">
+                  Select the job designation context below to verify technical capabilities, risk profiling, and dual ledger compliance.
                 </p>
 
                 {/* Screening Mode Selection */}
-                <div className="space-y-3">
-                  <label className="block text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Screening Mode</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[8.5px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Screening Mode</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setScreeningMode('mcq')}
-                      className={`p-4 rounded-2xl border text-left transition duration-200 cursor-pointer flex items-start gap-3.5 ${
+                      className={`p-1.5 sm:p-2 rounded-lg border text-left transition duration-150 cursor-pointer flex items-start gap-2 ${
                         screeningMode === 'mcq'
                           ? 'bg-indigo-50/60 border-indigo-500 ring-2 ring-indigo-100 text-slate-900'
                           : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                       }`}
                     >
-                      <ClipboardList className={`w-5 h-5 mt-0.5 shrink-0 ${screeningMode === 'mcq' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <ClipboardList className={`w-4 h-4 mt-0.5 shrink-0 ${screeningMode === 'mcq' ? 'text-indigo-600' : 'text-slate-400'}`} />
                       <div>
-                        <div className="font-extrabold text-xs">Aptitude MCQ Exam</div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed font-semibold">Solve structured conceptual questions mapped to this designation.</p>
+                        <div className="font-extrabold text-[10px]">Aptitude MCQ Exam</div>
+                        <p className="text-[8.5px] text-slate-400 mt-0.5 leading-snug font-medium">Solve structured conceptual questions.</p>
                       </div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setScreeningMode('chat')}
-                      className={`p-4 rounded-2xl border text-left transition duration-200 cursor-pointer flex items-start gap-3.5 ${
+                      className={`p-1.5 sm:p-2 rounded-lg border text-left transition duration-150 cursor-pointer flex items-start gap-2 ${
                         screeningMode === 'chat'
                           ? 'bg-indigo-50/60 border-indigo-500 ring-2 ring-indigo-100 text-slate-900'
                           : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                       }`}
                     >
-                      <Sparkles className={`w-5 h-5 mt-0.5 shrink-0 ${screeningMode === 'chat' ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
+                      <Sparkles className={`w-4 h-4 mt-0.5 shrink-0 ${screeningMode === 'chat' ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
                       <div>
-                        <div className="font-extrabold text-xs flex items-center gap-1.5">
+                        <div className="font-extrabold text-[10px] flex items-center gap-1">
                           AI Recruiter Chat Interview
-                          <span className="bg-indigo-100 text-indigo-700 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Beta</span>
+                          <span className="bg-indigo-100 text-indigo-700 text-[6.5px] font-black px-1 py-0.1 rounded uppercase tracking-wider">Beta</span>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed font-semibold">Conversational technical screening session with live Gemini AI.</p>
+                        <p className="text-[8.5px] text-slate-400 mt-0.5 leading-snug font-medium">Conversational screening session with live Gemini AI.</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
                 {/* Role Designation Selector Grid */}
-                <div className="space-y-4">
-                  <label className="block text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Designation Profile</label>
-                  <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[8.5px] font-mono font-bold text-slate-400 uppercase tracking-wider">Select Designation Profile</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {presetRoles.map((role) => {
                       const countForRole = questions.filter(q => q.jobRole === role).length;
                       const roleMeta = roleMetadata[role] || {
@@ -927,42 +922,42 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
                           key={role}
                           type="button"
                           onClick={() => setSelectedRole(role)}
-                          className={`p-4 sm:p-5 rounded-2xl border text-left transition duration-200 cursor-pointer flex items-start gap-4 ${
+                          className={`p-1.5 sm:p-2 rounded-lg border text-left transition duration-150 cursor-pointer flex items-start gap-2 ${
                             isSelected 
-                              ? 'bg-indigo-600 text-white border-transparent shadow-md' 
-                              : 'bg-white text-slate-705 border-slate-200 hover:bg-slate-50'
+                              ? 'bg-indigo-600 text-white border-transparent shadow-3xs' 
+                              : 'bg-white text-slate-750 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          <div className={`p-2.5 rounded-xl shrink-0 ${
+                          <div className={`p-1 rounded-md shrink-0 ${
                             isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-100 text-slate-600'
                           }`}>
-                            <RoleIcon className="w-5 h-5" />
+                            <RoleIcon className="w-3.5 h-3.5" />
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-extrabold text-sm truncate">{role}</span>
-                              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="font-extrabold text-[10px] truncate leading-tight block" title={role}>{role}</span>
+                              <span className={`text-[7.5px] font-mono font-bold px-1 py-0.1 rounded shrink-0 ${
                                 isSelected ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-100 text-slate-550'
                               }`}>
                                 {countForRole} Qs
                               </span>
                             </div>
-                            <p className={`text-[11px] mt-1 leading-normal font-medium ${
+                            <p className={`text-[9px] mt-0.5 leading-snug font-medium line-clamp-1 ${
                               isSelected ? 'text-indigo-200' : 'text-slate-500'
                             }`}>
                               {roleMeta.desc}
                             </p>
                             
                             {/* Competency tags */}
-                            <div className="flex flex-wrap gap-1 mt-3">
+                            <div className="flex flex-wrap gap-1 mt-1">
                               {roleMeta.competencies.map((comp) => (
                                 <span 
                                   key={comp} 
-                                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded ${
+                                  className={`text-[7.5px] font-mono font-bold px-1.5 py-0.1 rounded ${
                                     isSelected 
-                                      ? 'bg-indigo-700/60 text-indigo-100 border border-indigo-500/30' 
-                                      : 'bg-slate-50 text-slate-600 border border-slate-200/60'
+                                      ? 'bg-indigo-700/60 text-indigo-100 border border-indigo-500/10' 
+                                      : 'bg-slate-50 text-slate-550 border border-slate-200/30'
                                   }`}
                                 >
                                   {comp}
@@ -977,24 +972,23 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
                 </div>
 
                 {/* Warn alert box */}
-                <div className="border border-amber-150 bg-amber-50/70 text-amber-900 rounded-xl p-4 flex gap-3 text-xs text-left leading-relaxed">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                <div className="border border-amber-150 bg-amber-50/70 text-amber-900 rounded-lg p-2 flex gap-1.5 text-[9px] text-left leading-normal">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <div className="font-semibold">
-                    <p className="font-extrabold text-amber-950">Important Notice:</p>
-                    Once active, you cannot reset or switch designation profiles until submission. Take your time to carefully review the problem statements before answering.
+                    <span className="font-extrabold text-amber-950">Important Notice:</span> Once active, you cannot reset or switch designation profiles until submission. Take your time to review questions carefully.
                   </div>
                 </div>
 
-                <div className="pt-5 flex flex-col sm:flex-row gap-4 justify-between items-center border-t border-slate-200">
-                  <span className="text-[11px] font-mono text-slate-400 font-semibold uppercase">
-                    SELECTED Designation: <strong className="text-indigo-600 font-sans tracking-tight block sm:inline">{selectedRole}</strong>
+                <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-between items-center border-t border-slate-150">
+                  <span className="text-[9px] font-mono text-slate-400 font-semibold uppercase">
+                    Selected Profile: <strong className="text-indigo-600 font-sans tracking-tight block sm:inline">{selectedRole}</strong>
                   </span>
                   
                   <button
                     onClick={handleStartManualTest}
-                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer shadow-md"
+                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-3xs"
                   >
-                    <Play className="w-4 h-4 fill-white" />
+                    <Play className="w-3 h-3 fill-white" />
                     Begin Technical Exam
                   </button>
                 </div>
@@ -1139,7 +1133,7 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
 
             {/* 1.2.B THE AI CHAT PLAYER INTERFACE */}
             {testActive && chatActive && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex flex-col overflow-hidden text-left h-[550px]" id="ai-chat-player">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg flex flex-col overflow-hidden text-left h-[420px] lg:h-full lg:min-h-0" id="ai-chat-player">
                 {/* Status Bar */}
                 <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between gap-3 border-b border-slate-800 shrink-0">
                   <div className="flex items-center gap-3">
@@ -1414,7 +1408,7 @@ export default function ScreeningTest({ currentUser, onAttemptSaved }: Screening
           </div>
 
           {/* Right Column details */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-4 lg:h-full lg:flex lg:flex-col lg:min-h-0 lg:overflow-y-auto lg:pr-1 custom-scrollbar space-y-4 lg:space-y-3">
             
             {/* Simulation identity info card */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm text-left">
