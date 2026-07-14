@@ -32,7 +32,7 @@ export let auth: any = null;
 if (!isFirebasePlaceholder) {
   try {
     app = initializeApp(firebaseConfig);
-    const dbId = (firebaseConfig as any).firestoreDatabaseId;
+    const dbId = (firebaseConfig as any).firestoreDatabaseId || "ai-studio-4a5d207a-a615-4a31-b676-751f11486d6d";
     db = initializeFirestore(
       app,
       {

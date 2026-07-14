@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
 import HierarchyView from './HierarchyView';
+import GoogleSheetsIntegration from './GoogleSheetsIntegration';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact, SmtpConfig, HelpdeskTicket } from '../types';
 import { getSopItemsForUnit, SopItem } from './UserDashboard';
 import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts, getSmtpConfig, saveSmtpConfig, getHelpdeskTickets, saveHelpdeskTickets } from '../data/stateManager';
@@ -504,7 +505,7 @@ export default function AdminDashboard({
   const [brandSavingSuccess, setBrandSavingSuccess] = useState('');
 
   // Sub-tab for brand and certificate settings
-  const [certSubTab, setCertSubTab] = useState<'branding' | 'template' | 'helpline' | 'smtp'>('branding');
+  const [certSubTab, setCertSubTab] = useState<'branding' | 'template' | 'helpline' | 'smtp' | 'googlesheets'>('branding');
 
   const handleSaveBranding = () => {
     try {
@@ -2757,7 +2758,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 },
                 { 
                   id: 'certificate', 
-                  label: 'Certificate Settings', 
+                  label: 'Settings', 
                   icon: Sliders,
                   countLabel: 'Config',
                   subTabs: [
@@ -2768,6 +2769,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       onClick: () => {
                         setAdminTab('certificate');
                         setCertSubTab('branding');
+                      }
+                    },
+                    { 
+                      id: 'cert_googlesheets', 
+                      label: '📊 Google Sheets & Sync Hub', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'googlesheets',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                        setCertSubTab('googlesheets');
                       }
                     },
                     { 
@@ -10851,6 +10861,20 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* Left side: configuration inputs */}
             <div className={`${certSubTab === 'template' ? 'xl:col-span-7' : 'xl:col-span-12'} space-y-4 pb-12`}>
+
+              {/* SECTION GS: GOOGLE SHEETS & SYNC HUB */}
+              {certSubTab === 'googlesheets' && (
+                <GoogleSheetsIntegration
+                  users={users}
+                  roles={roles}
+                  chapters={chapters}
+                  units={units}
+                  progress={progress}
+                  onUpdateChapters={onUpdateChapters}
+                  onUpdateUnits={onUpdateUnits}
+                  showToast={showToast}
+                />
+              )}
 
               {/* SECTION A: CORPORATE BRAND IDENTITY & LOGO */}
               {certSubTab === 'branding' && (
