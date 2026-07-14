@@ -2294,7 +2294,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
           <AlertTriangle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
           <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">🔒 Enterprise Auth Restrictive Shield</h2>
           <p className="text-slate-500 mt-2 text-sm max-w-lg mx-auto">
-            Authorized roles (Senior Accountant / CFO) are required to edit curriculums, manage roles, or sign off progress validations. You are logged in under a different position.
+            Authorized roles (Senior Accountant / CDO) are required to edit curriculums, manage roles, or sign off progress validations. You are logged in under a different position.
           </p>
 
           <div className="mt-8 p-4 bg-slate-50 border border-slate-100 rounded-lg max-w-md mx-auto text-left text-xs">

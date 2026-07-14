@@ -1483,7 +1483,7 @@ export default function UserDashboard({
                             Aashish Sahu Group: Trainee Verification Complete!
                           </h3>
                           <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                            Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
+                            Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CDO)</strong>. All mapped chapters are fully authorized for your learning footprint.
                           </p>
                         </div>
                       </div>
@@ -1708,7 +1708,7 @@ export default function UserDashboard({
                           Aashish Sahu Group: Trainee Verification Complete!
                         </h3>
                         <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                          Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CFO)</strong>. All mapped chapters are fully authorized for your learning footprint.
+                          Excellent news, <strong>{currentUser.name}</strong>! Your training enrollment status has been updated and approved to <span className="text-emerald-600 font-bold">ACTIVE</span> by <strong>Aashish Sahu (Director/CDO)</strong>. All mapped chapters are fully authorized for your learning footprint.
                         </p>
                       </div>
                     </div>

@@ -271,7 +271,7 @@ export default function App() {
       sendNotification({
         title: action === 'verify' ? 'Work Walkthrough Approved! ✅' : 'walkthrough Revision Required ✍️',
         message: action === 'verify'
-          ? `Your submission for task "${targetUnit.taskName}" (under chapter "${chapters.find(c => c.id === targetUnit.chapterId)?.name || 'General'}") has been approved & verified as mastered by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`
+          ? `Your submission for task "${targetUnit.taskName}" (under chapter "${chapters.find(c => c.id === targetUnit.chapterId)?.name || 'General'}") has been approved & verified as mastered by CDO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`
           : `Admin ${originalUserDetail?.name || 'Aashish Sahu'} requested revision of "${targetUnit.taskName}". Let's take another look.`,
         type: 'approval',
         targetUserId: empId,
@@ -303,7 +303,7 @@ export default function App() {
       if (removed) {
         sendNotification({
           title: 'User Profile Removed 🔐',
-          message: `The user account for "${removed.name}" (${removed.department}) has been removed/revoked from the LMS workspace by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          message: `The user account for "${removed.name}" (${removed.department}) has been removed/revoked from the LMS workspace by CDO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
           type: 'user_remove',
           creatorId: originalUserDetail?.id || currentUserId || undefined,
           creatorName: originalUserDetail?.name || 'Aashish Sahu'
@@ -334,7 +334,7 @@ export default function App() {
       if (removed) {
         sendNotification({
           title: 'SOP Chapter Retired 📁',
-          message: `The workflow SOP chapter "${removed.name}" was retired from the active curriculum by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          message: `The workflow SOP chapter "${removed.name}" was retired from the active curriculum by CDO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
           type: 'chapter_remove',
           targetRoleId: removed.roleId,
           creatorId: originalUserDetail?.id || currentUserId || undefined,
@@ -366,7 +366,7 @@ export default function App() {
       if (removed) {
         sendNotification({
           title: 'Task Lesson Retired 🎬',
-          message: `SOP walkthrough "${removed.videoTitle}" of task "${removed.taskName}" has been removed from modules by CFO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
+          message: `SOP walkthrough "${removed.videoTitle}" of task "${removed.taskName}" has been removed from modules by CDO / Admin ${originalUserDetail?.name || 'Aashish Sahu'}.`,
           type: 'unit_remove',
           creatorId: originalUserDetail?.id || currentUserId || undefined,
           creatorName: originalUserDetail?.name || 'Aashish Sahu'

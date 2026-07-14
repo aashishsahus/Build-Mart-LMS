@@ -59,7 +59,7 @@ export function getPremiumBadgeConfig(userId: string, userName: string, roleId: 
     }
   }
 
-  // 1. Board of Directors / CFO / High Executives (Aashish Sahu / Director / CFO / MD)
+  // 1. Board of Directors / CDO / High Executives (Aashish Sahu / Director / CDO / MD)
   if (
     nameLower.includes('aashish') || 
     roleLower === 'role_md' || 

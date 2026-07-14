@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { User, Role, CompanyBranding } from '../types';
 import { Avatar } from './Avatar';
 import { getCompanyBranding, getSmtpConfig, saveSmtpConfig } from '../data/stateManager';
-import { Shield, BookOpen, UserPlus, Building, Briefcase, Mail, Key, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, UserCheck, Send, Smartphone, RefreshCw, Inbox, Copy, Check } from 'lucide-react';
+import { Shield, BookOpen, UserPlus, Building, Briefcase, Mail, Key, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, UserCheck, Send, Smartphone, RefreshCw, Inbox, Copy, Check, HelpCircle, ChevronDown, ChevronUp, Fingerprint, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoginScreenProps {
@@ -28,8 +28,9 @@ export default function LoginScreen({
   branding
 }: LoginScreenProps) {
   const activeBranding = branding || getCompanyBranding();
-  // Tabs: 'credentials' (Google & User/PW), 'quick' (Sandbox list), 'register' (New Enrollment)
-  const [activeTab, setActiveTab] = useState<'credentials' | 'quick' | 'register'>('credentials');
+  // Tabs: 'credentials' (Google & User/PW), 'register' (New Enrollment)
+  const [activeTab, setActiveTab] = useState<'credentials' | 'register'>('credentials');
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
   
   // Forgot Password States
@@ -293,7 +294,7 @@ export default function LoginScreen({
         return;
       }
       if (matchedUser.status === 'Deactivated') {
-        setCredError(`Access Denied: The account for "${matchedUser.name}" has been suspended/deactivated. Please contact Aashish Sahu (Director/CFO) or the Learning Admin.`);
+        setCredError(`Access Denied: The account for "${matchedUser.name}" has been suspended/deactivated. Please contact Aashish Sahu (Director/CDO) or the Learning Admin.`);
         return;
       }
       if (matchedUser.status === 'Left') {
@@ -303,7 +304,7 @@ export default function LoginScreen({
 
       const userPass = matchedUser.password || 'rathi123';
       if (credPassword !== userPass) {
-        setCredError('Incorrect credentials or corporate password. Please try again or contact Aashish Sahu (Director/CFO) to reset.');
+        setCredError('Incorrect credentials or corporate password. Please try again or contact Aashish Sahu (Director/CDO) to reset.');
         return;
       }
       setSuccessMsg('Authentication secret matches. Authorizing session...');
@@ -453,56 +454,201 @@ export default function LoginScreen({
       {/* Modern micro-grid mesh layout pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_20%,#000_75%,transparent_100%)] pointer-events-none opacity-[0.4] z-0" />
 
-      <div className="max-w-md w-full space-y-6 z-10 relative">
-        
-        {/* Branding header */}
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/15">
-            <BookOpen className="h-5 w-5 text-white animate-pulse" />
-          </div>
-          <h2 className="mt-4 text-2xl font-black tracking-tight text-slate-900 font-display">
-            {activeBranding?.companyName || 'Build Mart'}
-          </h2>
-          <p className="mt-1.5 text-xs text-slate-550 text-slate-500 font-medium font-sans">
-            {activeBranding?.companyTagline || 'Corporate Learning Management System'}
-          </p>
-          <div className="mt-3.5 inline-flex items-center gap-2">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span className="text-[10px] font-sans text-slate-800 font-bold uppercase tracking-wider">Active Security Matrix</span>
-          </div>
-        </div>
+      <div className="max-w-6xl w-full space-y-6 z-10 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden border border-slate-200 shadow-2xl bg-white min-h-[660px]">
+          
+          {/* Left Pane: Split-Pane Info Panel & FAQs / Security Perks */}
+          <div className="lg:col-span-5 bg-gradient-to-br from-[#022c22] via-[#043e30] to-[#011c16] text-white p-8 lg:p-10 flex flex-col justify-between relative overflow-hidden border-r border-emerald-950">
+            {/* Background glow and grids */}
+            <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-400/5 blur-3xl pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(#10b981_0.5px,transparent_0.5px)] [background-size:12px_12px] opacity-10 pointer-events-none" />
+            
+            <div className="space-y-6 relative z-10">
+              {/* Logo and company info */}
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/25 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                  <BookOpen className="h-5 w-5 text-[#34d399] animate-pulse" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black tracking-tight text-white font-display">
+                    {activeBranding?.companyName || 'Rathi Build Mart'}
+                  </h2>
+                  <p className="text-[9px] text-emerald-400 font-mono tracking-widest uppercase">
+                    COCKPIT CONSOLE
+                  </p>
+                </div>
+              </div>
 
-        {/* Tab Selection */}
-        <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex shadow-inner gap-1">
-          <button
-            onClick={() => setActiveTab('credentials')}
-            className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
-              activeTab === 'credentials'
-                ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-            id="tab-credentials"
-          >
-            Corporate ID
-          </button>
-          <button
-            onClick={() => setActiveTab('register')}
-            className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
-              activeTab === 'register'
-                ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-            id="tab-register"
-          >
-            New Enrollment
-          </button>
-        </div>
+              {/* Descriptive paragraph */}
+              <p className="text-xs text-emerald-100/85 leading-relaxed font-sans">
+                Welcome to the **{activeBranding?.companyName || 'Rathi Build Mart'}** Corporate Learning Management System (LMS). Securely authenticate to access your learning dashboards, training resources, and compliance frameworks.
+              </p>
 
-        {/* Card Body */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-emerald-950/70 border border-emerald-800/30 rounded-full">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+                </span>
+                <span className="text-[9px] font-mono text-emerald-300 uppercase tracking-widest font-bold">Active Security Matrix</span>
+              </div>
+
+              {/* Advanced UX & Security Perks */}
+              <div className="pt-4 space-y-3">
+                <h3 className="text-[10.5px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2 font-mono">
+                  <Shield className="w-3.5 h-3.5 text-[#34d399]" />
+                  Advanced UX & Security Perks
+                </h3>
+                
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-emerald-950/40 border border-emerald-800/20 rounded-xl flex items-start gap-2.5">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-lg text-[#34d399] shrink-0 mt-0.5">
+                      <Fingerprint className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold text-emerald-50">Secure Passkey Auditing</h4>
+                      <p className="text-[10px] text-emerald-200/70 mt-0.5">Dual-state client encryption prevents identity leakage of accounting system passwords.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-emerald-950/40 border border-emerald-800/20 rounded-xl flex items-start gap-2.5">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-lg text-[#34d399] shrink-0 mt-0.5">
+                      <Smartphone className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold text-emerald-50 flex items-center gap-1.5">
+                        2-Step Dispatch Verification
+                        {isRealEmailSent ? (
+                          <span className="px-1 py-0.5 bg-emerald-500/20 text-[#34d399] text-[8px] uppercase font-mono rounded font-bold">SMTP LIVE</span>
+                        ) : (
+                          <span className="px-1 py-0.5 bg-indigo-500/20 text-indigo-300 text-[8px] uppercase font-mono rounded font-bold">SIMULATED</span>
+                        )}
+                      </h4>
+                      <p className="text-[10px] text-emerald-200/70 mt-0.5">Forgot passkey requests send high-speed automated OTP dispatches to your registered inbox.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Help Desk & FAQs Panel */}
+              <div className="pt-2 space-y-2.5">
+                <h3 className="text-[10.5px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2 font-mono">
+                  <HelpCircle className="w-3.5 h-3.5 text-[#34d399]" />
+                  Help Desk & FAQs
+                </h3>
+                
+                <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-emerald-800">
+                  {[
+                    {
+                      q: "How do I obtain my security passkey?",
+                      a: "Please enroll using the 'New Enrollment' tab. After CDO Aashish Sahu or HR approves, you will be authorized to access."
+                    },
+                    {
+                      q: "How does the Google Account option work?",
+                      a: "You can link an active corporate profile or sign up instantly. Passwords verify automatically via OAuth Simulation."
+                    },
+                    {
+                      q: "Where to get support for pending accounts?",
+                      a: "Reach out to Rathi Internal Support Admin or write directly to CDO / Director Aashish Sahu at misrpr@rathibuildmart.com."
+                    }
+                  ].map((faq, idx) => {
+                    const isOpen = activeFaq === idx;
+                    return (
+                      <div 
+                        key={idx} 
+                        className="bg-emerald-950/30 border border-emerald-800/15 rounded-xl overflow-hidden transition-all duration-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveFaq(isOpen ? null : idx)}
+                          className="w-full text-left py-2 px-3 text-[10.5px] font-bold text-emerald-100 hover:text-white flex items-center justify-between gap-2 cursor-pointer transition"
+                        >
+                          <span>{faq.q}</span>
+                          {isOpen ? (
+                            <ChevronUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-emerald-400/50 shrink-0" />
+                          )}
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="overflow-hidden"
+                            >
+                              <p className="px-3 pb-2.5 pt-0.5 text-[10px] text-emerald-200/70 leading-relaxed border-t border-emerald-800/10">
+                                {faq.a}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Left Footer Area */}
+            <div className="pt-6 border-t border-emerald-800/20 text-center lg:text-left flex flex-col sm:flex-row lg:flex-col justify-between items-center lg:items-start gap-2 relative z-10">
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-[#34d399]" />
+                <span className="text-[9px] font-mono tracking-wider uppercase text-emerald-300 font-bold">SYSTEM INTEGRITY VERIFIED</span>
+              </div>
+              <p className="text-[8.5px] text-emerald-400/50 font-mono">
+                COMPLIANCE SECURITY AUDIT ACT © 2026
+              </p>
+            </div>
+          </div>
+
+          {/* Right Pane: Login Form Container */}
+          <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between bg-white">
+            
+            {/* Upper area with Brand Header / Tabs */}
+            <div className="space-y-6">
+              <div className="text-center lg:text-left">
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display">
+                  Portal Identity Gateway
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter credentials to verify secure ledger workspace authorization.
+                </p>
+              </div>
+
+              {/* Tab Selector */}
+              <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex shadow-inner gap-1">
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('credentials'); setCredError(''); setSuccessMsg(''); }}
+                  className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
+                    activeTab === 'credentials'
+                      ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  id="tab-credentials"
+                >
+                  Corporate ID
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setCredError(''); setSuccessMsg(''); }}
+                  className={`flex-1 py-1.5 px-2 text-[11px] sm:text-xs font-bold rounded-lg transition-all duration-200 ${
+                    activeTab === 'register'
+                      ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  id="tab-register"
+                >
+                  New Enrollment
+                </button>
+              </div>
+
+              {/* Active Tab Body Form Card */}
+              <div className="bg-slate-50/40 border border-slate-150 rounded-2xl p-5 sm:p-6 shadow-xs">
           {credError && (
             <div className="p-3 bg-red-50 rounded-xl border border-red-200 flex gap-2 text-xs text-red-800 mb-4 animate-in fade-in zoom-in-95">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
@@ -651,101 +797,6 @@ export default function LoginScreen({
             </div>
           )}
 
-          {/* Quick Sandbox Selector (Simulate organizacional members) */}
-          {activeTab === 'quick' && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">
-                  Select a pre-seeded account:
-                </p>
-                <div className="space-y-3">
-                  {users.map((u) => {
-                    const r = roles.find(role => role.id === u.roleId);
-                    const isAdmin = u.roleId === 'role_sr_acc' || u.isSuperAdmin || u.isAdmin;
-                    const isDirector = u.roleId === 'role_md' || u.roleId === 'role_ceo' || u.roleId === 'role_coo' || u.department === 'Director';
-                    
-                    const statusDot = (!u.status || u.status === 'Active') 
-                      ? 'bg-emerald-500 animate-pulse'
-                      : u.status === 'Deactivated'
-                        ? 'bg-amber-500'
-                        : 'bg-slate-400';
-                    const statusLabel = (!u.status || u.status === 'Active')
-                      ? ''
-                      : u.status === 'Deactivated'
-                        ? ' (Suspended)'
-                        : ' (Left Group)';
-
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => {
-                          if (u.status === 'Deactivated') {
-                            setCredError(`Access Denied: The account for "${u.name}" has been suspended/deactivated. Please contact Aashish Sahu (Director/CFO).`);
-                            setSuccessMsg('');
-                            setActiveTab('credentials');
-                            return;
-                          }
-                          if (u.status === 'Left') {
-                            setCredError(`Access Denied: "${u.name}" is marked as Left/Resigned and cannot access the corporate training workspace.`);
-                            setSuccessMsg('');
-                            setActiveTab('credentials');
-                            return;
-                          }
-                          onLogin(u.id);
-                        }}
-                        className={`w-full text-left flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 transition-all duration-205 group relative text-xs ${
-                          u.status === 'Deactivated' || u.status === 'Left'
-                            ? 'opacity-60 border-slate-200 bg-slate-100 hover:border-red-500/20'
-                            : 'hover:border-emerald-500/50 hover:bg-emerald-50/50'
-                        }`}
-                        id={`btn-login-${u.id}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar
-                            src={u.avatarUrl}
-                            name={u.name}
-                            className={`w-9 h-9 border border-slate-200 ${
-                              u.status === 'Deactivated' || u.status === 'Left' ? 'grayscale' : 'group-hover:border-emerald-500'
-                            }`}
-                          />
-                          <div>
-                            <p className="font-bold text-slate-800 group-hover:text-emerald-700 transition flex items-center gap-1.5">
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`}></span>
-                              {u.name}
-                              <span className="text-[9px] font-medium text-slate-500 font-mono italic">{statusLabel}</span>
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-mono">
-                              {r?.name || 'Unassigned Role'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] uppercase font-mono tracking-wide ${
-                            isDirector 
-                              ? 'bg-amber-100 text-amber-800 border border-amber-200 font-bold'
-                              : isAdmin 
-                                ? 'bg-rose-100 text-rose-800 border border-rose-200' 
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}>
-                            {isDirector ? 'Director' : isAdmin ? 'Admin' : 'Employee'}
-                          </span>
-                          <span className="block text-[9px] text-slate-500 mt-0.5 font-mono truncate max-w-[100px]">
-                            {u.focusEntity}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-150 text-slate-500 text-[11px] text-center font-mono">
-                💡 Sandbox selection bypasses credentials passwords for training managers to audit paths cleanly.
-              </div>
-            </div>
-          )}
-
           {/* New Enrollment (custom user signup / register) */}
           {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
@@ -877,13 +928,18 @@ export default function LoginScreen({
             </form>
           )}
 
-        </div>
+              </div>
+            </div>
 
-        {/* Footer branding */}
-        <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider">
-          {activeBranding?.companyTagline || 'RATHI BUILDMART PLC GENERAL LEDGER DIVISION'} SECURITY ACT © 2026
-        </div>
+            {/* Lower corporate badge */}
+            <div className="pt-6 border-t border-slate-100 text-center lg:text-left text-[10px] text-slate-400 font-mono flex flex-col sm:flex-row justify-between items-center gap-2">
+              <span>{activeBranding?.companyName || 'Rathi Build Mart'} Enterprise Learning & Development Division</span>
+              <span className="font-bold text-emerald-600">SECURE LOG-IN PORTAL v2.5</span>
+            </div>
 
+          </div>
+          
+        </div>
       </div>
 
       {/* SECURE HIGH-FIDELITY SIMULATED GOOGLE OAUTH POPUP MODAL */}
