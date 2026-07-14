@@ -12,25 +12,28 @@
   --color-primary-600: #0f172a;
   --color-primary-700: #020617;
   
-  --color-emerald-50: #f8fafc;
-  --color-emerald-100: #f1f5f9;
-  --color-emerald-200: #e2e8f0;
-  --color-emerald-300: #cbd5e1;
-  --color-emerald-400: #94a3b8;
-  --color-emerald-500: #1e293b;
-  --color-emerald-600: #0f172a;
-  --color-emerald-700: #020617;
-  --color-emerald-800: #000000;
+  --color-emerald-50: #f0fdf4;
+  --color-emerald-100: #dcfce7;
+  --color-emerald-200: #bbf7d0;
+  --color-emerald-300: #86efac;
+  --color-emerald-400: #4ade80;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
   
-  --color-indigo-50: #f8fafc;
-  --color-indigo-100: #f1f5f9;
-  --color-indigo-200: #e2e8f0;
-  --color-indigo-300: #cbd5e1;
-  --color-indigo-400: #94a3b8;
-  --color-indigo-500: #1e293b;
-  --color-indigo-600: #0f172a;
-  --color-indigo-700: #020617;
-  --color-indigo-800: #000050;
+  --color-indigo-50: #f5f3ff;
+  --color-indigo-100: #ede9fe;
+  --color-indigo-200: #ddd6fe;
+  --color-indigo-300: #c084fc;
+  --color-indigo-400: #a78bfa;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
 
   --color-navy-50: #fafafa;
   --color-navy-100: #f4f4f5;
@@ -46,7 +49,7 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #fafafa;
+  background-color: #f4f7f6;
   color: #0f172a;
   margin: 0;
   padding: 0;

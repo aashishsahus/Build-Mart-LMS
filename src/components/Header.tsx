@@ -363,22 +363,22 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-300 text-slate-700 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(15,23,42,0.03)] transition-all duration-300">
+      <header className="bg-[#031d17]/95 backdrop-blur-xl border-b border-[#052c23] text-emerald-100 fixed top-0 left-0 right-0 z-50 shadow-[0_2px_18px_rgba(2,26,21,0.15)] transition-all duration-300">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-14 lg:h-16 items-center">
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              <div className="bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 p-2 sm:p-2.5 rounded-xl shadow-md shadow-emerald-500/10 flex items-center justify-center transition-all duration-300 shrink-0">
+              <div className="bg-[#0a382c] border border-emerald-500/20 hover:from-emerald-500 hover:to-teal-400 p-2 sm:p-2.5 rounded-xl shadow-md shadow-emerald-500/10 flex items-center justify-center transition-all duration-300 shrink-0">
                 {renderLogo()}
               </div>
               <div className="shrink-0">
-                <h1 className="font-display text-xs sm:text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                  <span className="whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-800 bg-clip-text text-transparent">{branding?.companyName || 'Build Mart'}</span>
-                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-mono font-extrabold px-1.5 py-0.5 rounded border border-emerald-200/60 tracking-widest shrink-0 shadow-3xs uppercase">
+                <h1 className="font-display text-xs sm:text-base font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span className="whitespace-nowrap bg-gradient-to-r from-white via-emerald-100 to-emerald-200 bg-clip-text text-transparent">{branding?.companyName || 'Build Mart'}</span>
+                  <span className="text-[9px] bg-[#0a382c] text-[#10b981] font-mono font-extrabold px-1.5 py-0.5 rounded border border-[#052c23] tracking-widest shrink-0 shadow-3xs uppercase">
                     {branding?.companyAbbreviation || 'LMS'}
                   </span>
                 </h1>
-                <p className="hidden sm:block text-[8px] text-slate-400 font-mono tracking-widest uppercase font-black">
+                <p className="hidden sm:block text-[8px] text-emerald-500/80 font-mono tracking-widest uppercase font-black">
                   {branding?.companyTagline || 'MEMBER OF RATHI BUILDMART PLC'}
                 </p>
               </div>
@@ -386,13 +386,13 @@ export default function Header({
 
             {/* Navigation/Tabs - Segment Control Design (Hidden on Mobile to avoid horizontal scrollbar) */}
             {isAdmin && (
-              <nav className="hidden lg:flex items-center bg-slate-100/80 border border-slate-200/50 p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none shadow-3xs">
+              <nav className="hidden lg:flex items-center bg-[#021814] border border-[#052c23] p-1 rounded-xl gap-1 overflow-x-auto whitespace-nowrap scrollbar-none shadow-3xs">
                 <button
                   onClick={() => onChangeTab('admin-reports')}
                   className={`px-4 py-1.5 text-xs font-display font-black rounded-lg transition-all duration-350 h-8 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
                     currentTab.startsWith('admin-') || currentTab === 'admin'
-                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/15'
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
+                      ? 'bg-[#10b981] text-white shadow-sm shadow-emerald-500/15'
+                      : 'text-emerald-300/80 hover:text-white hover:bg-[#052c23]/60'
                   }`}
                   id="nav-admin-reports"
                 >
@@ -408,11 +408,11 @@ export default function Header({
               {isOriginalAdmin && (
                 <div className={`hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all duration-300 shadow-3xs ${
                   isSimulating 
-                    ? 'bg-rose-50/60 border-rose-200/80' 
-                    : 'bg-slate-50/60 border-slate-200/60'
+                    ? 'bg-rose-950/40 border-rose-900/50' 
+                    : 'bg-[#021814] border-[#052c23]'
                 }`}>
                   <span className={`text-[9px] font-mono uppercase tracking-wider font-extrabold ${
-                    isSimulating ? 'text-rose-600 animate-pulse' : 'text-slate-405 text-slate-400'
+                    isSimulating ? 'text-rose-400 animate-pulse' : 'text-emerald-500/80'
                   }`}>
                     {isSimulating ? 'Simulated View:' : 'Simulate:'}
                   </span>
@@ -420,7 +420,7 @@ export default function Header({
                     value={currentUser.id}
                     onChange={(e) => onSwitchUser(e.target.value)}
                     className={`bg-transparent text-xs border-none font-extrabold focus:ring-0 cursor-pointer pr-6 py-0 font-sans outline-none ${
-                      isSimulating ? 'text-rose-705 text-rose-700' : 'text-emerald-705 text-emerald-750'
+                      isSimulating ? 'text-rose-305 text-rose-300' : 'text-[#10b981]'
                     }`}
                   >
                     {allUsers.map(u => {
@@ -472,8 +472,8 @@ export default function Header({
                   onClick={() => setShowNotificationCenter(!showNotificationCenter)}
                   className={`p-2 rounded-xl border transition-all duration-200 relative cursor-pointer flex items-center justify-center ${
                     showNotificationCenter
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-250'
-                      : 'bg-white hover:bg-slate-50 border-slate-205 border-slate-200 text-slate-600 hover:text-slate-900'
+                      ? 'bg-[#10b981] border-[#10b981] text-white shadow-md shadow-emerald-500/20'
+                      : 'bg-[#021814] hover:bg-[#052c23]/60 border-[#052c23] text-emerald-300 hover:text-white'
                   }`}
                   aria-label="Notification Center"
                   title="Notification Center"
@@ -587,15 +587,15 @@ export default function Header({
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2.5 text-left hover:opacity-90 focus:outline-none transition group p-1 rounded-xl hover:bg-slate-105 hover:bg-slate-100"
+                  className="flex items-center gap-2.5 text-left hover:opacity-90 focus:outline-none transition group p-1 rounded-xl hover:bg-[#052c23]/60"
                 >
                   <Avatar
                     src={realUser.avatarUrl}
                     name={realUser.name}
-                    className="w-9 h-9 border border-emerald-500/30 group-hover:border-emerald-600 shadow-sm transition"
+                    className="w-9 h-9 border border-emerald-500/30 group-hover:border-[#10b981] shadow-sm transition"
                   />
                   <div className="hidden md:flex flex-col items-start gap-0.5">
-                    <p className="text-xs font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors leading-tight">{realUser.name}</p>
+                    <p className="text-xs font-semibold text-emerald-50 group-hover:text-white transition-colors leading-tight">{realUser.name}</p>
                     <PremiumBadge userId={realUser.id} userName={realUser.name} roleId={realUser.roleId || ''} department={realUser.department} size="xs" />
                   </div>
                 </button>

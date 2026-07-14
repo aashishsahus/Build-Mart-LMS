@@ -418,7 +418,7 @@ export default function AdminDashboard({
 
   // Sidebar and Sub-tab control state
   const [adminSubTab, setAdminSubTab] = useState<string>('reports_overview');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true);
   const [sidebarLocked, setSidebarLocked] = useState<boolean>(false);
   const [sidebarVisible, setSidebarVisible] = useState<boolean>(true);
   const [autoHideEnabled, setAutoHideEnabled] = useState<boolean>(true);
@@ -2391,31 +2391,33 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       {sidebarVisible && (
         <aside 
           id="admin-sidebar"
-          className={`bg-white/95 border-r-2 border-slate-300 transition-all duration-350 flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
+          onMouseEnter={() => setSidebarCollapsed(false)}
+          onMouseLeave={() => setSidebarCollapsed(true)}
+          className={`bg-[#031d17] border-r border-[#052c23] transition-all duration-350 flex flex-col shrink-0 select-none shadow-[4px_0_35px_rgba(2,26,21,0.3)] ${
             sidebarCollapsed ? 'w-16' : 'w-[265px]'
           } ${
-            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans z-40' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
-          }`}
+            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans z-40' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(2,26,21,0.25)] z-[90]'
+          } lg:my-3 lg:ml-3 lg:rounded-2xl lg:h-[calc(100vh-120px)] overflow-hidden`}
         >
           {/* Header area of sidebar */}
-          <div className="p-3 border-b border-slate-300 flex items-center justify-between gap-2 bg-gradient-to-r from-indigo-50/20 via-sky-50/10 to-transparent">
+          <div className="p-3 border-b border-[#052c23] flex items-center justify-between gap-2 bg-gradient-to-r from-[#031d17] via-[#052c23]/30 to-transparent">
             {!sidebarCollapsed ? (
               <div className="flex items-center gap-2 min-w-0">
-                <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                <span className="p-1.5 bg-[#0a382c] text-[#10b981] rounded-lg border border-emerald-500/20 shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-[#10b981] animate-pulse" />
                 </span>
                 <div className="min-w-0">
-                  <h4 className="font-display text-[10.5px] font-black uppercase tracking-wider text-slate-800 truncate">
+                  <h4 className="font-display text-[10.5px] font-black uppercase tracking-wider text-emerald-50 truncate">
                     Control Hub
                   </h4>
-                  <p className="text-[7.5px] text-slate-500 font-mono font-bold mt-0.5 truncate">
+                  <p className="text-[7.5px] text-[#10b981] font-mono font-bold mt-0.5 truncate">
                     COCKPIT CONSOLE
                   </p>
                 </div>
               </div>
             ) : (
               <div className="mx-auto">
-                <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                <Sparkles className="w-4 h-4 text-[#10b981] animate-pulse" />
               </div>
             )}
             
@@ -2425,7 +2427,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 type="button"
                 onClick={() => setSidebarCollapsed(true)}
                 title="Collapse Panel (Icons Mode)"
-                className="text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60 p-1 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-emerald-400 hover:bg-[#0c3c33] p-1 rounded-lg transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -2442,7 +2444,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 }}
                 title={sidebarLocked ? "Unlock/Float Sidebar" : "Lock Sidebar (Fixed Column)"}
                 className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  sidebarLocked ? 'text-emerald-650 hover:text-emerald-700 bg-emerald-50' : 'text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60'
+                  sidebarLocked ? 'text-[#10b981] bg-[#0c3c33] border border-emerald-500/20' : 'text-slate-400 hover:text-emerald-400 hover:bg-[#0c3c33]'
                 }`}
               >
                 {sidebarLocked ? <Pin className="w-3 h-3" /> : <PinOff className="w-3 h-3" />}
@@ -2457,7 +2459,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 }}
                 title={autoHideEnabled ? "Disable Auto-Hide on Outside Click" : "Enable Auto-Hide on Outside Click"}
                 className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  autoHideEnabled ? 'text-indigo-650 text-indigo-600 bg-indigo-50 border border-indigo-100' : 'text-slate-400 hover:text-indigo-650 hover:bg-indigo-50/60'
+                  autoHideEnabled ? 'text-teal-400 bg-[#0c3c33] border border-teal-500/20' : 'text-slate-400 hover:text-[#10b981] hover:bg-[#0c3c33]'
                 }`}
               >
                 <MousePointerClick className="w-3.5 h-3.5" />
@@ -2471,7 +2473,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   showToast("Sidebar hidden! Bring it back via the float button.", 'info');
                 }}
                 title="Hide Sidebar Complete"
-                className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-1 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-rose-500 hover:bg-[#0c3c33] p-1 rounded-lg transition-colors cursor-pointer"
               >
                 <EyeOff className="w-3 h-3" />
               </button>
@@ -2480,12 +2482,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
           {/* Collapsed state Expand trigger */}
           {sidebarCollapsed && (
-            <div className="py-2 flex justify-center border-b border-slate-100">
+            <div className="py-2 flex justify-center border-b border-[#052c23] bg-[#021814]">
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(false)}
                 title="Expand Panel"
-                className="text-slate-400 hover:text-indigo-650 bg-slate-50 hover:bg-indigo-100 p-1.5 rounded-lg transition duration-200 cursor-pointer border border-slate-200/50"
+                className="text-slate-400 hover:text-[#10b981] bg-[#0c3c33] hover:bg-[#0d463b] p-1.5 rounded-lg transition duration-200 cursor-pointer border border-[#0c3c33]/40"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -2889,124 +2891,124 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 inactiveBadge: string;
               }> = {
                 reports: {
-                  activeBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-blue-50/70 hover:text-blue-900 hover:border-blue-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-blue-50 text-blue-600 border border-blue-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-blue-50/80 text-blue-700 border border-blue-100/40 text-[7.5px]'
+                  activeBg: 'bg-indigo-950/50 border border-indigo-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-indigo-950/20 hover:text-white text-indigo-100 border border-transparent',
+                  activeIcon: 'bg-indigo-500/25 text-indigo-200 border border-indigo-500/20',
+                  inactiveIcon: 'bg-[#021814] text-indigo-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-indigo-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 approvals: {
-                  activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-amber-50/70 hover:text-amber-900 hover:border-amber-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-amber-50 text-amber-600 border border-amber-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-amber-50/80 text-amber-700 border border-amber-100/40 text-[7.5px]'
+                  activeBg: 'bg-amber-950/50 border border-amber-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-amber-950/20 hover:text-white text-amber-100 border border-transparent',
+                  activeIcon: 'bg-amber-500/25 text-amber-200 border border-amber-500/20',
+                  inactiveIcon: 'bg-[#021814] text-amber-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-amber-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 hierarchy: {
-                  activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-emerald-50/70 hover:text-emerald-900 hover:border-emerald-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-emerald-50 text-emerald-600 border border-emerald-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-emerald-50/80 text-emerald-700 border border-emerald-100/40 text-[7.5px]'
+                  activeBg: 'bg-emerald-950/50 border border-emerald-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-emerald-950/20 hover:text-white text-emerald-100 border border-transparent',
+                  activeIcon: 'bg-emerald-500/25 text-[#10b981] border border-emerald-500/20',
+                  inactiveIcon: 'bg-[#021814] text-[#10b981] border border-[#0c3c33]/20',
+                  activeBadge: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-[#10b981] border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 users: {
-                  activeBg: 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-violet-50/70 hover:text-violet-900 hover:border-violet-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-violet-50 text-violet-600 border border-violet-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-violet-50/80 text-violet-700 border border-violet-100/40 text-[7.5px]'
+                  activeBg: 'bg-violet-950/50 border border-violet-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-violet-950/20 hover:text-white text-violet-100 border border-transparent',
+                  activeIcon: 'bg-violet-500/25 text-violet-200 border border-violet-500/20',
+                  inactiveIcon: 'bg-[#021814] text-violet-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-violet-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 roles: {
-                  activeBg: 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-rose-50/70 hover:text-rose-900 hover:border-rose-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-rose-50 text-rose-600 border border-rose-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-rose-50/80 text-rose-700 border border-rose-100/40 text-[7.5px]'
+                  activeBg: 'bg-rose-950/50 border border-rose-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-rose-950/20 hover:text-white text-rose-100 border border-transparent',
+                  activeIcon: 'bg-rose-500/25 text-rose-200 border border-rose-500/20',
+                  inactiveIcon: 'bg-[#021814] text-rose-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-rose-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 curriculum: {
-                  activeBg: 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-red-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-orange-50/60 hover:text-orange-900 hover:border-orange-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-orange-50 text-orange-600 border border-orange-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-orange-50/80 text-orange-700 border border-orange-100/40 text-[7.5px]'
+                  activeBg: 'bg-orange-950/50 border border-orange-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-orange-950/20 hover:text-white text-orange-100 border border-transparent',
+                  activeIcon: 'bg-orange-500/25 text-orange-200 border border-orange-500/20',
+                  inactiveIcon: 'bg-[#021814] text-orange-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-orange-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 analytics: {
-                  activeBg: 'bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white shadow-md shadow-pink-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-fuchsia-50/60 hover:text-fuchsia-900 hover:border-fuchsia-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-fuchsia-50/80 text-fuchsia-700 border border-fuchsia-100/40 text-[7.5px]'
+                  activeBg: 'bg-fuchsia-950/50 border border-fuchsia-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-fuchsia-950/20 hover:text-white text-fuchsia-100 border border-transparent',
+                  activeIcon: 'bg-fuchsia-500/25 text-fuchsia-200 border border-fuchsia-500/20',
+                  inactiveIcon: 'bg-[#021814] text-fuchsia-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-fuchsia-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 recruitment: {
-                  activeBg: 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-md shadow-teal-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-teal-50/60 hover:text-teal-900 hover:border-teal-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-teal-50 text-teal-600 border border-teal-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-teal-50/80 text-teal-700 border border-teal-100/40 text-[7.5px]'
+                  activeBg: 'bg-teal-950/50 border border-teal-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-teal-950/20 hover:text-white text-teal-100 border border-transparent',
+                  activeIcon: 'bg-teal-500/25 text-[#10b981] border border-teal-500/20',
+                  inactiveIcon: 'bg-[#021814] text-teal-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-teal-500/20 text-teal-350 border border-teal-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-teal-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 departments: {
-                  activeBg: 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-indigo-50/60 hover:text-indigo-900 hover:border-indigo-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-indigo-50 text-indigo-600 border border-indigo-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-indigo-50/80 text-indigo-700 border border-indigo-100/40 text-[7.5px]'
+                  activeBg: 'bg-indigo-950/50 border border-indigo-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-indigo-950/20 hover:text-white text-indigo-100 border border-transparent',
+                  activeIcon: 'bg-indigo-500/25 text-indigo-200 border border-indigo-500/20',
+                  inactiveIcon: 'bg-[#021814] text-[#10b981] border border-[#0c3c33]/20',
+                  activeBadge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 audit: {
-                  activeBg: 'bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-md shadow-cyan-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-cyan-50/60 hover:text-cyan-900 hover:border-cyan-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-cyan-50 text-cyan-600 border border-cyan-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-cyan-50/80 text-cyan-700 border border-cyan-100/40 text-[7.5px]'
+                  activeBg: 'bg-cyan-950/50 border border-cyan-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-cyan-950/20 hover:text-white text-cyan-100 border border-transparent',
+                  activeIcon: 'bg-cyan-500/25 text-cyan-200 border border-cyan-500/20',
+                  inactiveIcon: 'bg-[#021814] text-cyan-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-cyan-500/20 text-cyan-350 border border-cyan-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-cyan-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 certificate: {
-                  activeBg: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-pink-50/60 hover:text-pink-900 hover:border-pink-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-pink-50 text-pink-600 border border-pink-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-pink-50/80 text-pink-700 border border-pink-100/40 text-[7.5px]'
+                  activeBg: 'bg-[#0a382c] border border-emerald-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white',
+                  activeIcon: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/20',
+                  inactiveIcon: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 learning: {
-                  activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-emerald-50/70 hover:text-emerald-900 hover:border-emerald-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-emerald-50 text-emerald-600 border border-emerald-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-emerald-50/80 text-emerald-700 border border-emerald-100/40 text-[7.5px]'
+                  activeBg: 'bg-[#0a382c] border border-emerald-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white',
+                  activeIcon: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/20',
+                  inactiveIcon: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-[#10b981] border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 exams: {
-                  activeBg: 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-indigo-50/70 hover:text-indigo-900 hover:border-indigo-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-indigo-50 text-indigo-600 border border-indigo-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-indigo-50/80 text-indigo-700 border border-indigo-100/40 text-[7.5px]'
+                  activeBg: 'bg-indigo-950/50 border border-indigo-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white',
+                  activeIcon: 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/20',
+                  inactiveIcon: 'bg-[#021814] text-indigo-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-indigo-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 testing: {
-                  activeBg: 'bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md shadow-violet-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-violet-50/70 hover:text-violet-900 hover:border-violet-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-violet-50 text-violet-600 border border-violet-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-violet-50/80 text-violet-700 border border-violet-100/40 text-[7.5px]'
+                  activeBg: 'bg-[#0a382c] border border-emerald-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white',
+                  activeIcon: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/20',
+                  inactiveIcon: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20 text-[7.5px]'
                 },
                 certificate_trainee: {
-                  activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/15 scale-[1.01]',
-                  inactiveHover: 'hover:bg-amber-50/70 hover:text-amber-900 hover:border-amber-100/60 text-slate-600 border border-transparent',
-                  activeIcon: 'bg-white/25 text-white',
-                  inactiveIcon: 'bg-amber-50 text-amber-600 border border-amber-100/50',
-                  activeBadge: 'bg-white/20 text-white border-white/10 text-[7.5px]',
-                  inactiveBadge: 'bg-amber-50/80 text-amber-700 border border-amber-100/40 text-[7.5px]'
+                  activeBg: 'bg-[#0a382c] border border-emerald-500/30 text-white font-bold scale-[1.01]',
+                  inactiveHover: 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white',
+                  activeIcon: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/20',
+                  inactiveIcon: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20',
+                  activeBadge: 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/30 text-[7.5px]',
+                  inactiveBadge: 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20 text-[7.5px]'
                 }
               };
 
@@ -3141,7 +3143,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
      
                         {/* Expandable nested sub-tabs */}
                         {!sidebarCollapsed && !isLocked && t.subTabs && expandedTabs[t.id] && (
-                          <div className="pl-3 py-1 border-l border-slate-300 ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                          <div className="pl-3 py-1 border-l border-[#052c23] ml-4 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
                             {t.subTabs
                               .filter((st) => {
                                 if (st.id === 'user_add') return hasPermission('perm_user_add');
@@ -3157,11 +3159,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                                 }}
                                 className={`w-full text-left py-1 px-2 rounded-md text-[9.5px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                                   st.isActive 
-                                    ? 'bg-slate-100 text-slate-900 border border-slate-200/60 shadow-3xs' 
-                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'
+                                    ? 'bg-[#0a382c]/60 text-white border border-emerald-500/20 shadow-xs' 
+                                    : 'text-[#34d399] hover:text-white hover:bg-[#052920]/30'
                                 }`}
                               >
-                                <span className={`w-1 h-1 rounded-full shrink-0 ${st.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                <span className={`w-1 h-1 rounded-full shrink-0 ${st.isActive ? 'bg-[#10b981] animate-pulse' : 'bg-[#0c3c33]'}`} />
                                 <span className="truncate flex-1">{st.label}</span>
                               </button>
                             ))}
@@ -3176,14 +3178,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
           {/* Footer of Sidebar */}
           {!sidebarCollapsed && (
-            <div className="p-3.5 border-t border-slate-100 bg-slate-50/40 text-[9px] text-slate-500 font-mono space-y-1">
+            <div className="p-3.5 border-t border-[#052c23] bg-[#021814] text-[9px] text-slate-400 font-mono space-y-1">
               <div className="flex justify-between gap-1.5">
-                <span className="text-slate-400 font-semibold">IDENTITY:</span>
-                <span className="text-slate-700 font-bold truncate max-w-[130px]">{currentUser.name}</span>
+                <span className="text-emerald-500/60 font-semibold uppercase">IDENTITY:</span>
+                <span className="text-emerald-50 font-bold truncate max-w-[130px]">{currentUser.name}</span>
               </div>
               <div className="flex justify-between gap-1.5">
-                <span className="text-slate-400 font-semibold">AUTH LEVEL:</span>
-                <span className="text-emerald-600 font-black">{isDirectorOrOwner ? 'Executive / Director' : 'Quality Checker'}</span>
+                <span className="text-emerald-500/60 font-semibold uppercase">AUTH LEVEL:</span>
+                <span className="text-[#10b981] font-black">{isDirectorOrOwner ? 'Executive / Director' : 'Quality Checker'}</span>
               </div>
             </div>
           )}
@@ -3191,7 +3193,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
       )}
 
       {/* MAIN RIGHT AREA FOR VIEWS */}
-      <div className={`flex-1 min-w-0 flex flex-col relative transition-all duration-350 lg:overflow-y-auto lg:h-[calc(100vh-64px)] custom-scrollbar ${
+      <div className={`flex-grow min-w-0 flex flex-col relative transition-all duration-350 lg:overflow-y-auto lg:h-[calc(100vh-64px)] custom-scrollbar ${
         !sidebarLocked && sidebarVisible 
           ? (sidebarCollapsed ? 'pl-16' : 'pl-[265px]') 
           : ''
@@ -3205,9 +3207,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               setSidebarVisible(true);
               showToast("Control console panel restored!", 'success');
             }}
-            className="fixed left-5 top-24 z-50 bg-white/95 hover:bg-indigo-50 border border-slate-200/80 p-3 rounded-2xl shadow-[0_12px_40px_rgba(148,163,184,0.18)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:text-indigo-650"
+            className="fixed left-5 top-24 z-50 bg-[#031d17] hover:bg-[#062e26] border border-[#052c23] p-3 rounded-2xl shadow-[0_12px_40px_rgba(2,26,21,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:text-white"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+            <Sparkles className="w-3.5 h-3.5 text-[#10b981] animate-pulse" />
             <span>Open Console Panel</span>
           </button>
         )}

@@ -565,7 +565,7 @@ export default function UserDashboard({
 
   // Trainee Sidebar States
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [autoHideEnabled, setAutoHideEnabled] = useState(true);
 
@@ -1188,31 +1188,33 @@ export default function UserDashboard({
       {sidebarVisible && (
         <aside 
           id="trainee-sidebar"
-          className={`bg-white/95 border-r-2 border-slate-200 transition-all duration-300 z-[85] flex flex-col shrink-0 select-none bg-gradient-to-b from-white via-slate-50/50 to-slate-100/20 backdrop-blur-md shadow-[4px_0_24px_rgba(148,163,184,0.04)] ${
+          onMouseEnter={() => setSidebarCollapsed(false)}
+          onMouseLeave={() => setSidebarCollapsed(true)}
+          className={`bg-[#031d17] border-r border-[#052c23] transition-all duration-300 z-[85] flex flex-col shrink-0 select-none shadow-[4px_0_35px_rgba(2,26,21,0.3)] ${
             sidebarCollapsed ? 'w-16' : 'w-[265px]'
           } ${
-            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(148,163,184,0.12)] z-[90]'
-          }`}
+            sidebarLocked ? 'sticky top-14 lg:top-16 h-[calc(100vh-152px)] lg:h-[calc(100vh-104px)] font-sans' : 'fixed top-14 lg:top-16 left-0 bottom-[96px] lg:bottom-10 shadow-[0_10px_35px_rgba(2,26,21,0.25)] z-[90]'
+          } lg:my-3 lg:ml-3 lg:rounded-2xl lg:h-[calc(100vh-120px)] overflow-hidden`}
         >
           {/* Header area of sidebar */}
-          <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-50/20 via-teal-50/10 to-transparent">
+          <div className="p-3 border-b border-[#052c23] flex items-center justify-between gap-2 bg-gradient-to-r from-[#031d17] via-[#052c23]/30 to-transparent">
             {!sidebarCollapsed ? (
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 shrink-0">
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                <span className="p-1.5 bg-[#0a382c] text-[#10b981] rounded-lg border border-emerald-500/20 shrink-0">
+                  <BookOpen className="w-3.5 h-3.5 text-[#10b981] animate-pulse" />
                 </span>
                 <div className="min-w-0">
-                  <h4 className="font-display text-[10.5px] font-black uppercase tracking-wider text-slate-800 truncate leading-tight">
+                  <h4 className="font-display text-[10.5px] font-black uppercase tracking-wider text-emerald-50 truncate leading-tight">
                     Trainee Console
                   </h4>
-                  <p className="text-[7.5px] text-slate-500 font-mono font-bold mt-0.5 truncate leading-none">
+                  <p className="text-[7.5px] text-[#10b981] font-mono font-bold mt-0.5 truncate leading-none">
                     WORKSPACE PANEL
                   </p>
                 </div>
               </div>
             ) : (
               <div className="mx-auto">
-                <BookOpen className="w-4.5 h-4.5 text-emerald-500 animate-pulse" />
+                <BookOpen className="w-4.5 h-4.5 text-[#10b981] animate-pulse" />
               </div>
             )}
             
@@ -1222,7 +1224,7 @@ export default function UserDashboard({
                 type="button"
                 onClick={() => setSidebarCollapsed(true)}
                 title="Collapse Panel (Icons Mode)"
-                className="text-slate-400 hover:text-emerald-650 hover:bg-emerald-50/60 p-1 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-emerald-400 hover:bg-[#0c3c33] p-1 rounded-lg transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -1235,7 +1237,7 @@ export default function UserDashboard({
                 }}
                 title={sidebarLocked ? "Unlock/Float Sidebar" : "Lock Sidebar (Fixed Column)"}
                 className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  sidebarLocked ? 'text-emerald-650 text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-emerald-650 hover:bg-emerald-50/60'
+                  sidebarLocked ? 'text-[#10b981] bg-[#0c3c33] border border-emerald-500/20' : 'text-slate-400 hover:text-emerald-400 hover:bg-[#0c3c33]'
                 }`}
               >
                 {sidebarLocked ? <Pin className="w-3 h-3" /> : <PinOff className="w-3 h-3" />}
@@ -1251,7 +1253,7 @@ export default function UserDashboard({
                 }}
                 title={autoHideEnabled ? "Disable Auto-Hide on Outside Click" : "Enable Auto-Hide on Outside Click"}
                 className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  autoHideEnabled ? 'text-teal-650 text-teal-600 bg-teal-50 border border-teal-100' : 'text-slate-400 hover:text-teal-650 hover:bg-teal-50/60'
+                  autoHideEnabled ? 'text-teal-400 bg-[#0c3c33] border border-teal-500/20' : 'text-slate-400 hover:text-[#10b981] hover:bg-[#0c3c33]'
                 }`}
               >
                 <MousePointerClick className="w-3.5 h-3.5" />
@@ -1261,12 +1263,12 @@ export default function UserDashboard({
 
           {/* Collapsed state Expand trigger */}
           {sidebarCollapsed && (
-            <div className="py-2 flex justify-center border-b border-slate-100 bg-slate-50/20">
+            <div className="py-2 flex justify-center border-b border-[#052c23] bg-[#021814]">
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(false)}
                 title="Expand Panel"
-                className="text-slate-400 hover:text-emerald-650 bg-white hover:bg-emerald-50 p-1.5 rounded-lg transition duration-200 cursor-pointer border border-slate-200"
+                className="text-slate-400 hover:text-[#10b981] bg-[#0c3c33] hover:bg-[#0d463b] p-1.5 rounded-lg transition duration-200 cursor-pointer border border-[#0c3c33]/40"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1276,10 +1278,10 @@ export default function UserDashboard({
           {/* Sidebar Nav Items List */}
           <div className="flex-1 p-3 space-y-2 overflow-y-auto custom-scrollbar">
             {[
-              { id: 'learning', label: 'My Learning Path', icon: BookOpen, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50' },
-              { id: 'exams', label: 'Final Competency Test', icon: Award, colorClass: 'text-indigo-600', bgClass: 'bg-indigo-50' },
-              { id: 'testing', label: 'Only Testing', icon: Brain, colorClass: 'text-violet-600', bgClass: 'bg-violet-50' },
-              { id: 'certificate', label: 'Mastery Certificate', icon: Award, colorClass: 'text-amber-600', bgClass: 'bg-amber-50' },
+              { id: 'learning', label: 'My Learning Path', icon: BookOpen },
+              { id: 'exams', label: 'Final Competency Test', icon: Award },
+              { id: 'testing', label: 'Only Testing', icon: Brain },
+              { id: 'certificate', label: 'Mastery Certificate', icon: Award },
             ].map((t) => {
               const isTabActive = activeTab === t.id;
               const Icon = t.icon;
@@ -1293,14 +1295,14 @@ export default function UserDashboard({
                       setSidebarCollapsed(true);
                     }
                   }}
-                  className={`w-full group relative flex items-center gap-2.5 p-2 rounded-lg transition-all duration-200 text-left cursor-pointer border border-transparent ${
+                  className={`w-full group relative flex items-center gap-2.5 p-2 rounded-lg transition-all duration-200 text-left cursor-pointer border ${
                     isTabActive 
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/15 font-bold scale-[1.01]' 
-                      : 'hover:bg-slate-100/70 hover:text-slate-900 text-slate-655'
+                      ? 'bg-[#0a382c] border-emerald-500/30 text-white font-bold shadow-md shadow-[#021a15]/35 scale-[1.01]' 
+                      : 'hover:bg-[#052920]/45 border-transparent text-emerald-100 hover:text-white'
                   }`}
                 >
                   <div className={`p-1.5 rounded-lg shrink-0 transition-colors duration-200 ${
-                    isTabActive ? 'bg-white/20 text-white' : `${t.bgClass} ${t.colorClass} border border-slate-100 group-hover:bg-white`
+                    isTabActive ? 'bg-emerald-500/20 text-[#10b981] border border-emerald-500/20' : 'bg-[#021814] text-emerald-300 border border-[#0c3c33]/20 group-hover:bg-[#0c3c33] group-hover:text-[#10b981]'
                   }`}>
                     <Icon className="w-4 h-4" />
                   </div>
@@ -1316,14 +1318,14 @@ export default function UserDashboard({
 
           {/* Footer of Sidebar */}
           {!sidebarCollapsed && (
-            <div className="p-3 border-t border-slate-200 bg-slate-50/50 text-[8.5px] text-slate-500 font-mono space-y-1">
+            <div className="p-3 border-t border-[#052c23] bg-[#021814] text-[8.5px] text-slate-400 font-mono space-y-1">
               <div className="flex justify-between gap-1.5">
-                <span className="text-slate-400 font-semibold uppercase">TRAINEE:</span>
-                <span className="text-slate-800 font-bold truncate max-w-[130px]">{currentUser.name}</span>
+                <span className="text-emerald-500/60 font-semibold uppercase">TRAINEE:</span>
+                <span className="text-emerald-50 font-bold truncate max-w-[130px]">{currentUser.name}</span>
               </div>
               <div className="flex justify-between gap-1.5">
-                <span className="text-slate-400 font-semibold uppercase">POSITION:</span>
-                <span className="text-emerald-700 font-black truncate max-w-[130px]">{userRole?.name || 'Trainee'}</span>
+                <span className="text-emerald-500/60 font-semibold uppercase">POSITION:</span>
+                <span className="text-[#10b981] font-black truncate max-w-[130px]">{userRole?.name || 'Trainee'}</span>
               </div>
             </div>
           )}
@@ -1337,9 +1339,9 @@ export default function UserDashboard({
           onClick={() => {
             setSidebarVisible(true);
           }}
-          className="fixed left-5 top-24 z-50 bg-white hover:bg-emerald-50 border border-slate-200/80 p-3 rounded-2xl shadow-[0_12px_40px_rgba(148,163,184,0.18)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:text-emerald-600"
+          className="fixed left-5 top-24 z-50 bg-[#031d17] hover:bg-[#062e26] border border-[#052c23] p-3 rounded-2xl shadow-[0_12px_40px_rgba(2,26,21,0.3)] hover:scale-105 transition-all duration-300 cursor-pointer flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-100 hover:text-white"
         >
-          <BookOpen className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+          <BookOpen className="w-3.5 h-3.5 text-[#10b981] animate-pulse" />
           <span>Open Workspace Panel</span>
         </button>
       )}

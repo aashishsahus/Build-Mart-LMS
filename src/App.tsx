@@ -443,7 +443,7 @@ export default function App() {
   const certProgressStats = currentUserDetail ? calculateUserProgress(currentUserDetail.id, certCurrentRoleIds) : null;
 
   return (
-    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#fafbfc] flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-900 relative">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#f4f7f6] flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-900 relative">
       {/* Premium Stylish Background Grid & Radial Light Accents */}
       <div className="absolute inset-x-0 top-0 h-[800px] bg-gradient-to-b from-blue-50/30 via-emerald-50/15 to-transparent pointer-events-none z-0" />
       <div className="absolute top-[10%] left-[-15%] w-[600px] h-[600px] rounded-full bg-blue-300/[0.12] blur-[130px] pointer-events-none z-0" />
