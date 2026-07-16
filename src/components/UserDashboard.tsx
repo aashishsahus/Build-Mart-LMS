@@ -556,6 +556,9 @@ export default function UserDashboard({
   const [isEditingPdf, setIsEditingPdf] = useState(false);
   const [customPdfInput, setCustomPdfInput] = useState(pdfUrl);
   const [pdfReaderCollapsed, setPdfReaderCollapsed] = useState(false);
+  const [frameSize, setFrameSize] = useState<string>(() => {
+    return localStorage.getItem('lms_frame_size') || 'max-w-lg';
+  });
   const [videoAspectRatio, setVideoAspectRatio] = useState<string>(() => {
     return localStorage.getItem('lms_video_aspect_ratio') || 'aspect-[16/11.5]';
   });
@@ -972,6 +975,27 @@ export default function UserDashboard({
                     <option value="aspect-video">Widescreen (16:9)</option>
                   </select>
                 </div>
+
+                {/* Compact Frame Size Selector for PDF */}
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs hover:bg-slate-100/50 transition-colors">
+                  <span className="text-[8px] font-mono font-black text-slate-450 uppercase">SIZE:</span>
+                  <select
+                    value={frameSize}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFrameSize(val);
+                      localStorage.setItem('lms_frame_size', val);
+                    }}
+                    className="bg-transparent border-none outline-none text-[9.5px] font-black text-slate-700 cursor-pointer p-0 select-none font-sans focus:ring-0"
+                  >
+                    <option value="max-w-md">Very Small</option>
+                    <option value="max-w-lg">Small</option>
+                    <option value="max-w-xl">Medium</option>
+                    <option value="max-w-2xl">Large</option>
+                    <option value="max-w-3xl">Extra Large</option>
+                    <option value="max-w-4xl">Full Width</option>
+                  </select>
+                </div>
               </>
             ) : activeMediaTab === 'video' ? (
               <>
@@ -1004,6 +1028,27 @@ export default function UserDashboard({
                         <option value="aspect-video">Widescreen (16:9)</option>
                         <option value="aspect-[16/10]">Laptop (16:10)</option>
                         <option value="aspect-[4/3]">Standard (4:3)</option>
+                      </select>
+                    </div>
+
+                    {/* Compact Frame Size Selector for Video */}
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-0.5 shadow-3xs hover:bg-slate-100/50 transition-colors">
+                      <span className="text-[8px] font-mono font-black text-slate-450 uppercase">SIZE:</span>
+                      <select
+                        value={frameSize}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFrameSize(val);
+                          localStorage.setItem('lms_frame_size', val);
+                        }}
+                        className="bg-transparent border-none outline-none text-[9.5px] font-black text-slate-700 cursor-pointer p-0 select-none font-sans focus:ring-0"
+                      >
+                        <option value="max-w-md">Very Small</option>
+                        <option value="max-w-lg">Small</option>
+                        <option value="max-w-xl">Medium</option>
+                        <option value="max-w-2xl">Large</option>
+                        <option value="max-w-3xl">Extra Large</option>
+                        <option value="max-w-4xl">Full Width</option>
                       </select>
                     </div>
                   </div>
@@ -1113,7 +1158,7 @@ export default function UserDashboard({
             ) : activeMediaTab === 'pdf' ? (
               /* PDF iframe stage with optimized proportions to avoid massive black empty sidebars */
               <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-3 px-4 sm:px-6 border-b border-slate-150">
-                <div className="w-full max-w-3xl h-[280px] sm:h-[320px] md:h-[360px] lg:h-[380px] xl:h-[420px] relative rounded-xl overflow-hidden shadow-md border border-slate-200 bg-white transition-all duration-300">
+                <div className={`w-full ${frameSize} ${pdfAspectRatio} relative rounded-xl overflow-hidden shadow-md border border-slate-200 bg-white transition-all duration-300`}>
                   <iframe
                     src={resolvedPdfUrl}
                     title="Corporate Curriculum Architecture PDF Frame"
@@ -1126,7 +1171,7 @@ export default function UserDashboard({
             ) : (
               /* Video stage with constrained display size */
               <div className="w-full bg-slate-50/70 flex justify-center items-center shadow-inner py-3 px-4 sm:px-6 border-b border-slate-150">
-                <div className="w-full max-w-3xl h-[280px] sm:h-[320px] md:h-[360px] lg:h-[380px] xl:h-[420px] relative rounded-xl overflow-hidden shadow-xl border border-slate-800 bg-slate-950 transition-all duration-300">
+                <div className={`w-full ${frameSize} ${videoAspectRatio} relative rounded-xl overflow-hidden shadow-xl border border-slate-800 bg-slate-950 transition-all duration-300`}>
                   {type === 'embed' ? (
                     <iframe
                       src={url}

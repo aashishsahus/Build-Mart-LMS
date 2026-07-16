@@ -10,9 +10,11 @@ import * as XLSX from 'xlsx';
 import { Avatar } from './Avatar';
 import HierarchyView from './HierarchyView';
 import GoogleSheetsIntegration from './GoogleSheetsIntegration';
+import AnalyticsWorkspace from './AnalyticsWorkspace';
 import { User, Role, Chapter, Unit, ProgressLog, ProgressStatus, UnitFrequency, UnitSkillLevel, RoleId, CompanyBranding, ExamQuestion, ExamConfig, HelplineContact, SmtpConfig, HelpdeskTicket } from '../types';
 import { getSopItemsForUnit, SopItem } from './UserDashboard';
-import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts, getSmtpConfig, saveSmtpConfig, getHelpdeskTickets, saveHelpdeskTickets } from '../data/stateManager';
+import { UserWithRole, calculateUserProgress, getCertificateTemplate, saveCertificateTemplate, getCompanyBranding, saveCompanyBranding, resetUserMastery, getProgress, getHelplineContacts, saveHelplineContacts, getSmtpConfig, saveSmtpConfig, getHelpdeskTickets, saveHelpdeskTickets, getDatabaseStorageSize } from '../data/stateManager';
+import { isFirebasePlaceholder } from '../data/firebase';
 import { 
   Users, 
   Layers, 
@@ -56,6 +58,7 @@ import {
   ChevronUp,
   Search,
   Database,
+  Server,
   Calendar,
   History,
   ListFilter,
@@ -635,6 +638,12 @@ export default function AdminDashboard({
   const [collapsedChapterIds, setCollapsedChapterIds] = useState<Record<string, boolean>>({});
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [showCreateChapterForm, setShowCreateChapterForm] = useState<boolean>(false);
+
+  // Curriculum Import/Export Correction states
+  const [showCurriculumExchange, setShowCurriculumExchange] = useState<boolean>(false);
+  const [curriculumImportText, setCurriculumImportText] = useState<string>('');
+  const [curriculumImportError, setCurriculumImportError] = useState<string>('');
+  const [curriculumImportSuccess, setCurriculumImportSuccess] = useState<string>('');
 
   // Interactive Analytics Reports & Scorecard States
   const [scorecardSearch, setScorecardSearch] = useState('');
@@ -2512,6 +2521,14 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       onClick: () => {
                         setAdminTab('reports');
                       }
+                    },
+                    { 
+                      id: 'reports_analytics', 
+                      label: 'Interactive Analytics & Charts', 
+                      isActive: adminTab === 'analytics',
+                      onClick: () => {
+                        setAdminTab('analytics');
+                      }
                     }
                   ]
                 },
@@ -2805,6 +2822,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       onClick: () => {
                         setAdminTab('certificate');
                         setCertSubTab('smtp');
+                      }
+                    },
+                    { 
+                      id: 'cert_database', 
+                      label: '🛢️ Firebase Storage Live Audit', 
+                      isActive: adminTab === 'certificate' && certSubTab === 'database',
+                      onClick: () => {
+                        setAdminTab('certificate');
+                        setCertSubTab('database');
                       }
                     }
                   ]
@@ -4537,6 +4563,23 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 )}
           </div>
         </div>
+      )}
+
+
+
+      {/* ----------------------------------------------------
+          TAB 1.1: ANALYTICS & CHARTS COCKPIT
+          ---------------------------------------------------- */}
+      {adminTab === 'analytics' && (
+        <AnalyticsWorkspace 
+          users={users}
+          roles={roles}
+          departments={departments}
+          progress={progress}
+          chapters={chapters}
+          attemptsList={attemptsList}
+          showToast={showToast}
+        />
       )}
 
 
@@ -7436,7 +7479,307 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
             </div>
 
+            {/* Curriculum Data Exchange Action Bar */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-left shadow-2xs mb-6">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-200/50 text-[10px] uppercase font-mono font-black tracking-wider">
+                  📥 Curriculum Data Exchange & Correction Panel
+                </span>
+                <h4 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight leading-tight mt-1">Export Curriculum or Apply Direct Corrections</h4>
+                <p className="text-[10px] text-slate-450 font-medium">Download full curriculum configurations as JSON/CSV spreadsheets to review, correct, and import them instantly.</p>
+              </div>
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ chapters, units }, null, 2));
+                      const downloadAnchor = document.createElement('a');
+                      downloadAnchor.setAttribute("href", dataStr);
+                      downloadAnchor.setAttribute("download", "rathi_curriculum_architecture_backup.json");
+                      document.body.appendChild(downloadAnchor);
+                      downloadAnchor.click();
+                      downloadAnchor.remove();
+                      showToast("✓ Curriculum JSON backup downloaded!", "success");
+                    } catch (e) {
+                      showToast("❌ Failed to export JSON backup", "error");
+                    }
+                  }}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-extrabold text-[11px] px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-3xs"
+                  title="Download all chapters & units as JSON backup"
+                >
+                  <span>📥 Export JSON Backup</span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const headers = [
+                        "Chapter ID",
+                        "Chapter Name",
+                        "Chapter Order",
+                        "Chapter Job Profile Mapping",
+                        "Unit SKU ID",
+                        "Unit Code",
+                        "Unit Title_Task Name",
+                        "Frequency",
+                        "Skill Level Required",
+                        "SOP Video Title",
+                        "SOP Video URL",
+                        "SOP PDF URL",
+                        "Unit Description",
+                        "Checklist Item Titles"
+                      ];
+                      
+                      const rows: string[][] = [];
+                      chapters.forEach(ch => {
+                        const chUnits = units.filter(u => u.chapterId === ch.id);
+                        const roleMap = roles.find(r => r.id === ch.roleId)?.name || ch.roleId;
+                        
+                        if (chUnits.length === 0) {
+                          rows.push([
+                            ch.id,
+                            ch.name,
+                            String(ch.order),
+                            roleMap,
+                            "", "", "", "", "", "", "", "", "", ""
+                          ]);
+                        } else {
+                          chUnits.forEach(u => {
+                            const checklistTitles = (u.sopItems || []).map(item => item.title).join("; ");
+                            rows.push([
+                              ch.id,
+                              ch.name,
+                              String(ch.order),
+                              roleMap,
+                              u.id,
+                              u.code,
+                              u.taskName,
+                              u.frequency,
+                              u.skillRequired,
+                              u.videoTitle,
+                              u.videoUrl,
+                              u.pdfUrl || "",
+                              u.description.replace(/\n/g, ' '),
+                              checklistTitles
+                            ]);
+                          });
+                        }
+                      });
+
+                      const csvContent = [
+                        headers.join(","),
+                        ...rows.map(row => row.map(val => {
+                          const stringVal = String(val ?? '');
+                          if (stringVal.includes(",") || stringVal.includes('"') || stringVal.includes("\n") || stringVal.includes("\r")) {
+                            return `"${stringVal.replace(/"/g, '""')}"`;
+                          }
+                          return stringVal;
+                        }).join(","))
+                      ].join("\n");
+
+                      const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+                      const downloadAnchor = document.createElement('a');
+                      downloadAnchor.setAttribute("href", dataStr);
+                      downloadAnchor.setAttribute("download", "rathi_curriculum_architecture_excel.csv");
+                      document.body.appendChild(downloadAnchor);
+                      downloadAnchor.click();
+                      downloadAnchor.remove();
+                      showToast("✓ Curriculum CSV spreadsheet downloaded!", "success");
+                    } catch (e) {
+                      showToast("❌ Failed to export CSV", "error");
+                    }
+                  }}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-extrabold text-[11px] px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-3xs"
+                  title="Download flattened spreadsheet layout of the curriculum"
+                >
+                  <span>📊 Export Excel CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowCurriculumExchange(!showCurriculumExchange)}
+                  className={`font-extrabold text-[11px] px-4 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-3xs border ${
+                    showCurriculumExchange
+                      ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
+                      : 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700'
+                  }`}
+                >
+                  {showCurriculumExchange ? '✕ Hide Correction Panel' : '🔧 Correct Data / Import'}
+                </button>
+              </div>
+            </div>
+
+            {/* Expanded Correction Panel */}
+            {showCurriculumExchange && (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 mb-6 space-y-4 text-slate-900 animate-in fade-in duration-200 text-left shadow-2xs">
+                <div className="border-b border-slate-200 pb-3">
+                  <h4 className="text-[12px] font-mono uppercase tracking-wider text-indigo-700 font-extrabold flex items-center gap-2">
+                    <span>🔧</span> Curriculum Raw Corrections Terminal
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 mt-1 leading-normal">
+                    You can inspect all curriculum data, modify details offline, and paste the corrected JSON layout below to instantly verify and patch the compliance database.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Left Column: Quick Instructions */}
+                  <div className="bg-white border border-slate-200 p-4 rounded-xl space-y-3 shadow-3xs flex flex-col justify-between">
+                    <div>
+                      <h5 className="text-[11px] font-black uppercase font-mono text-slate-600 tracking-wider mb-2">How to make Corrections:</h5>
+                      <ol className="list-decimal list-inside text-[11px] text-slate-600 space-y-2 leading-normal">
+                        <li>Click the <strong className="text-indigo-650">Export JSON Backup</strong> button above to download your current architecture configuration.</li>
+                        <li>Open the downloaded JSON in any text editor or viewer to check titles, codes, URLs, and descriptions.</li>
+                        <li>Modify, add, or correct any field (e.g., changing unit codes, task names, or fixing spelling errors).</li>
+                        <li>Copy your modified JSON, paste it into the textbox on the right, and click <strong className="text-indigo-650">Apply & Write Corrections</strong>.</li>
+                      </ol>
+
+                      <details className="mt-3 group border border-slate-250 rounded-lg overflow-hidden bg-slate-50">
+                        <summary className="bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 text-[10px] font-black text-slate-700 cursor-pointer list-none flex items-center justify-between transition select-none">
+                          <span className="flex items-center gap-1.5">
+                            <span>📋</span> View Correct JSON Sample Data
+                          </span>
+                          <span className="transition-transform group-open:rotate-180 text-[8px]">▼</span>
+                        </summary>
+                        <div className="p-2.5 bg-slate-900 text-emerald-400 font-mono text-[9px] rounded-b-lg overflow-x-auto max-h-[220px] leading-relaxed whitespace-pre select-all">
+{`{
+  "chapters": [
+    {
+      "id": "chap_sales_foundation",
+      "name": "Rathi Sales & Customer Foundations",
+      "roleId": "sales_representative",
+      "order": 1
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_lead_qualification",
+      "chapterId": "chap_sales_foundation",
+      "code": "RATHI-SOP-SL-01",
+      "taskName": "Inbound Lead Qualification & CRM Entry",
+      "frequency": "Daily",
+      "skillRequired": "Intermediate",
+      "videoTitle": "Lead Qualification Protocol Walkthrough",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "pdfUrl": "https://drive.google.com/file/d/1_SAMPLE_PDF_ID/preview",
+      "description": "Step-by-step guideline on verifying customer credit score and entering metadata.",
+      "sopItems": [
+        { "id": "sop_01_01", "title": "Retrieve caller contact records", "order": 1 },
+        { "id": "sop_01_02", "title": "Check customer tax profile on portal", "order": 2 }
+      ]
+    }
+  ]
+}`}
+                        </div>
+                      </details>
+                    </div>
+                    <div className="p-3 bg-amber-50/70 text-amber-850 border border-amber-200/60 rounded-xl text-[10.5px] leading-relaxed mt-3">
+                      <strong>⚠️ Database Rewrite Alert:</strong> Applying corrections will completely overwrite active chapters and units dataset in current workspace ledger. Please maintain a copy for safety.
+                    </div>
+                  </div>
+
+                  {/* Right Column: Paste Box */}
+                  <div className="space-y-3 flex flex-col">
+                    <div>
+                      <label className="block text-[10px] font-mono font-black uppercase text-slate-400 mb-1">Paste Corrected JSON Layout:</label>
+                      <textarea
+                        rows={6}
+                        placeholder='{ "chapters": [...], "units": [...] }'
+                        value={curriculumImportText}
+                        onChange={(e) => {
+                          setCurriculumImportText(e.target.value);
+                          setCurriculumImportError('');
+                          setCurriculumImportSuccess('');
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded-xl p-3 font-mono text-xs text-slate-800 leading-normal focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none placeholder:text-slate-300"
+                      />
+                    </div>
+
+                    {curriculumImportError && (
+                      <div className="p-2.5 bg-red-50 border border-red-200/50 text-red-800 rounded-lg text-[10.5px] font-bold">
+                        ⚠️ {curriculumImportError}
+                      </div>
+                    )}
+
+                    {curriculumImportSuccess && (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200/50 text-emerald-850 rounded-lg text-[10.5px] font-bold">
+                        ✓ {curriculumImportSuccess}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCurriculumImportText(JSON.stringify({ chapters, units }, null, 2));
+                          showToast("Current dataset cloned to pastebox for easy editing!", "info");
+                        }}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl border border-slate-300 transition cursor-pointer"
+                      >
+                        ⚡ Clone Current Data to Textbox
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!curriculumImportText.trim()) {
+                            setCurriculumImportError("Please paste some JSON data first.");
+                            return;
+                          }
+                          try {
+                            const parsed = JSON.parse(curriculumImportText);
+                            if (!parsed || typeof parsed !== 'object') {
+                              setCurriculumImportError("Parsed item is not a valid JSON object.");
+                              return;
+                            }
+                            if (!Array.isArray(parsed.chapters)) {
+                              setCurriculumImportError("Missing valid 'chapters' array inside the JSON object.");
+                              return;
+                            }
+                            if (!Array.isArray(parsed.units)) {
+                              setCurriculumImportError("Missing valid 'units' array inside the JSON object.");
+                              return;
+                            }
+
+                            // Validate chapter elements
+                            for (let i = 0; i < parsed.chapters.length; i++) {
+                              const ch = parsed.chapters[i];
+                              if (!ch.id || !ch.name) {
+                                setCurriculumImportError(`Chapter index ${i} is missing required properties (id, name).`);
+                                return;
+                              }
+                            }
+
+                            // Validate unit elements
+                            for (let i = 0; i < parsed.units.length; i++) {
+                              const u = parsed.units[i];
+                              if (!u.id || !u.chapterId || !u.code || !u.taskName) {
+                                setCurriculumImportError(`Unit index ${i} is missing required properties (id, chapterId, code, taskName).`);
+                                return;
+                              }
+                            }
+
+                            // Success! Apply corrections.
+                            onUpdateChapters(parsed.chapters);
+                            onUpdateUnits(parsed.units);
+                            
+                            setCurriculumImportSuccess(`Processed corrections successfully: ${parsed.chapters.length} chapters and ${parsed.units.length} units updated!`);
+                            showToast("✓ Curriculum database corrected successfully!", "success");
+                            setCurriculumImportText('');
+                          } catch (err: any) {
+                            setCurriculumImportError(`JSON Syntax Error: ${err.message}`);
+                          }
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10.5px] px-4 py-2 rounded-xl border border-indigo-700 transition cursor-pointer shadow-sm"
+                      >
+                        Apply & Write Corrections ➔
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {curriculumMode === 'manual' ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -9201,10 +9544,10 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
         {/* SUBTAB 2: QUESTION BANK WORKSPACE */}
         {recSubTab === 'questions' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left animate-in fade-in duration-150">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-left animate-in fade-in duration-150">
             
             {/* Form Block (Left 5 Columns) */}
-            <div className="lg:col-span-12 xl:col-span-5 bg-gradient-to-br from-indigo-50/40 via-white to-white border border-slate-200 rounded-2xl p-5 space-y-4 h-fit shadow-xs">
+            <div className="lg:col-span-5 bg-gradient-to-br from-indigo-50/30 via-white to-white border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4 h-fit shadow-sm">
               <div className="border-b border-slate-200 pb-3">
                 <h4 className="text-xs sm:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-900 to-indigo-700 flex items-center gap-1.5 uppercase font-sans tracking-wide">
                   <span>✏️</span>
@@ -9214,7 +9557,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
               </div>
 
               {qFormSuccess && (
-                <div className="bg-emerald-50 border border-emerald-250 text-emerald-805 text-emerald-800 text-[11px] font-black p-3 rounded-lg leading-relaxed animate-pulse">
+                <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 text-[11px] font-black p-3 rounded-lg leading-relaxed animate-pulse">
                   ✓ {qFormSuccess}
                 </div>
               )}
@@ -9289,66 +9632,89 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 setTimeout(() => setQFormSuccess(''), 3000);
               }} className="space-y-4 font-sans text-xs">
                 
-                {/* Scope Segment Mapping */}
-                <div className="space-y-1">
-                  <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Chapter Scope Assignment:
-                  </label>
-                  <select
-                    value={qChapterId}
-                    onChange={(e) => setQChapterId(e.target.value)}
-                    className="bg-white border border-slate-205 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 outline-none w-full"
-                  >
-                    <option value="">-- Choose Target Chapter Mapped --</option>
-                    {chapters.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Chapter & Topic Side-by-Side to save vertical space */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Scope Segment Mapping */}
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Chapter Scope Assignment:
+                    </label>
+                    <select
+                      value={qChapterId}
+                      onChange={(e) => setQChapterId(e.target.value)}
+                      className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold text-slate-800 outline-none w-full shadow-3xs"
+                    >
+                      <option value="">-- Choose Chapter --</option>
+                      {chapters.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Type Selection */}
-                <div className="space-y-1">
-                  <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Question Entry Format:
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQType('mcq')}
-                      className={`py-2 px-3 border rounded-xl font-bold font-mono text-[10px] uppercase transition cursor-pointer text-center ${
-                        qType === 'mcq' 
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      Multiple Choice (MCQ)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQType('text')}
-                      className={`py-2 px-3 border rounded-xl font-bold font-mono text-[10px] uppercase transition cursor-pointer text-center ${
-                        qType === 'text' 
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      Open Text Response
-                    </button>
+                  {/* Topic Metadata */}
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Topic Keyword:
+                    </label>
+                    <input
+                      type="text"
+                      value={qTopic}
+                      onChange={(e) => setQTopic(e.target.value)}
+                      placeholder="e.g. Accounts Payable"
+                      className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-800 outline-none w-full font-semibold focus:border-blue-500 shadow-3xs"
+                    />
                   </div>
                 </div>
 
-                {/* Topic Metadata */}
-                <div className="space-y-1">
-                  <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Topic Keyword (e.g. GST Compliance):
-                  </label>
-                  <input
-                    type="text"
-                    value={qTopic}
-                    onChange={(e) => setQTopic(e.target.value)}
-                    placeholder="e.g. Accounts Payable matching"
-                    className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-805 outline-none w-full font-semibold focus:border-blue-500"
-                  />
+                {/* Entry Format & Active status Side-by-Side to save vertical space */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Type Selection */}
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Question Entry Format:
+                    </label>
+                    <div className="grid grid-cols-2 gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 shadow-3xs">
+                      <button
+                        type="button"
+                        onClick={() => setQType('mcq')}
+                        className={`py-1 rounded-lg font-bold font-mono text-[9px] uppercase transition cursor-pointer text-center ${
+                          qType === 'mcq' 
+                            ? 'bg-slate-900 text-white shadow-3xs' 
+                            : 'bg-transparent text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        MCQ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQType('text')}
+                        className={`py-1 rounded-lg font-bold font-mono text-[9px] uppercase transition cursor-pointer text-center ${
+                          qType === 'text' 
+                            ? 'bg-slate-900 text-white shadow-3xs' 
+                            : 'bg-transparent text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Open Text
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Status Switch inline */}
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Active Status:
+                    </label>
+                    <div className="flex items-center justify-between p-2 px-3 bg-white border border-slate-200 rounded-xl h-[34px] shadow-3xs">
+                      <span className="text-[10px] font-extrabold text-slate-700">Active</span>
+                      <button
+                        type="button"
+                        onClick={() => setQIsActive(!qIsActive)}
+                        className={`w-9 h-5 rounded-full transition-all duration-200 relative outline-none cursor-pointer shrink-0 shadow-inner ${qIsActive ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 left-0.5 transition-all duration-200 shadow-sm ${qIsActive ? 'translate-x-4' : 'translate-x-0'}`}></span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Question Prompt */}
@@ -9360,15 +9726,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     value={qQuestionText}
                     onChange={(e) => setQQuestionText(e.target.value)}
                     placeholder="Type the full analytical question text..."
-                    rows={3}
-                    className="bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-800 outline-none w-full font-semibold focus:border-blue-500 leading-relaxed resize-none font-sans"
+                    rows={2}
+                    className="bg-white border border-slate-200 rounded-xl py-1.5 px-3 text-xs text-slate-800 outline-none w-full font-semibold focus:border-blue-500 leading-relaxed resize-none font-sans shadow-3xs"
                   ></textarea>
                 </div>
 
                 {/* CONDITIONAL OPTION BUILDERS */}
                 {qType === 'mcq' ? (
-                  <div className="space-y-3 bg-white p-3 border rounded-xl">
-                    <p className="text-[9px] font-mono font-black text-slate-405 text-slate-400 uppercase tracking-widest border-b pb-1.5 mb-1.5 text-center">
+                  <div className="space-y-2.5 bg-slate-50/50 p-3 border border-slate-150 rounded-xl">
+                    <p className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest border-b pb-1 mb-1 text-center">
                       ⚙️ CONFIG MCQ OPTIONS & DESIGNATE CORRECT ANSWER:
                     </p>
 
@@ -9378,7 +9744,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                       return (
                         <div key={idx} className="flex items-center gap-2">
-                          <span className="text-xs font-bold font-mono text-slate-400 pr-1">{letter}.</span>
+                          <span className="text-xs font-bold font-mono text-slate-405 text-slate-400 pr-0.5">{letter}.</span>
                           <input
                             type="text"
                             value={opt}
@@ -9387,15 +9753,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                               setQOptions(prev => prev.map((o, oIdx) => oIdx === idx ? val : o));
                             }}
                             placeholder={`Option ${letter} value...`}
-                            className="bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-800 outline-none flex-grow font-semibold focus:border-emerald-500"
+                            className="bg-white border border-slate-200 rounded-lg py-1 px-2.5 text-xs text-slate-800 outline-none flex-grow font-semibold focus:border-emerald-500 shadow-3xs"
                           />
                           <button
                             type="button"
                             onClick={() => setQCorrectAnswerIndex(idx)}
-                            className={`p-1 px-2 text-[9px] font-mono font-black border rounded transition active:scale-95 cursor-pointer uppercase ${
+                            className={`p-1 px-2 text-[9px] font-mono font-black border rounded transition active:scale-95 cursor-pointer uppercase shrink-0 ${
                               isCorrect 
                                 ? 'bg-emerald-600 border-emerald-600 text-white font-extrabold' 
-                                : 'bg-slate-100 hover:bg-slate-200 border-slate-250 text-slate-550'
+                                : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-550'
                             }`}
                           >
                             {isCorrect ? 'Correct ✓' : 'Mark'}
@@ -9405,7 +9771,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     })}
                   </div>
                 ) : (
-                  <div className="space-y-1 bg-white p-3.5 border rounded-xl animate-in slide-in-from-top-2 duration-150">
+                  <div className="space-y-1 bg-white p-3 border rounded-xl animate-in slide-in-from-top-2 duration-150 shadow-3xs">
                     <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-600">
                       🎯 TARGET CORRECT RESPONSE VALUE (CASE-INSENSITIVE MATCH):
                     </label>
@@ -9414,9 +9780,9 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       value={qCorrectAnswerText}
                       onChange={(e) => setQCorrectAnswerText(e.target.value)}
                       placeholder="e.g. Rs. 11,500"
-                      className="bg-slate-50 border border-slate-205 rounded-xl py-2 px-3 text-xs font-bold text-slate-850 outline-none w-full tracking-wide focus:border-emerald-500"
+                      className="bg-slate-50 border border-slate-205 rounded-xl py-1.5 px-3 text-xs font-bold text-slate-800 outline-none w-full tracking-wide focus:border-emerald-500 shadow-3xs"
                     />
-                    <p className="text-[9px] text-slate-450 leading-normal italic pt-1 pl-0.5">
+                    <p className="text-[9px] text-slate-400 leading-normal italic pt-1 pl-0.5">
                       Match condition clears spaces and signs automatically to avoid false negatives. (e.g., matching "debit" or "Rs. 11,500")
                     </p>
                   </div>
@@ -9432,30 +9798,15 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                     onChange={(e) => setQExplanationText(e.target.value)}
                     placeholder="Write educational explanation text shown on completion..."
                     rows={2}
-                    className="bg-white border border-slate-205 rounded-xl py-2 px-3 text-xs text-slate-850 outline-none w-full font-semibold focus:border-blue-500 leading-relaxed resize-none font-sans"
+                    className="bg-white border border-slate-200 rounded-xl py-1.5 px-3 text-xs text-slate-800 outline-none w-full font-semibold focus:border-blue-500 leading-relaxed resize-none font-sans shadow-3xs"
                   ></textarea>
                 </div>
 
-                {/* Question Active Status Switch */}
-                <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
-                  <div>
-                    <p className="text-[11px] font-extrabold text-slate-850 leading-tight">Activate Question</p>
-                    <p className="text-[9px] text-[#9ca3af]">If toggled off, this question is skipped from live exams.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setQIsActive(!qIsActive)}
-                    className={`w-11 h-6 rounded-full transition-all duration-200 relative outline-none cursor-pointer shrink-0 shadow-inner ${qIsActive ? 'bg-[#16a34a]' : 'bg-slate-300'}`}
-                  >
-                    <span className={`w-4 h-4 rounded-full bg-white absolute top-1 left-1 transition-all duration-200 shadow-sm ${qIsActive ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                  </button>
-                </div>
-
                 {/* Submit Actions */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-1">
                   <button
                     type="submit"
-                    className="flex-grow py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition active:scale-95 shadow-md shadow-emerald-950/5 cursor-pointer text-center font-sans font-extrabold"
+                    className="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition active:scale-95 shadow-md shadow-emerald-950/5 cursor-pointer text-center font-sans font-extrabold"
                   >
                     {editingQuestionId ? 'Update Question Info' : 'Save Question Definition'}
                   </button>
@@ -9472,7 +9823,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                         setQExplanationText('');
                         setQIsActive(true);
                       }}
-                      className="p-3 bg-slate-205 bg-slate-200 hover:bg-slate-350 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition active:scale-95 cursor-pointer"
+                      className="p-2.5 bg-slate-200 hover:bg-slate-305 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition active:scale-95 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -9483,28 +9834,33 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
             </div>
 
             {/* Question list (Right 7 Columns) */}
-            <div className="lg:col-span-12 xl:col-span-7 space-y-4 text-left">
-              <div className="bg-slate-50 border p-1.5 px-3 rounded-xl space-y-1.5 shadow-xs text-[11px]">
-                <div className="flex items-center justify-between border-b border-slate-205 pb-1 text-[11px]">
-                  <span className="font-extrabold text-slate-705">Database Repository Questions Desk:</span>
-                  <span className="font-mono text-[11px] text-slate-500 font-bold">({questionsBank.length} items)</span>
+            <div className="lg:col-span-7 space-y-4 text-left">
+              <div className="bg-gradient-to-br from-slate-50 via-white to-white border border-slate-200 p-4 rounded-2xl space-y-3 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🗄️</span>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">Database Repository Questions Desk</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">({questionsBank.length} total active questions)</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 text-[11px] font-sans">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Search Input */}
-                  <div className="relative flex-1">
+                  <div className="relative">
                     <input
                       type="text"
                       value={questionSearchQuery}
                       onChange={(e) => setQuestionSearchQuery(e.target.value)}
-                      placeholder="Search question..."
-                      className="bg-white border border-slate-300 rounded-lg py-0.5 px-1.5 pl-5 w-full text-[11px] text-slate-805 outline-none font-medium text-slate-900"
+                      placeholder="Search question prompt or topic..."
+                      className="bg-slate-50/50 border border-slate-200 rounded-xl py-1.5 px-3 pl-8 w-full text-xs text-slate-805 outline-none font-medium placeholder-slate-400 focus:bg-white focus:border-indigo-500 transition-all duration-150"
                     />
-                    <span className="absolute left-1.5 top-0.5 text-slate-400 text-[10px]">🔍</span>
+                    <span className="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
                     {questionSearchQuery && (
                       <button
                         onClick={() => setQuestionSearchQuery('')}
-                        className="absolute right-1.5 top-0.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold"
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
                       >
                         ✕
                       </button>
@@ -9512,11 +9868,11 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
 
                   {/* Chapter Filter */}
-                  <div className="flex-1">
+                  <div>
                     <select
                       value={questionChapterFilter}
                       onChange={(e) => setQuestionChapterFilter(e.target.value)}
-                      className="bg-white border border-slate-300 rounded-lg py-0.5 px-1.5 text-[11px] text-slate-800 outline-none w-full font-semibold cursor-pointer"
+                      className="bg-slate-50/50 border border-slate-200 rounded-xl py-1.5 px-3 text-xs text-slate-800 outline-none w-full font-semibold cursor-pointer focus:bg-white focus:border-indigo-500 transition-all duration-150"
                     >
                       <option value="all">📁 All Mapped Chapters</option>
                       {chapters.map(c => (
@@ -9542,7 +9898,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                 });
 
                 return (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2 py-1">
                       <div className="text-[10.5px] text-slate-500 font-bold font-mono uppercase tracking-wider">
                         Showing {Math.min(recruitmentQuestionsLimit, filteredQuestions.length)} of {filteredQuestions.length} Questions
@@ -9563,7 +9919,7 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       </div>
                     </div>
 
-                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                    <div className="space-y-4 max-h-[680px] sm:max-h-[720px] lg:max-h-[780px] xl:max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar">
                       {filteredQuestions.length === 0 ? (
                         <div className="text-center py-16 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 font-sans">
                           <p className="text-xs font-bold text-slate-700 text-center">No matching questions found</p>
@@ -9574,6 +9930,12 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                       ) : (
                         filteredQuestions.slice(0, recruitmentQuestionsLimit).map((q, qIdx) => {
                           const associatedChap = chapters.find(c => c.id === q.chapterId);
+                          const resolvedChapterName = associatedChap 
+                            ? associatedChap.name 
+                            : q.chapterId 
+                              ? q.chapterId.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') 
+                              : 'General Module';
+
                           return (
                       <div key={q.id} className="p-5 bg-gradient-to-br from-white via-white to-indigo-50/15 border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-4 transition-all duration-200 group shadow-xs hover:shadow-md relative animate-in fade-in duration-150 text-left border-l-4 border-l-indigo-600">
                         
@@ -9602,8 +9964,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
 
                             <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
                               <span className="text-slate-400">Assigned Module:</span>
-                              <span className="font-bold text-slate-700">{associatedChap ? associatedChap.name : `Module not found`}</span>
-                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded font-mono">({q.chapterId})</span>
+                              <span className="font-bold text-slate-700">{resolvedChapterName}</span>
+                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono">({q.chapterId})</span>
                             </p>
                           </div>
 
@@ -9723,8 +10085,8 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
                 );
               })()}
-              </div>
             </div>
+          </div>
         )}
 
         {/* SUBTAB 3: EXAM GLOBAL GATING */}
@@ -11590,6 +11952,162 @@ Accounts Executive (AP/AR)\tAccounts Payable Workflow\tAP-201\tMatch vendor purc
                   </div>
                 </div>
               </div>
+              )}
+
+              {certSubTab === 'database' && (
+                <div id="database-storage-audit-panel" className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl space-y-4 text-slate-900 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                    <div>
+                      <h4 className="text-[12px] font-mono uppercase tracking-wider text-indigo-700 font-extrabold flex items-center gap-2">
+                        <span className="p-1.5 rounded bg-indigo-50 text-indigo-700">🛢️</span>
+                        Firebase & LocalStorage Database Audit
+                      </h4>
+                      <p className="text-[10.5px] text-slate-500 mt-1">
+                        Inspect total data storage sizes, table counts, and download full backups of your synced compliance databases.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] font-bold rounded-full ${
+                        isFirebasePlaceholder
+                          ? 'bg-amber-150 text-amber-800 border border-amber-300'
+                          : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${isFirebasePlaceholder ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}`} />
+                        {isFirebasePlaceholder ? 'Sandbox/Offline Mode' : 'Firebase Realtime Connected'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Highlights Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3.5 shadow-3xs">
+                      <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                        <Layers className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <span className="text-[9.5px] uppercase font-mono font-black text-slate-400 tracking-wider block">Total Database Size</span>
+                        <h5 className="text-lg font-black text-slate-850 leading-tight">{getDatabaseStorageSize().formatted}</h5>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3.5 shadow-3xs">
+                      <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                        <Database className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[9.5px] uppercase font-mono font-black text-slate-400 tracking-wider block">Active Synced Collections</span>
+                        <h5 className="text-lg font-black text-slate-850 leading-tight">
+                          {getDatabaseStorageSize().breakdown.filter(b => b.sizeBytes > 0).length} / {getDatabaseStorageSize().breakdown.length} Tables
+                        </h5>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3.5 shadow-3xs">
+                      <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-lg flex items-center justify-center text-purple-600 shrink-0">
+                        <Server className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[9.5px] uppercase font-mono font-black text-slate-400 tracking-wider block">Est. Cloud Overhead</span>
+                        <h5 className="text-lg font-black text-slate-855 leading-tight">
+                          {isFirebasePlaceholder ? '0.00 KB' : 'Negligible (Optimized)'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detailed Table Breakdown */}
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-3xs">
+                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-black uppercase text-slate-500 tracking-wider">Synced Collection / Table Breakdown</span>
+                      <span className="text-[10px] bg-indigo-50 text-indigo-750 font-mono font-bold px-2 py-0.5 rounded border border-indigo-100">Live Telemetry</span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100 overflow-y-auto max-h-[300px] custom-scrollbar">
+                      {getDatabaseStorageSize().breakdown.map((item) => {
+                        const hasData = item.sizeBytes > 0;
+                        return (
+                          <div key={item.key} className="px-4 py-2.5 flex items-center justify-between gap-4 text-xs hover:bg-slate-50/50 transition">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${hasData ? 'bg-indigo-500 animate-pulse' : 'bg-slate-300'}`} />
+                              <div>
+                                <span className="font-bold text-slate-805 block leading-tight">{item.label}</span>
+                                <span className="text-[9.5px] font-mono text-slate-400">storage_key: {item.key.toLowerCase()}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`font-mono font-black ${hasData ? 'text-slate-750' : 'text-slate-300'}`}>{item.formatted}</span>
+                              <span className="text-[9px] text-slate-400 block font-mono">{item.sizeBytes.toLocaleString()} Bytes</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Download Backup & Maintenance Utility */}
+                  <div className="bg-slate-100/55 border border-slate-200/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-left">
+                      <h5 className="text-xs font-black text-slate-805 flex items-center gap-1.5">
+                        <span>📥</span> Export Full Database Backup (JSON)
+                      </h5>
+                      <p className="text-[10.5px] text-slate-500 leading-normal max-w-xl">
+                        Instantly bundle and download all active configurations, designated job profiles, exam question pools, and progress logs as a portable JSON file for compliance archives or manual migration.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          const localKeys: Record<string, string> = {
+                            ROLES: 'lms_roles_v1',
+                            USERS: 'lms_users_v1',
+                            CHAPTERS: 'lms_chapters_v1',
+                            UNITS: 'lms_units_v1',
+                            PROGRESS: 'lms_progress_v1',
+                            DEPARTMENTS: 'lms_departments_v1',
+                            CERT_TEMPLATE: 'lms_cert_template_v1',
+                            COMPANY_BRANDING: 'lms_company_branding_v1',
+                            QUESTIONS: 'lms_questions_v1',
+                            EXAM_CONFIG: 'lms_exam_config_v1',
+                            NOTIFICATIONS: 'lms_notifications_v1',
+                            HELPLINE_CONTACTS: 'lms_helpline_contacts_v1',
+                            SMTP_CONFIG: 'lms_smtp_config_v1',
+                            HELP_TICKETS: 'lms_help_tickets_v1'
+                          };
+
+                          const backupData: Record<string, any> = {};
+                          Object.entries(localKeys).forEach(([key, storageKey]) => {
+                            const raw = localStorage.getItem(storageKey);
+                            if (raw) {
+                              try {
+                                backupData[key] = JSON.parse(raw);
+                              } catch {
+                                backupData[key] = raw;
+                              }
+                            }
+                          });
+
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+                          const downloadAnchor = document.createElement('a');
+                          downloadAnchor.setAttribute("href", dataStr);
+                          const date = new Date().toISOString().split('T')[0];
+                          downloadAnchor.setAttribute("download", `rathi-lms-database-backup-${date}.json`);
+                          document.body.appendChild(downloadAnchor);
+                          downloadAnchor.click();
+                          downloadAnchor.remove();
+                          showToast("✓ Database backup successfully compiled and downloaded!", "success");
+                        } catch (err) {
+                          console.error(err);
+                          showToast("❌ Failed to compile database backup.", "error");
+                        }
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-5 py-2.5 rounded-lg shadow-sm hover:shadow transition shrink-0 flex items-center gap-1.5"
+                    >
+                      <span>📥</span> Download JSON Backup
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 

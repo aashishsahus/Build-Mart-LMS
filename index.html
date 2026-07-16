@@ -6,7 +6,7 @@
     <title>Build Training Program Learning Platform Rathi's Build Mart</title>
     <script>
       (function() {
-        var suppressPattern = /script error/i;
+        var suppressPattern = /script error|websocket|closed without opened|failed to connect/i;
         
         function isSuppressibleError(message, source, lineno, colno, error) {
           var msg = String(message || '');
@@ -22,7 +22,7 @@
         var originalOnError = null;
         var customOnError = function(message, source, lineno, colno, error) {
           if (isSuppressibleError(message, source, lineno, colno, error)) {
-            console.warn('Interceded and suppressed cross-origin third-party/iframe Script error (onerror):', message);
+            console.warn('Interceded and suppressed benign cross-origin or websocket error:', message);
             return true;
           }
           if (typeof originalOnError === 'function') {
@@ -60,13 +60,35 @@
 
         window.addEventListener('unhandledrejection', function(event) {
           if (event.reason) {
-            var reasonStr = String(event.reason.message || event.reason);
+            var reasonStr = String(event.reason.message || event.reason || '');
             if (suppressPattern.test(reasonStr) || reasonStr.toLowerCase().indexOf('script error') !== -1) {
               event.preventDefault();
               event.stopImmediatePropagation();
             }
           }
         }, true);
+
+        // Monkey-patch window.WebSocket to gracefully catch and handle any HMR/Vite connection failures in the sandboxed preview
+        try {
+          var OriginalWS = window.WebSocket;
+          if (OriginalWS) {
+            window.WebSocket = function(url, protocols) {
+              var ws = new OriginalWS(url, protocols);
+              ws.addEventListener('error', function(e) {
+                // Suppress triggering unhandled errors on connection failures
+              });
+              return ws;
+            };
+            window.WebSocket.prototype = OriginalWS.prototype;
+            for (var prop in OriginalWS) {
+              if (Object.prototype.hasOwnProperty.call(OriginalWS, prop)) {
+                window.WebSocket[prop] = OriginalWS[prop];
+              }
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
       })();
     </script>
   </head>

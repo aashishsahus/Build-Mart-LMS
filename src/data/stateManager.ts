@@ -1313,3 +1313,77 @@ export function addHelpdeskTicket(
   return newTicket;
 }
 
+export function getDatabaseStorageSize(): {
+  sizeBytes: number;
+  formatted: string;
+  breakdown: { key: string; label: string; sizeBytes: number; formatted: string }[];
+} {
+  const localKeys: Record<string, string> = {
+    ROLES: 'lms_roles_v1',
+    USERS: 'lms_users_v1',
+    CHAPTERS: 'lms_chapters_v1',
+    UNITS: 'lms_units_v1',
+    PROGRESS: 'lms_progress_v1',
+    CURRENT_USER_ID: 'lms_current_user_id_v1',
+    DEPARTMENTS: 'lms_departments_v1',
+    CERT_TEMPLATE: 'lms_cert_template_v1',
+    COMPANY_BRANDING: 'lms_company_branding_v1',
+    QUESTIONS: 'lms_questions_v1',
+    EXAM_CONFIG: 'lms_exam_config_v1',
+    NOTIFICATIONS: 'lms_notifications_v1',
+    HELPLINE_CONTACTS: 'lms_helpline_contacts_v1',
+    SMTP_CONFIG: 'lms_smtp_config_v1',
+    HELP_TICKETS: 'lms_help_tickets_v1'
+  };
+
+  const labels: Record<string, string> = {
+    ROLES: 'Job Roles & Access Matrix',
+    USERS: 'Trainee User Directory',
+    CHAPTERS: 'SOP Curriculum Chapters',
+    UNITS: 'SOP Procedures & Checklists',
+    PROGRESS: 'Trainee Compliance Progress Logs',
+    CURRENT_USER_ID: 'Active Session Credentials',
+    DEPARTMENTS: 'Division Departments Grid',
+    CERT_TEMPLATE: 'Mastery Certificate Template',
+    COMPANY_BRANDING: 'Portal Custom Branding Settings',
+    QUESTIONS: 'Exam Gating Question Pool',
+    EXAM_CONFIG: 'Exam Gating Passing Thresholds',
+    NOTIFICATIONS: 'Global Broadcast Announcements',
+    HELPLINE_CONTACTS: 'Compliance Directory Contacts',
+    SMTP_CONFIG: 'SMTP Outbound Credentials',
+    HELP_TICKETS: 'Helpdesk Tickets & Incidents'
+  };
+
+  let totalBytes = 0;
+  const breakdown: { key: string; label: string; sizeBytes: number; formatted: string }[] = [];
+
+  Object.entries(localKeys).forEach(([key, storageKey]) => {
+    const rawData = localStorage.getItem(storageKey) || '';
+    const bytes = rawData ? rawData.length : 0;
+    totalBytes += bytes;
+    breakdown.push({
+      key,
+      label: labels[key] || storageKey,
+      sizeBytes: bytes,
+      formatted: formatBytes(bytes)
+    });
+  });
+
+  return {
+    sizeBytes: totalBytes,
+    formatted: formatBytes(totalBytes),
+    breakdown
+  };
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0.00 KB';
+  const k = 1024;
+  const dm = 2;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  if (i === 0) return `${bytes} Bytes`;
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+

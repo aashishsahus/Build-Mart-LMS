@@ -35,7 +35,8 @@ import {
   addGlobalNotification,
   updateUserActivity,
   addHelpdeskTicket,
-  getHelpdeskTickets
+  getHelpdeskTickets,
+  getDatabaseStorageSize
 } from './data/stateManager';
 import Header from './components/Header';
 import LoginScreen from './components/LoginScreen';
@@ -77,6 +78,9 @@ function checkIsAdminUser(role?: string, dept?: string, user?: User): boolean {
 }
 
 export default function App() {
+  // Calculate Database & Ledger footprint sizes
+  const storageStats = getDatabaseStorageSize();
+
   // Application Data States
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -599,6 +603,11 @@ export default function App() {
                   <span>Cloud DB: {isFirebasePlaceholder ? 'Local Sandbox' : 'Firebase Active'}</span>
                 </span>
 
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100/80 text-slate-700 rounded-md border border-slate-200" title="Payload size of all synced tables & datasets">
+                  <Layers className="w-3 h-3 text-slate-500" />
+                  <span>Ledger Size: <span className="font-black text-indigo-700">{storageStats.formatted}</span></span>
+                </span>
+
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50/70 text-emerald-700 rounded-md border border-emerald-200/50">
                   <Server className="w-3 h-3 text-emerald-500" />
                   <span>SLA: 99.99% Operational</span>
@@ -606,7 +615,7 @@ export default function App() {
                 
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50/70 text-slate-500 rounded-md border border-slate-200/50">
                   <Activity className="w-3 h-3 text-slate-400" />
-                  <span>UTC: 2026-06-25</span>
+                  <span>UTC: {new Date().toISOString().split('T')[0]}</span>
                 </span>
               </div>
             </div>
