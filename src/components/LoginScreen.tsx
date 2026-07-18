@@ -669,20 +669,6 @@ export default function LoginScreen({
               <div className="text-center pb-2">
                 <h3 className="text-sm font-bold text-slate-800 font-display">Authenticate Organization Identity</h3>
                 <p className="text-[11px] text-slate-500 mt-1">Please sign in with Google or enter your password credentials</p>
-                <div className="mt-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSmtpConfigState(getSmtpConfig());
-                      setSmtpSuccessMsg('');
-                      setSmtpErrorMsg('');
-                      setShowSmtpSetup(true);
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-100/50 text-[10px] font-bold transition cursor-pointer"
-                  >
-                    ⚙️ Set up SMTP for Real Email (No Simulator)
-                  </button>
-                </div>
               </div>
 
               {/* GOOGLE SIGN IN BUTTON */}
